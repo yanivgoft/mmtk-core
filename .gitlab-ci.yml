@@ -1,8 +1,0 @@
-stages:
-  - test
-  
-test:
-  stage: test
-  script:
-    - ./build.py
-    - cargo +nightly test
