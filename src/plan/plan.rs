@@ -94,7 +94,7 @@ pub trait Plan {
     }
 
     fn log_poll<PR: PageResource>(&self, space: &'static PR::Space, message: &'static str) {
-        if OptionMap.verbose >= 5 {
+        if OPTION_MAP.verbose >= 5 {
             println!("  [POLL] {}: {}", space.get_name(), message);
         }
     }
