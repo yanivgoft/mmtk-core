@@ -5,7 +5,7 @@ use ::util::heap::MonotonePageResource;
 use ::util::heap::VMRequest;
 use ::util::constants::CARD_META_PAGES_PER_REGION;
 
-use ::policy::space::{Space, CommonSpace};
+use ::policy::space::{Space, AbstractSpace, CommonSpace};
 use ::util::{Address, ObjectReference};
 use ::plan::TransitiveClosure;
 use ::util::forwarding_word as ForwardingWord;
@@ -23,21 +23,22 @@ pub struct CopySpace {
     from_space: bool,
 }
 
-impl Space for CopySpace {
+impl AbstractSpace for CopySpace {
     type PR = MonotonePageResource<CopySpace>;
+    type This = Self;
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
-        unsafe {&*self.common.get()}
+    fn common(this: &Self) -> &CommonSpace<Self::PR> {
+        unsafe {&*this.common.get()}
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
-        &mut *self.common.get()
+    unsafe fn unsafe_common_mut(this: &Self) -> &mut CommonSpace<Self::PR> {
+        &mut *this.common.get()
     }
 
-    fn init(&mut self) {
+    fn init(this: &mut Self) {
         // Borrow-checker fighting so that we can have a cyclic reference
-        let me = unsafe { &*(self as *const Self) };
+        let me = unsafe { &*(this as *const Self) };
 
-        let common_mut = self.common_mut();
+        let common_mut = this.common_mut();
         if common_mut.vmrequest.is_discontiguous() {
             common_mut.pr = Some(MonotonePageResource::new_discontiguous(
                 META_DATA_PAGES_PER_REGION));
@@ -49,6 +50,7 @@ impl Space for CopySpace {
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 }
+impl Space for CopySpace { }
 
 impl CopySpace {
     pub fn new(name: &'static str, from_space: bool, zeroed: bool, vmrequest: VMRequest) -> Self {

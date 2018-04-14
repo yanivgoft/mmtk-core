@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use ::policy::space::{Space, CommonSpace};
+use ::policy::space::{Space, AbstractSpace, CommonSpace};
 use ::util::heap::{PageResource, MonotonePageResource, VMRequest};
 use ::util::address::Address;
 
@@ -24,21 +24,22 @@ unsafe impl Sync for ImmortalSpace {}
 const GC_MARK_BIT_MASK: i8 = 1;
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
-impl Space for ImmortalSpace {
+impl AbstractSpace for ImmortalSpace {
     type PR = MonotonePageResource<ImmortalSpace>;
+    type This = Self;
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
-        unsafe {&*self.common.get()}
+    fn common(this: &Self) -> &CommonSpace<Self::PR> {
+        unsafe {&*this.common.get()}
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
-        &mut *self.common.get()
+    unsafe fn unsafe_common_mut(this: &Self) -> &mut CommonSpace<Self::PR> {
+        &mut *this.common.get()
     }
 
-    fn init(&mut self) {
+    fn init(this: &mut Self) {
         // Borrow-checker fighting so that we can have a cyclic reference
-        let me = unsafe { &*(self as *const Self) };
+        let me = unsafe { &*(this as *const Self) };
 
-        let common_mut = self.common_mut();
+        let common_mut = this.common_mut();
         if common_mut.vmrequest.is_discontiguous() {
             common_mut.pr = Some(MonotonePageResource::new_discontiguous(
                 META_DATA_PAGES_PER_REGION));
@@ -50,6 +51,7 @@ impl Space for ImmortalSpace {
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 }
+impl Space for ImmortalSpace { }
 
 impl ImmortalSpace {
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest) -> Self {

@@ -18,18 +18,20 @@ use std::marker::PhantomData;
 use std::fmt::Debug;
 use std::mem::transmute;
 
-pub trait Space: Sized + Debug + 'static {
-    type PR: PageResource<Space = Self>;
+// A space that may be part of the hierarchy of another space
+pub trait AbstractSpace: Sized + Debug + 'static {
+    type PR: PageResource<Space = Self::This>;
+    type This: Space<PR = Self::PR, This = Self::This>; // underlying type
 
-    fn init(&mut self);
+    fn init(this: &mut Self::This);
 
-    fn in_space(&self, object: ObjectReference) -> bool {
-        object.value() >= self.common().start.as_usize()
-            && object.value() < self.common().start.as_usize() + self.common().extent
+    fn in_space(this: &Self::This, object: ObjectReference) -> bool {
+        object.value() >= this.common().start.as_usize()
+            && object.value() < this.common().start.as_usize() + this.common().extent
     }
 
     // UNSAFE: potential data race as this mutates 'common'
-    unsafe fn grow_discontiguous_space(&self, chunks: usize) -> Address {
+    unsafe fn grow_discontiguous_space(this: &Self::This, chunks: usize) -> Address {
         // FIXME
         let new_head: Address = unimplemented!(); /*HeapLayout.vmMap. allocate_contiguous_chunks(self.common().descriptor,
                                                                         self, chunks,
@@ -38,23 +40,23 @@ pub trait Space: Sized + Debug + 'static {
             return unsafe{Address::zero()};
         }
 
-        self.unsafe_common_mut().head_discontiguous_region = new_head;
+        this.unsafe_common_mut().head_discontiguous_region = new_head;
         new_head
     }
 
-    fn acquire(&self, thread_id: usize, pages: usize) -> Address {
+    fn acquire(this: &Self::This, thread_id: usize, pages: usize) -> Address {
         trace!("Space.acquire, thread_id={}", thread_id);
         // debug_assert!(thread_id != 0);
         let allow_poll = unsafe { VMActivePlan::is_mutator(thread_id) }
             && PLAN.is_initialized();
 
         trace!("Reserving pages");
-        let pr = self.common().pr.as_ref().unwrap();
+        let pr = this.common().pr.as_ref().unwrap();
         let pages_reserved = pr.reserve_pages(pages);
         trace!("Pages reserved");
 
         // FIXME: Possibly unnecessary borrow-checker fighting
-        let me = unsafe { &*(self as *const Self) };
+        let me = unsafe { &*(this as *const Self::This) };
 
         trace!("Polling ..");
 
@@ -65,7 +67,7 @@ pub trait Space: Sized + Debug + 'static {
             unsafe { Address::zero() }
         } else {
             trace!("Collection not required");
-            let rtn = pr.get_new_pages(pages_reserved, pages, self.common().zeroed, thread_id);
+            let rtn = pr.get_new_pages(pages_reserved, pages, this.common().zeroed, thread_id);
             if rtn.is_zero() {
                 if !allow_poll {
                     panic!("Physical allocation failed when polling not allowed!");
@@ -90,27 +92,63 @@ pub trait Space: Sized + Debug + 'static {
      * @param bytes The size of the newly allocated space
      * @param new_chunk {@code true} if the new space encroached upon or started a new chunk or chunks.
      */
-    fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {}
+    fn grow_space(this: &Self::This, start: Address, bytes: usize, new_chunk: bool) {}
 
-    fn reserved_pages(&self) -> usize {
-        self.common().pr.as_ref().unwrap().reserved_pages()
+    fn reserved_pages(this: &Self::This) -> usize {
+        this.common().pr.as_ref().unwrap().reserved_pages()
     }
 
-    fn get_name(&self) -> &'static str {
-        self.common().name
+    fn get_name(this: &Self::This) -> &'static str {
+        this.common().name
     }
 
-    fn common(&self) -> &CommonSpace<Self::PR>;
-    fn common_mut(&mut self) -> &mut CommonSpace<Self::PR> {
+    fn common(this: &Self::This) -> &CommonSpace<Self::PR>;
+    fn common_mut(this: &mut Self::This) -> &mut CommonSpace<Self::PR> {
         // SAFE: Reference is exclusive
-        unsafe {self.unsafe_common_mut()}
+        unsafe {this.unsafe_common_mut()}
     }
 
     // UNSAFE: This get's a mutable reference from self
     // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR>;
+    unsafe fn unsafe_common_mut(this: &Self::This) -> &mut CommonSpace<Self::PR>;
 }
+pub trait Space: AbstractSpace<This = Self> {
+    fn init(&mut self) {
+        <Self::This as AbstractSpace>::init(self)
+    }
+    fn in_space(&self, object: ObjectReference) -> bool {
+        <Self::This as AbstractSpace>::in_space(self, object)
+    }
+    unsafe fn grow_discontiguous_space(&self, chunks: usize) -> Address {
+        <Self::This as AbstractSpace>::grow_discontiguous_space(self, chunks)
+    }
 
+    fn acquire(&self, thread_id: usize, pages: usize) -> Address {
+        <Self::This as AbstractSpace>::acquire(self, thread_id, pages)
+    }
+    fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {
+        <Self::This as AbstractSpace>::grow_space(self, start, bytes, new_chunk)
+    }
+
+    fn reserved_pages(&self) -> usize {
+        <Self::This as AbstractSpace>::reserved_pages(self)
+    }
+
+    fn get_name(&self) -> &'static str {
+        <Self::This as AbstractSpace>::get_name(self)
+
+    }
+
+    fn common(&self) -> &CommonSpace<Self::PR> {
+        <Self::This as AbstractSpace>::common(self)
+    }
+    fn common_mut(&mut self) -> &mut CommonSpace<Self::PR> {
+        <Self::This as AbstractSpace>::common_mut(self)
+    }
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+        <Self::This as AbstractSpace>::unsafe_common_mut(self)
+    }
+}
 #[derive(Debug)]
 pub struct CommonSpace<PR: PageResource> {
     pub name: &'static str,
