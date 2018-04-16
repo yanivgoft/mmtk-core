@@ -1,6 +1,6 @@
 use ::util::address::Address;
 
-use ::policy::space::Space;
+use ::policy::space::*;
 
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;

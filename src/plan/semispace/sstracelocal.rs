@@ -1,7 +1,7 @@
 use ::plan::{TransitiveClosure, TraceLocal};
 use ::plan::trace::Trace;
 use ::util::{Address, ObjectReference};
-use ::policy::space::Space;
+use ::policy::space::*;
 use ::vm::VMScanning;
 use ::vm::Scanning;
 use std::sync::mpsc::Sender;

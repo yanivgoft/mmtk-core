@@ -1,4 +1,4 @@
-use ::policy::space::Space;
+use ::policy::space::*;
 use ::policy::immortalspace::ImmortalSpace;
 use ::plan::controller_collector_context::ControllerCollectorContext;
 use ::plan::{Plan, Phase};

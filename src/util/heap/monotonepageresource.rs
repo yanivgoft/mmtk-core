@@ -5,7 +5,7 @@ use std::marker::PhantomData;
 
 use ::util::address::Address;
 use ::util::conversions::*;
-use ::policy::space::Space;
+use ::policy::space::*;
 use ::policy::space::required_chunks;
 use super::vmrequest::HEAP_LAYOUT_64BIT;
 use super::layout::vm_layout_constants::BYTES_IN_CHUNK;
@@ -13,6 +13,7 @@ use super::layout::vm_layout_constants::BYTES_IN_CHUNK;
 use ::util::heap::pageresource::CommonPageResource;
 use ::util::heap::layout::vm_layout_constants::LOG_BYTES_IN_CHUNK;
 use ::util::alloc::embedded_meta_data::*;
+use ::util::class::*;
 
 use super::layout::Mmapper;
 use super::layout::heap_layout::MMAPPER;
@@ -23,9 +24,8 @@ use std::sync::atomic::Ordering;
 const SPACE_ALIGN: usize = 1 << 19;
 
 #[derive(Debug)]
-#[repr(C)]
 pub struct MonotonePageResource<S: Space<PR = MonotonePageResource<S>>> {
-    common: CommonPageResource<MonotonePageResource<S>>,
+    common: CommonPageResource<S>,
 
     /** Number of pages to reserve at the start of every allocation */
     meta_data_pages_per_region: usize,
@@ -54,15 +54,8 @@ pub enum MonotonePageResourceConditional {
     },
     Discontiguous,
 }
-unsafe impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResource<S> {
+impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResource<S> {
     type Space = S;
-
-    fn common(&self) -> &CommonPageResource<Self> {
-        &self.common
-    }
-    fn common_mut(&mut self) -> &mut CommonPageResource<Self> {
-        &mut self.common
-    }
 
     fn alloc_pages(&self, reserved_pages: usize, immut_required_pages: usize, zeroed: bool,
                    thread_id: usize) -> Address {
@@ -155,6 +148,12 @@ unsafe impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePag
         pages + ((pages + PAGES_IN_REGION - 1) >> LOG_PAGES_IN_REGION)
             * self.meta_data_pages_per_region
     }
+}
+impl<S: Space<PR = MonotonePageResource<S>>> AbstractClass<CommonPageResource<S>>
+        for MonotonePageResource<S> {
+    type This = Self;
+    fn common(this: &Self::This) -> &CommonPageResource<S> { &this.common }
+    fn common_mut(this: &mut Self::This) -> &mut CommonPageResource<S>  { &mut this.common }
 }
 
 impl<S: Space<PR = MonotonePageResource<S>>> MonotonePageResource<S> {

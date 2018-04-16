@@ -4,6 +4,7 @@ pub mod macros;
 pub mod conversions;
 pub mod alloc;
 pub mod heap;
+pub mod class;
 pub mod options;
 pub mod address;
 pub mod forwarding_word;

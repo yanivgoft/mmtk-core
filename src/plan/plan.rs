@@ -3,7 +3,7 @@ use ::util::ObjectReference;
 use super::{MutatorContext, CollectorContext, ParallelCollector, TraceLocal, phase, Phase};
 use std::sync::atomic::{self, AtomicUsize, AtomicBool, Ordering};
 
-use ::policy::space::Space;
+use ::policy::space::*;
 use ::util::heap::PageResource;
 use ::util::options::OPTION_MAP;
 

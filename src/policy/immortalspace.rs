@@ -1,6 +1,6 @@
 use std::sync::Mutex;
 
-use ::policy::space::{Space, AbstractSpace, CommonSpace};
+use ::policy::space::*;
 use ::util::heap::{PageResource, MonotonePageResource, VMRequest};
 use ::util::address::Address;
 
@@ -10,12 +10,14 @@ use ::util::constants::CARD_META_PAGES_PER_REGION;
 use ::vm::{ObjectModel, VMObjectModel};
 use ::plan::TransitiveClosure;
 use ::util::header_byte;
+use ::util::class::*;
 
 use std::cell::UnsafeCell;
 
+type Common = CommonSpace<MonotonePageResource<ImmortalSpace>>;
 #[derive(Debug)]
 pub struct ImmortalSpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<ImmortalSpace>>>,
+    common: UnsafeCell<Common>,
     mark_state: i8,
 }
 
@@ -26,14 +28,6 @@ const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
 impl AbstractSpace for ImmortalSpace {
     type PR = MonotonePageResource<ImmortalSpace>;
-    type This = Self;
-
-    fn common(this: &Self) -> &CommonSpace<Self::PR> {
-        unsafe {&*this.common.get()}
-    }
-    unsafe fn unsafe_common_mut(this: &Self) -> &mut CommonSpace<Self::PR> {
-        &mut *this.common.get()
-    }
 
     fn init(this: &mut Self) {
         // Borrow-checker fighting so that we can have a cyclic reference
@@ -51,11 +45,19 @@ impl AbstractSpace for ImmortalSpace {
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 }
+impl AbstractClass<Common> for ImmortalSpace {
+    type This = Self;
+    fn common(this: &Self::This) -> &Common { unsafe { &*this.common.get() } }
+    fn common_mut(this: &mut Self::This) -> &mut Common  { unsafe { &mut *this.common.get() } }
+}
+impl AbstractMutableClass<Common> for ImmortalSpace {
+    unsafe fn unsafe_common_mut(this: &Self::This) -> &mut Common  { &mut *this.common.get() }
+}
 
 impl ImmortalSpace {
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest) -> Self {
         ImmortalSpace {
-            common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest)),
+            common: UnsafeCell::new(Common::new(name, false, true, zeroed, vmrequest)),
             mark_state: 0,
         }
     }

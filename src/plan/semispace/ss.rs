@@ -1,4 +1,4 @@
-use ::policy::space::Space;
+use ::policy::space::*;
 
 use super::SSMutator;
 use super::SSTraceLocal;

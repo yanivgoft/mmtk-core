@@ -5,34 +5,28 @@ use ::util::heap::MonotonePageResource;
 use ::util::heap::VMRequest;
 use ::util::constants::CARD_META_PAGES_PER_REGION;
 
-use ::policy::space::{Space, AbstractSpace, CommonSpace};
+use ::policy::space::*;
 use ::util::{Address, ObjectReference};
 use ::plan::TransitiveClosure;
 use ::util::forwarding_word as ForwardingWord;
 use ::vm::ObjectModel;
 use ::vm::VMObjectModel;
 use ::plan::Allocator;
+use ::util::class::*;
 
 use std::cell::UnsafeCell;
 
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
+type Common = CommonSpace<MonotonePageResource<CopySpace>>;
 #[derive(Debug)]
 pub struct CopySpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<CopySpace>>>,
+    common: UnsafeCell<Common>,
     from_space: bool,
 }
 
 impl AbstractSpace for CopySpace {
     type PR = MonotonePageResource<CopySpace>;
-    type This = Self;
-
-    fn common(this: &Self) -> &CommonSpace<Self::PR> {
-        unsafe {&*this.common.get()}
-    }
-    unsafe fn unsafe_common_mut(this: &Self) -> &mut CommonSpace<Self::PR> {
-        &mut *this.common.get()
-    }
 
     fn init(this: &mut Self) {
         // Borrow-checker fighting so that we can have a cyclic reference
@@ -50,11 +44,19 @@ impl AbstractSpace for CopySpace {
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 }
+impl AbstractClass<Common> for CopySpace {
+    type This = Self;
+    fn common(this: &Self::This) -> &Common { unsafe { &*this.common.get() } }
+    fn common_mut(this: &mut Self::This) -> &mut Common  { unsafe { &mut *this.common.get() } }
+}
+impl AbstractMutableClass<Common> for CopySpace {
+    unsafe fn unsafe_common_mut(this: &Self::This) -> &mut Common  { &mut *this.common.get() }
+}
 
 impl CopySpace {
     pub fn new(name: &'static str, from_space: bool, zeroed: bool, vmrequest: VMRequest) -> Self {
         CopySpace {
-            common: UnsafeCell::new(CommonSpace::new(name, true, false, zeroed, vmrequest)),
+            common: UnsafeCell::new(Common::new(name, true, false, zeroed, vmrequest)),
             from_space,
         }
     }

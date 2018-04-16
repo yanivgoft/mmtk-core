@@ -6,7 +6,7 @@ use ::vm::{ActivePlan, VMActivePlan, Collection, VMCollection};
 use ::util::heap::{VMRequest, PageResource};
 use ::util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END, AVAILABLE_BYTES, LOG_BYTES_IN_CHUNK};
 use ::util::heap::layout::vm_layout_constants::{AVAILABLE_START, AVAILABLE_END};
-
+use ::util::class::*;
 use ::plan::Plan;
 use ::plan::selected_plan::PLAN;
 
@@ -19,9 +19,9 @@ use std::fmt::Debug;
 use std::mem::transmute;
 
 // A space that may be part of the hierarchy of another space
-pub trait AbstractSpace: Sized + Debug + 'static {
+pub trait AbstractSpace: AbstractMutableClass<CommonSpace<<Self as AbstractSpace>::PR>> + Debug
+        where Self::This: Space<PR = Self::PR> {
     type PR: PageResource<Space = Self::This>;
-    type This: Space<PR = Self::PR>; // underlying type
 
     fn init(this: &mut Self::This);
 
@@ -30,7 +30,7 @@ pub trait AbstractSpace: Sized + Debug + 'static {
             && object.value() < this.common().start.as_usize() + this.common().extent
     }
 
-    // UNSAFE: potential data race as this mutates 'common'
+    // UNSAFE: potential data race as this mutates 'this.common()'
     unsafe fn grow_discontiguous_space(this: &Self::This, chunks: usize) -> Address {
         // FIXME
         let new_head: Address = unimplemented!(); /*HeapLayout.vmMap. allocate_contiguous_chunks(self.common().descriptor,
@@ -101,18 +101,11 @@ pub trait AbstractSpace: Sized + Debug + 'static {
     fn get_name(this: &Self::This) -> &'static str {
         this.common().name
     }
-
-    fn common(this: &Self::This) -> &CommonSpace<Self::PR>;
-    fn common_mut(this: &mut Self::This) -> &mut CommonSpace<Self::PR> {
-        // SAFE: Reference is exclusive
-        unsafe {this.unsafe_common_mut()}
-    }
-
-    // UNSAFE: This get's a mutable reference from self
-    // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(this: &Self::This) -> &mut CommonSpace<Self::PR>;
 }
-pub trait Space: AbstractSpace<This = Self> {
+
+pub trait Space: AbstractSpace<This = Self>
+        + CompleteMutableClass<CommonSpace<<Self as AbstractSpace>::PR>> {
+
     fn init(&mut self) {
         <Self::This as AbstractSpace>::init(self)
     }
@@ -138,18 +131,9 @@ pub trait Space: AbstractSpace<This = Self> {
         <Self::This as AbstractSpace>::get_name(self)
 
     }
-
-    fn common(&self) -> &CommonSpace<Self::PR> {
-        <Self::This as AbstractSpace>::common(self)
-    }
-    fn common_mut(&mut self) -> &mut CommonSpace<Self::PR> {
-        <Self::This as AbstractSpace>::common_mut(self)
-    }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
-        <Self::This as AbstractSpace>::unsafe_common_mut(self)
-    }
 }
-impl <T: AbstractSpace<This = Self>> Space for T { }
+impl <T: AbstractSpace<This = T>
+    + CompleteMutableClass<CommonSpace<<T as AbstractSpace>::PR>>> Space for T { }
 
 #[derive(Debug)]
 pub struct CommonSpace<PR: PageResource> {

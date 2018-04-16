@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 
 use libc::{memset, c_void};
 
-use ::policy::space::Space;
+use ::policy::space::*;
 use util::conversions::bytes_to_pages;
 
 const BYTES_IN_PAGE: usize = 1 << 12;
@@ -71,6 +71,7 @@ impl<PR: PageResource> Allocator<PR> for BumpAllocator<PR> {
     fn alloc_slow_once(&mut self, size: usize, align: usize, offset: isize) -> Address {
         trace!("alloc_slow");
         let block_size = (size + BLOCK_MASK) & (!BLOCK_MASK);
+
         let acquired_start: Address = self.space.unwrap().acquire(self.thread_id,
                                                                   bytes_to_pages(block_size));
         if acquired_start.is_zero() {
