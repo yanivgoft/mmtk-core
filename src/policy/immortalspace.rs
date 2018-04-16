@@ -51,7 +51,6 @@ impl AbstractSpace for ImmortalSpace {
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 }
-impl Space for ImmortalSpace { }
 
 impl ImmortalSpace {
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest) -> Self {

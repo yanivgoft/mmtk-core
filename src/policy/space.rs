@@ -21,7 +21,7 @@ use std::mem::transmute;
 // A space that may be part of the hierarchy of another space
 pub trait AbstractSpace: Sized + Debug + 'static {
     type PR: PageResource<Space = Self::This>;
-    type This: Space<PR = Self::PR, This = Self::This>; // underlying type
+    type This: Space<PR = Self::PR>; // underlying type
 
     fn init(this: &mut Self::This);
 
@@ -149,6 +149,8 @@ pub trait Space: AbstractSpace<This = Self> {
         <Self::This as AbstractSpace>::unsafe_common_mut(self)
     }
 }
+impl <T: AbstractSpace<This = Self>> Space for T { }
+
 #[derive(Debug)]
 pub struct CommonSpace<PR: PageResource> {
     pub name: &'static str,

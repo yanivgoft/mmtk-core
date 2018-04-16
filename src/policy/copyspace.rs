@@ -50,7 +50,6 @@ impl AbstractSpace for CopySpace {
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 }
-impl Space for CopySpace { }
 
 impl CopySpace {
     pub fn new(name: &'static str, from_space: bool, zeroed: bool, vmrequest: VMRequest) -> Self {
