@@ -11,12 +11,8 @@ use std::fmt::Debug;
 
 static CUMULATIVE_COMMITTED: AtomicUsize = AtomicUsize::new(0);
 
-pub trait PageResource: Sized + 'static + Debug +
-        CompleteClass<CommonPageResource<<Self as PageResource>::Space>> {
-    // FIXME: For some reason, Rust will refuse to accept calls to methods on an &Self::Space
-    // without the 'CompleteMutableClass<CommonSpace<Self>>', despite
-    // the 'CompleteMutableClass<CommonSpace<<Self as AbstractSpace>::PR>>' bound on Space
-    type Space: Space<PR = Self, This = Self::Space> + CompleteMutableClass<CommonSpace<Self>>;
+pub trait PageResource: Sized + 'static + Debug + DerivedClass<CommonPageResource<Self>> {
+    type Space: CompleteSpace<PR = Self, This = Self::Space>;
 
     /// Allocate pages from this resource.
     /// Simply bump the cursor, and fail if we hit the sentinel.
@@ -102,11 +98,11 @@ pub fn cumulative_committed_pages() -> usize {
 }
 
 #[derive(Debug)]
-pub struct CommonPageResource<S: Space> {
+pub struct CommonPageResource<This: PageResource> {
     pub reserved: AtomicUsize,
     pub committed: AtomicUsize,
 
     pub contiguous: bool,
     pub growable: bool,
-    pub space: Option<&'static S>,
+    pub space: Option<&'static This::Space>,
 }

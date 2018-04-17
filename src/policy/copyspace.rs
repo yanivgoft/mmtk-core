@@ -18,17 +18,17 @@ use std::cell::UnsafeCell;
 
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
-type Common = CommonSpace<MonotonePageResource<CopySpace>>;
 #[derive(Debug)]
 pub struct CopySpace {
-    common: UnsafeCell<Common>,
+    common: UnsafeCell<CommonSpace<CopySpace>>,
     from_space: bool,
 }
 
-impl AbstractSpace for CopySpace {
+impl PageResourced for CopySpace {
     type PR = MonotonePageResource<CopySpace>;
-
-    fn init(this: &mut Self) {
+}
+impl AbstractSpace for CopySpace {
+    fn init(this: &mut Self::This) {
         // Borrow-checker fighting so that we can have a cyclic reference
         let me = unsafe { &*(this as *const Self) };
 
@@ -44,19 +44,19 @@ impl AbstractSpace for CopySpace {
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 }
-impl AbstractClass<Common> for CopySpace {
-    type This = Self;
-    fn common(this: &Self::This) -> &Common { unsafe { &*this.common.get() } }
-    fn common_mut(this: &mut Self::This) -> &mut Common  { unsafe { &mut *this.common.get() } }
+impl CompleteSpace for CopySpace { }
+impl DerivedClass<CommonSpace<CopySpace>> for CopySpace {
+    fn common_impl(&self) -> &CommonSpace<CopySpace> { unsafe { &*self.common.get() } }
+    fn common_mut_impl(&mut self) -> &mut CommonSpace<CopySpace>  { unsafe { &mut *self.common.get() } }
 }
-impl AbstractMutableClass<Common> for CopySpace {
-    unsafe fn unsafe_common_mut(this: &Self::This) -> &mut Common  { &mut *this.common.get() }
+impl MutableDerivedClass<CommonSpace<CopySpace>> for CopySpace {
+    unsafe fn unsafe_common_mut_impl(&self) -> &mut CommonSpace<CopySpace>  { &mut *self.common.get() }
 }
 
 impl CopySpace {
     pub fn new(name: &'static str, from_space: bool, zeroed: bool, vmrequest: VMRequest) -> Self {
         CopySpace {
-            common: UnsafeCell::new(Common::new(name, true, false, zeroed, vmrequest)),
+            common: UnsafeCell::new(CommonSpace::new(name, true, false, zeroed, vmrequest)),
             from_space,
         }
     }

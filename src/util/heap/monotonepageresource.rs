@@ -24,8 +24,8 @@ use std::sync::atomic::Ordering;
 const SPACE_ALIGN: usize = 1 << 19;
 
 #[derive(Debug)]
-pub struct MonotonePageResource<S: Space<PR = MonotonePageResource<S>>> {
-    common: CommonPageResource<S>,
+pub struct MonotonePageResource<S: CompleteSpace<PR = MonotonePageResource<S>>> {
+    common: CommonPageResource<MonotonePageResource<S>>,
 
     /** Number of pages to reserve at the start of every allocation */
     meta_data_pages_per_region: usize,
@@ -54,7 +54,8 @@ pub enum MonotonePageResourceConditional {
     },
     Discontiguous,
 }
-impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResource<S> {
+
+impl<S: CompleteSpace<PR = MonotonePageResource<S>>> PageResource for MonotonePageResource<S> {
     type Space = S;
 
     fn alloc_pages(&self, reserved_pages: usize, immut_required_pages: usize, zeroed: bool,
@@ -149,14 +150,15 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
             * self.meta_data_pages_per_region
     }
 }
-impl<S: Space<PR = MonotonePageResource<S>>> AbstractClass<CommonPageResource<S>>
+
+impl<S: CompleteSpace<PR = MonotonePageResource<S>>> CompleteClass for MonotonePageResource<S> { }
+impl<S: CompleteSpace<PR = MonotonePageResource<S>>> DerivedClass<CommonPageResource<Self>>
         for MonotonePageResource<S> {
-    type This = Self;
-    fn common(this: &Self::This) -> &CommonPageResource<S> { &this.common }
-    fn common_mut(this: &mut Self::This) -> &mut CommonPageResource<S>  { &mut this.common }
+    fn common_impl(&self) -> &CommonPageResource<Self> { &self.common }
+    fn common_mut_impl(&mut self) -> &mut CommonPageResource<Self>  { &mut self.common }
 }
 
-impl<S: Space<PR = MonotonePageResource<S>>> MonotonePageResource<S> {
+impl<S: CompleteSpace<PR = MonotonePageResource<S>>> MonotonePageResource<S> {
     pub fn new_contiguous(start: Address, bytes: usize,
                           meta_data_pages_per_region: usize) -> Self {
         let sentinel = start + bytes;

@@ -1,23 +1,33 @@
-pub trait AbstractClass<Base>: Sized + 'static {
-    type This: AbstractClass<Base>;
-
-    fn common(this: &Self::This) -> &Base;
-    fn common_mut(this: &mut Self::This) -> &mut Base;
+pub trait AbstractClass: Sized + 'static {
+    type This: CompleteClass;
 }
-pub trait CompleteClass<Base>: AbstractClass<Base, This = Self> {
-    fn common(&self) -> &Base { <Self::This as AbstractClass<Base>>::common(self) }
-    fn common_mut(&mut self) -> &mut Base { <Self::This as AbstractClass<Base>>::common_mut(self) }
+impl<T: CompleteClass> AbstractClass for T {
+    type This = T;
 }
-impl <B, T: AbstractClass<B, This = T>> CompleteClass<B> for T { }
 
-pub trait AbstractMutableClass<Base>: AbstractClass<Base> {
+pub trait CompleteClass: AbstractClass<This = Self> {
+    // The purposes of these functions (as opposed to the '_impl' ones) is so you can disambiguate
+    // calls more easily, compare
+    //      self.common::<TargetType>()
+    // to:
+    //      <Self as DerivedClass<TargetType>>::common_impl(self)
+    fn common<T>(&self)->&T where Self: DerivedClass<T> {
+        self.common_impl()
+    }
+    fn common_mut<T>(&mut self)->&mut T where Self: DerivedClass<T> {
+        self.common_mut_impl()
+    }
+    unsafe fn unsafe_common_mut<T>(&self)->&mut T where Self: MutableDerivedClass<T> {
+        self.unsafe_common_mut_impl()
+    }
+}
+pub trait DerivedClass<Base>: CompleteClass {
+    fn common_impl(&self) -> &Base;
+    fn common_mut_impl(&mut self) -> &mut Base;
+}
+
+pub trait MutableDerivedClass<Base>: DerivedClass<Base> {
     // UNSAFE: This get's a mutable reference from self
     // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(this: &Self::This) -> &mut Base;
+    unsafe fn unsafe_common_mut_impl(&self) -> &mut Base;
 }
-pub trait CompleteMutableClass<Base>: CompleteClass<Base, This = Self> + AbstractMutableClass<Base> {
-    // UNSAFE: This get's a mutable reference from self
-    // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(&self) -> &mut Base  { <Self::This as AbstractMutableClass<Base>>::unsafe_common_mut(self) }
-}
-impl <B, T: AbstractMutableClass<B, This = T>> CompleteMutableClass<B> for T { }

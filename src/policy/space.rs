@@ -1,3 +1,5 @@
+pub use ::util::class::*;
+
 use ::util::Address;
 use ::util::ObjectReference;
 use ::util::conversions::*;
@@ -6,7 +8,6 @@ use ::vm::{ActivePlan, VMActivePlan, Collection, VMCollection};
 use ::util::heap::{VMRequest, PageResource};
 use ::util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END, AVAILABLE_BYTES, LOG_BYTES_IN_CHUNK};
 use ::util::heap::layout::vm_layout_constants::{AVAILABLE_START, AVAILABLE_END};
-use ::util::class::*;
 use ::plan::Plan;
 use ::plan::selected_plan::PLAN;
 
@@ -18,11 +19,17 @@ use std::marker::PhantomData;
 use std::fmt::Debug;
 use std::mem::transmute;
 
-// A space that may be part of the hierarchy of another space
-pub trait AbstractSpace: AbstractMutableClass<CommonSpace<<Self as AbstractSpace>::PR>> + Debug
-        where Self::This: Space<PR = Self::PR> {
-    type PR: PageResource<Space = Self::This>;
 
+// This is seperate from 'AbstractSpace' so that a type can implement PR
+// seperatly from the members of AbstractSpace (e.g. the latter may be in a generic impl)
+pub trait PageResourced: AbstractClass
+        where Self::This: CompleteSpace<PR = Self::PR> {
+    type PR: PageResource<Space = Self::This>;
+}
+
+// A space that may be part of the hierarchy of another space
+pub trait AbstractSpace: AbstractClass + Debug + PageResourced
+        where Self::This: CompleteSpace<PR = Self::PR> {
     fn init(this: &mut Self::This);
 
     fn in_space(this: &Self::This, object: ObjectReference) -> bool {
@@ -103,40 +110,37 @@ pub trait AbstractSpace: AbstractMutableClass<CommonSpace<<Self as AbstractSpace
     }
 }
 
-pub trait Space: AbstractSpace<This = Self>
-        + CompleteMutableClass<CommonSpace<<Self as AbstractSpace>::PR>> {
-
+pub trait CompleteSpace: AbstractSpace + MutableDerivedClass<CommonSpace<Self>> {
     fn init(&mut self) {
-        <Self::This as AbstractSpace>::init(self)
+        <Self as AbstractSpace>::init(self)
     }
     fn in_space(&self, object: ObjectReference) -> bool {
-        <Self::This as AbstractSpace>::in_space(self, object)
+        <Self as AbstractSpace>::in_space(self, object)
     }
     unsafe fn grow_discontiguous_space(&self, chunks: usize) -> Address {
-        <Self::This as AbstractSpace>::grow_discontiguous_space(self, chunks)
+        <Self as AbstractSpace>::grow_discontiguous_space(self, chunks)
     }
 
     fn acquire(&self, thread_id: usize, pages: usize) -> Address {
-        <Self::This as AbstractSpace>::acquire(self, thread_id, pages)
+        <Self as AbstractSpace>::acquire(self, thread_id, pages)
     }
     fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {
-        <Self::This as AbstractSpace>::grow_space(self, start, bytes, new_chunk)
+        <Self as AbstractSpace>::grow_space(self, start, bytes, new_chunk)
     }
 
     fn reserved_pages(&self) -> usize {
-        <Self::This as AbstractSpace>::reserved_pages(self)
+        <Self as AbstractSpace>::reserved_pages(self)
     }
 
     fn get_name(&self) -> &'static str {
-        <Self::This as AbstractSpace>::get_name(self)
+        <Self as AbstractSpace>::get_name(self)
 
     }
 }
-impl <T: AbstractSpace<This = T>
-    + CompleteMutableClass<CommonSpace<<T as AbstractSpace>::PR>>> Space for T { }
+impl<T: CompleteSpace> CompleteClass for T { }
 
 #[derive(Debug)]
-pub struct CommonSpace<PR: PageResource> {
+pub struct CommonSpace<This: CompleteSpace> {
     pub name: &'static str,
     name_length: usize,
     pub descriptor: usize,
@@ -148,7 +152,7 @@ pub struct CommonSpace<PR: PageResource> {
     pub contiguous: bool,
     pub zeroed: bool,
 
-    pub pr: Option<PR>,
+    pub pr: Option<This::PR>,
     pub start: Address,
     pub extent: usize,
     pub head_discontiguous_region: Address,
@@ -160,7 +164,7 @@ static mut HEAP_LIMIT: Address = HEAP_END;
 
 const DEBUG: bool = false;
 
-impl<PR: PageResource> CommonSpace<PR> {
+impl<This: CompleteSpace> CommonSpace<This> {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
                vmrequest: VMRequest) -> Self {
         let mut rtn = CommonSpace {
