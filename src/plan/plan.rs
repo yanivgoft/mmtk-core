@@ -1,22 +1,19 @@
 use libc::c_void;
 use ::util::ObjectReference;
-use super::{MutatorContext, CollectorContext, ParallelCollector, TraceLocal, phase, Phase};
-use std::sync::atomic::{self, AtomicUsize, AtomicBool, Ordering};
+use super::{MutatorContext, ParallelCollector, TraceLocal, phase};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering};
 
 use ::policy::space::Space;
 use ::util::heap::PageResource;
 use ::util::options::OPTION_MAP;
 
 use super::controller_collector_context::ControllerCollectorContext;
-use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
-use util::constants::LOG_BYTES_IN_MBYTE;
 use util::heap::VMRequest;
 use policy::immortalspace::ImmortalSpace;
 #[cfg(feature = "jikesrvm")]
 use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_END;
 #[cfg(feature = "jikesrvm")]
 use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_DATA_START;
-use util::Address;
 use util::heap::pageresource::cumulative_committed_pages;
 
 pub static EMERGENCY_COLLECTION: AtomicBool = AtomicBool::new(false);

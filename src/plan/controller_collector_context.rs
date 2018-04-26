@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use ::vm::{Collection, VMCollection};
 
-use ::plan::{Plan, ParallelCollector};
+use ::plan::Plan;
 use ::plan::selected_plan::SelectedPlan;
 
 struct RequestSync {

@@ -1,15 +1,11 @@
 use ::util::address::Address;
 
-use ::policy::space::Space;
-
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Mutex;
 
 use ::util::constants::*;
 use ::util::heap::PageResource;
 use ::vm::{ActivePlan, VMActivePlan, Collection, VMCollection};
-use ::plan::MutatorContext;
-use ::plan::selected_plan::PLAN;
 use ::plan::selected_plan::SelectedPlan;
 use ::plan::Plan;
 

@@ -1,5 +1,5 @@
 use ::plan::SelectedConstraints;
-use ::util::{Address, ObjectReference};
+use ::util::ObjectReference;
 use ::vm::{ObjectModel, VMObjectModel};
 
 pub const TOTAL_BITS: usize = 8;

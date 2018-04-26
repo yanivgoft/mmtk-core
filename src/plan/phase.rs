@@ -1,9 +1,8 @@
 use ::vm::{ActivePlan, VMActivePlan};
 use ::plan;
-use ::plan::{Plan, MutatorContext, SelectedPlan, CollectorContext, ParallelCollector};
+use ::plan::{Plan, MutatorContext, CollectorContext, ParallelCollector};
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
-use std::sync::atomic;
 
 #[derive(Clone)]
 #[derive(PartialEq)]

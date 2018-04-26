@@ -1,6 +1,5 @@
 use ::util::{Address, ObjectReference};
 use ::util::global_pool;
-use std::thread::JoinHandle;
 use std::sync::mpsc::Sender;
 use crossbeam_deque::Stealer;
 

@@ -9,7 +9,7 @@ use ::util::alloc::Allocator;
 use ::plan::Allocator as AllocationType;
 use ::plan::plan;
 use ::vm::{Collection, VMCollection};
-use ::util::heap::{PageResource, MonotonePageResource};
+use ::util::heap::MonotonePageResource;
 
 #[repr(C)]
 pub struct SSMutator {

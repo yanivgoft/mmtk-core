@@ -13,7 +13,7 @@ use ::util::forwarding_word::clear_forwarding_bits;
 
 use ::policy::copyspace::CopySpace;
 
-use ::util::heap::{PageResource, MonotonePageResource};
+use ::util::heap::MonotonePageResource;
 
 use ::vm::{Scanning, VMScanning};
 

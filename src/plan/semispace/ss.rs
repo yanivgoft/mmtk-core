@@ -4,8 +4,6 @@ use super::SSMutator;
 use super::SSTraceLocal;
 use super::SSCollector;
 
-use ::plan::controller_collector_context::ControllerCollectorContext;
-
 use ::plan::plan;
 use ::plan::Plan;
 use ::plan::Allocator;
@@ -20,7 +18,7 @@ use ::util::heap::VMRequest;
 
 use libc::c_void;
 use std::cell::UnsafeCell;
-use std::sync::atomic::{self, AtomicBool, AtomicUsize, Ordering};
+use std::sync::atomic::{self, Ordering};
 
 use ::vm::{Scanning, VMScanning};
 use std::thread;

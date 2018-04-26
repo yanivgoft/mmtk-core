@@ -1,7 +1,5 @@
-use std::ptr::null_mut;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicUsize;
-use std::marker::PhantomData;
 
 use ::util::address::Address;
 use ::util::conversions::*;

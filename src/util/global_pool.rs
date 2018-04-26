@@ -1,6 +1,6 @@
 use std::thread;
 use std::sync::mpsc;
-use crossbeam_deque::{Deque, Steal, Stealer};
+use crossbeam_deque::{Deque, Stealer};
 
 pub fn new<T: 'static>(name: &'static str) -> (Stealer<T>, mpsc::Sender<T>) where T: Send {
     let d = Deque::new();

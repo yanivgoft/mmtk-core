@@ -10,8 +10,6 @@ use ::util::heap::layout::vm_layout_constants::{AVAILABLE_START, AVAILABLE_END};
 use ::plan::Plan;
 use ::plan::selected_plan::PLAN;
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-
 use ::util::constants::LOG_BYTES_IN_MBYTE;
 
 use std::fmt::Debug;

@@ -2,7 +2,6 @@ use super::NoGCTraceLocal;
 use super::super::ParallelCollectorGroup;
 use super::super::ParallelCollector;
 use super::super::CollectorContext;
-use super::super::TraceLocal;
 use super::super::Phase;
 use super::super::Allocator;
 

@@ -9,8 +9,6 @@ use std::cell::UnsafeCell;
 use std::thread;
 use libc::c_void;
 
-use std::mem::uninitialized;
-
 lazy_static! {
     pub static ref PLAN: NoGC = NoGC::new();
 }

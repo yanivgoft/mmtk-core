@@ -2,8 +2,6 @@ use ::util::address::Address;
 use ::policy::space::Space;
 use ::vm::{ActivePlan, VMActivePlan};
 
-use std::marker::PhantomData;
-use std::sync::{Mutex, MutexGuard};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::fmt::Debug;
 

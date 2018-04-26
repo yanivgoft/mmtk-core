@@ -1,4 +1,4 @@
-use log::{self, Log, Record, Level, Metadata, SetLoggerError, LevelFilter};
+use log::{self, Log, Record, Metadata, SetLoggerError, LevelFilter};
 use std::env;
 use std::thread;
 
@@ -7,8 +7,8 @@ struct MMTkLogger;
 
 impl Log for MMTkLogger {
     fn enabled(&self, metadata: &Metadata) -> bool {
-        /// Cap it at compilation time
-        /// If built with debug, can be tweaked using "RUST_LOG" env var.
+        // Cap it at compilation time
+        // If built with debug, can be tweaked using "RUST_LOG" env var.
         true
     }
 

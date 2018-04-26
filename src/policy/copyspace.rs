@@ -1,12 +1,10 @@
-use std::sync::Mutex;
-
 use ::util::heap::PageResource;
 use ::util::heap::MonotonePageResource;
 use ::util::heap::VMRequest;
 use ::util::constants::CARD_META_PAGES_PER_REGION;
 
 use ::policy::space::{Space, CommonSpace};
-use ::util::{Address, ObjectReference};
+use ::util::ObjectReference;
 use ::plan::TransitiveClosure;
 use ::util::forwarding_word as ForwardingWord;
 use ::vm::ObjectModel;

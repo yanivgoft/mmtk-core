@@ -3,7 +3,6 @@ use libc::c_void;
 use libc::c_char;
 
 use std::ffi::CStr;
-use std::str;
 
 use std::sync::atomic::Ordering;
 
@@ -11,10 +10,6 @@ use plan::Plan;
 use ::plan::MutatorContext;
 use ::plan::TraceLocal;
 use ::plan::CollectorContext;
-use ::plan::ParallelCollectorGroup;
-use ::plan::plan::CONTROL_COLLECTOR_CONTEXT;
-
-use ::vm::{Collection, VMCollection};
 
 #[cfg(feature = "jikesrvm")]
 use ::vm::jikesrvm::JTOC_BASE;

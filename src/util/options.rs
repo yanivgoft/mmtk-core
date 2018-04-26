@@ -1,11 +1,6 @@
-use libc::c_void;
 use num_cpus;
 use std::cell::UnsafeCell;
-use std::collections::HashMap;
-use std::error::Error;
-use std::fmt;
 use std::ops::Deref;
-use std::str::FromStr;
 use util::constants::LOG_BYTES_IN_PAGE;
 
 /*

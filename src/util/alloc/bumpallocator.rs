@@ -1,5 +1,5 @@
 use ::util::{Address, ObjectReference};
-use super::allocator::{align_allocation_no_fill, fill_alignment_gap, MIN_ALIGNMENT};
+use super::allocator::{align_allocation_no_fill, fill_alignment_gap};
 
 use ::util::alloc::Allocator;
 use ::util::heap::PageResource;
@@ -8,8 +8,6 @@ use ::util::alloc::dump_linear_scan::DumpLinearScan;
 
 use ::vm::ObjectModel;
 use ::vm::VMObjectModel;
-
-use std::marker::PhantomData;
 
 use libc::{memset, c_void};
 

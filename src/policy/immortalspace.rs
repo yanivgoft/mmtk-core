@@ -1,8 +1,5 @@
-use std::sync::Mutex;
-
 use ::policy::space::{Space, CommonSpace};
 use ::util::heap::{PageResource, MonotonePageResource, VMRequest};
-use ::util::address::Address;
 
 use ::util::ObjectReference;
 use ::util::constants::CARD_META_PAGES_PER_REGION;
