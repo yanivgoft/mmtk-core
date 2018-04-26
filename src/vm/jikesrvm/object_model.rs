@@ -1,7 +1,7 @@
 extern crate libc;
 use libc::*;
 
-use super::java_header_constants::{ADDRESS_BASED_HASHING, GC_HEADER_OFFSET, DYNAMIC_HASH_OFFSET,
+use super::java_header_constants::{ADDRESS_BASED_HASHING, gc_header_offset, DYNAMIC_HASH_OFFSET,
     HASH_STATE_MASK, HASH_STATE_HASHED_AND_MOVED, ARRAY_BASE_OFFSET, ARRAY_LENGTH_OFFSET,
     HASHCODE_BYTES, HASH_STATE_UNHASHED, HASH_STATE_HASHED, HASHCODE_OFFSET, ALIGNMENT_MASK};
 use super::java_header::*;
@@ -281,8 +281,8 @@ impl ObjectModel for VMObjectModel {
         }
     }
 
-    fn GC_HEADER_OFFSET() -> isize {
-        GC_HEADER_OFFSET
+    fn gc_header_offset() -> isize {
+        gc_header_offset
     }
 
     #[inline(always)]

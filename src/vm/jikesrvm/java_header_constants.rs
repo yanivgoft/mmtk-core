@@ -41,7 +41,7 @@ pub const JAVA_HEADER_OFFSET: isize = ARRAY_LENGTH_OFFSET - (JAVA_HEADER_BYTES a
 /** Offset of the miscellaneous header from the object reference */
 pub const MISC_HEADER_OFFSET: isize = JAVA_HEADER_OFFSET - (MISC_HEADER_BYTES as isize);
 /** Offset of the garbage collection header from the object reference */
-pub const GC_HEADER_OFFSET: isize = MISC_HEADER_OFFSET - (GC_HEADER_BYTES as isize);
+pub const gc_header_offset: isize = MISC_HEADER_OFFSET - (GC_HEADER_BYTES as isize);
 /** Offset of first element of an array */
 pub const ARRAY_BASE_OFFSET: isize = 0;
 
@@ -89,4 +89,4 @@ pub const HASH_STATE_MASK: usize = (HASH_STATE_UNHASHED | HASH_STATE_HASHED)
         | HASH_STATE_HASHED_AND_MOVED;
 
 pub const HASHCODE_BYTES: usize = BYTES_IN_INT;
-pub const HASHCODE_OFFSET: isize = GC_HEADER_OFFSET - (HASHCODE_BYTES as isize);
+pub const HASHCODE_OFFSET: isize = gc_header_offset - (HASHCODE_BYTES as isize);

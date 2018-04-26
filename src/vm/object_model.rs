@@ -25,7 +25,7 @@ pub trait ObjectModel {
     fn write_available_bits_word(object: ObjectReference, val: usize);
     fn read_available_bits_word(object: ObjectReference) -> usize;
     // Offset
-    fn GC_HEADER_OFFSET() -> isize;
+    fn gc_header_offset() -> isize;
     fn object_start_ref(object: ObjectReference) -> Address;
     fn ref_to_address(object: ObjectReference) -> Address;
     fn is_acyclic(typeref: ObjectReference) -> bool;

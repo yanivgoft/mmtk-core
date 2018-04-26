@@ -85,7 +85,7 @@ impl ObjectModel for VMObjectModel {
         unimplemented!()
     }
 
-    fn GC_HEADER_OFFSET() -> isize {
+    fn gc_header_offset() -> isize {
         unimplemented!()
     }
 
