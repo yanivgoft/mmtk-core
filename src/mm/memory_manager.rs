@@ -50,7 +50,7 @@ pub extern fn start_control_collector(thread_id: usize) {
 
 #[no_mangle]
 #[cfg(not(feature = "jikesrvm"))]
-pub extern fn start_control_collector(rvm_thread: *mut c_void) {
+pub extern fn start_control_collector(_rvm_thread: *mut c_void) {
     panic!("Cannot call start_control_collector when not building for JikesRVM");
 }
 
@@ -141,7 +141,7 @@ pub unsafe extern fn enable_collection(thread_id: usize) {
 
 #[no_mangle]
 #[cfg(not(feature = "jikesrvm"))]
-pub extern fn enable_collection(size: usize) {
+pub extern fn enable_collection(_size: usize) {
     panic!("Cannot call enable_collection when not building for JikesRVM");
 }
 

@@ -29,7 +29,7 @@ pub struct ByteMapMmapper {
 }
 
 impl Mmapper for ByteMapMmapper {
-    fn eagerly_mmap_all_spaces(&self, space_map: &[Address]) {
+    fn eagerly_mmap_all_spaces(&self, _space_map: &[Address]) {
         unimplemented!()
     }
 

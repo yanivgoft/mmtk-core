@@ -123,7 +123,7 @@ impl TraceLocal for SSTraceLocal {
 
     fn release(&mut self) {}
 
-    fn process_interior_edge(&mut self, target: ObjectReference, slot: Address, root: bool) {
+    fn process_interior_edge(&mut self, target: ObjectReference, slot: Address, _root: bool) {
         let interior_ref: Address = unsafe { slot.load() };
         let offset = interior_ref - target.to_address();
         let new_target = self.trace_object(target);
@@ -152,7 +152,7 @@ impl TraceLocal for SSTraceLocal {
 }
 
 impl SSTraceLocal {
-    pub fn new(ss_trace: &Trace) -> Self {
+    pub fn new(_ss_trace: &Trace) -> Self {
         SSTraceLocal {
             thread_id: 0,
             values: Vec::new(),

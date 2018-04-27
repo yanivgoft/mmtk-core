@@ -6,7 +6,7 @@ use std::thread;
 struct MMTkLogger;
 
 impl Log for MMTkLogger {
-    fn enabled(&self, metadata: &Metadata) -> bool {
+    fn enabled(&self, _metadata: &Metadata) -> bool {
         // Cap it at compilation time
         // If built with debug, can be tweaked using "RUST_LOG" env var.
         true
@@ -39,7 +39,7 @@ pub fn init() -> Result<(), SetLoggerError> {
             "TRACE" => log::set_max_level(LevelFilter::Trace),
             _ => log::set_max_level(LevelFilter::Info),
         }
-        Err(e) => log::set_max_level(LevelFilter::Info)
+        Err(_) => log::set_max_level(LevelFilter::Info)
     }
     log::set_logger(&LOGGER)
 }

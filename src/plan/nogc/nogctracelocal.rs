@@ -5,11 +5,11 @@ use ::plan::tracelocal::TraceLocal;
 pub struct NoGCTraceLocal {}
 
 impl TransitiveClosure for NoGCTraceLocal {
-    fn process_edge(&mut self, slot: Address) {
+    fn process_edge(&mut self, _slot: Address) {
         unimplemented!();
     }
 
-    fn process_node(&mut self, object: ObjectReference) {
+    fn process_node(&mut self, _object: ObjectReference) {
         unimplemented!()
     }
 }
@@ -19,11 +19,11 @@ impl TraceLocal for NoGCTraceLocal {
         unimplemented!();
     }
 
-    fn process_root_edge(&mut self, slot: Address, untraced: bool) {
+    fn process_root_edge(&mut self, _slot: Address, _untraced: bool) {
         unimplemented!();
     }
 
-    fn trace_object(&mut self, object: ObjectReference) -> ObjectReference {
+    fn trace_object(&mut self, _object: ObjectReference) -> ObjectReference {
         unimplemented!();
     }
 
@@ -35,14 +35,14 @@ impl TraceLocal for NoGCTraceLocal {
         unimplemented!();
     }
 
-    fn process_interior_edge(&mut self, target: ObjectReference, slot: Address, root: bool) {
+    fn process_interior_edge(&mut self, _target: ObjectReference, _slot: Address, _root: bool) {
         unimplemented!()
     }
-    fn report_delayed_root_edge(&mut self, slot: Address) {
+    fn report_delayed_root_edge(&mut self, _slot: Address) {
         unimplemented!()
     }
 
-    fn will_not_move_in_current_collection(&self, obj: ObjectReference) -> bool {
+    fn will_not_move_in_current_collection(&self, _obj: ObjectReference) -> bool {
         true
     }
 }

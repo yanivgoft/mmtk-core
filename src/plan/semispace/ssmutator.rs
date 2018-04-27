@@ -19,7 +19,7 @@ pub struct SSMutator {
 }
 
 impl MutatorContext for SSMutator {
-    fn collection_phase(&mut self, thread_id: usize, phase: &Phase, primary: bool) {
+    fn collection_phase(&mut self, _thread_id: usize, phase: &Phase, _primary: bool) {
         match phase {
             &Phase::PrepareStacks => {
                 if !plan::stacks_prepared() {

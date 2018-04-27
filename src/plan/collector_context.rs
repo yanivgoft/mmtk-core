@@ -15,14 +15,14 @@ pub trait CollectorContext {
     /// Unique identifier for this collector context.
     fn get_id(&self) -> usize;
 
-    fn copy_check_allocator(&self, from: ObjectReference, bytes: usize, align: usize,
+    fn copy_check_allocator(&self, _from: ObjectReference, bytes: usize, align: usize,
                             allocator: Allocator) -> Allocator {
         let large = ::util::alloc::allocator::get_maximum_aligned_size(bytes, align,
             ::util::alloc::allocator::MIN_ALIGNMENT) > MAX_NON_LOS_COPY_BYTES;
         if large { Allocator::Los } else { allocator }
     }
 
-    fn post_copy(&self, obj: ObjectReference, tib: Address, bytes: usize, allocator: Allocator) {
+    fn post_copy(&self, _obj: ObjectReference, _tib: Address, _bytes: usize, _allocator: Allocator) {
         unimplemented!()
     }
 }

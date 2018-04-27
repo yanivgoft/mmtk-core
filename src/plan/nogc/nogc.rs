@@ -75,11 +75,11 @@ impl Plan for NoGC {
                                                 &unsync.space))) as *mut c_void
     }
 
-    fn will_never_move(&self, object: ObjectReference) -> bool {
+    fn will_never_move(&self, _object: ObjectReference) -> bool {
         true
     }
 
-    unsafe fn collection_phase(&self, thread_id: usize, phase: &Phase) {}
+    unsafe fn collection_phase(&self, _thread_id: usize, _phase: &Phase) {}
 
     fn get_total_pages(&self) -> usize {
         let unsync = unsafe { &*self.unsync.get() };

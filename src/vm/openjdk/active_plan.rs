@@ -4,16 +4,16 @@ use super::super::ActivePlan;
 pub struct VMActivePlan<> {}
 
 impl ActivePlan for VMActivePlan {
-    unsafe fn collector(thread_id: usize) -> &'static mut <SelectedPlan as Plan>::CollectorT {
+    unsafe fn collector(_thread_id: usize) -> &'static mut <SelectedPlan as Plan>::CollectorT {
         unimplemented!()
     }
 
-    unsafe fn is_mutator(thread_id: usize) -> bool {
+    unsafe fn is_mutator(_thread_id: usize) -> bool {
         // FIXME
         true
     }
 
-    unsafe fn mutator(thread_id: usize) -> &'static mut <SelectedPlan as Plan>::MutatorT {
+    unsafe fn mutator(_thread_id: usize) -> &'static mut <SelectedPlan as Plan>::MutatorT {
         unimplemented!()
     }
 

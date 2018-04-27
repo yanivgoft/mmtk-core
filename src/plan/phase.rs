@@ -85,7 +85,6 @@ pub fn continue_phase_stack(thread_id: usize) {
 }
 
 fn process_phase_stack(thread_id: usize, resume: bool) {
-    let mut resume = resume;
     let plan = VMActivePlan::global();
     let collector = unsafe { VMActivePlan::collector(thread_id) };
     let order = collector.rendezvous();
@@ -99,7 +98,7 @@ fn process_phase_stack(thread_id: usize, resume: bool) {
         set_next_phase(false, get_next_phase(), false);
     }
     collector.rendezvous();
-    let (mut schedule, mut phase) = get_current_phase(is_even_phase);
+    let (mut schedule, mut phase): (Schedule, Phase);
     while {
         let cp = get_current_phase(is_even_phase);
         schedule = cp.0;
@@ -150,7 +149,6 @@ fn process_phase_stack(thread_id: usize, resume: bool) {
 
         // FIXME timer
         is_even_phase = !is_even_phase;
-        resume = false;
     }
 }
 

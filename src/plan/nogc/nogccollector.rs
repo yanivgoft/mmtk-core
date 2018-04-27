@@ -32,18 +32,18 @@ impl<'a> CollectorContext for NoGCCollector {
         self.id = id;
     }
 
-    fn alloc_copy(&mut self, original: ObjectReference, bytes: usize, align: usize, offset: isize, allocator: Allocator) -> Address {
+    fn alloc_copy(&mut self, _original: ObjectReference, _bytes: usize, _align: usize, _offset: isize, _allocator: Allocator) -> Address {
         unimplemented!();
     }
 
-    fn run(&mut self, thread_id: usize) {
+    fn run(&mut self, _thread_id: usize) {
         loop {
             self.park();
             self.collect();
         }
     }
 
-    fn collection_phase(&mut self, thread_id: usize, phase: &Phase, primary: bool) {
+    fn collection_phase(&mut self, _thread_id: usize, _phase: &Phase, _primary: bool) {
         panic!("GC triggered in NoGC plan");
     }
 

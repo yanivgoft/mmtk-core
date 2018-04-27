@@ -29,7 +29,7 @@ pub trait PageResource: Sized + 'static + Debug {
         self.common().reserved.fetch_sub(reserved_pages, Ordering::Relaxed);
     }
 
-    fn update_zeroing_approach(&self, nontemporal: bool, concurrent: bool) {
+    fn update_zeroing_approach(&self, _nontemporal: bool, concurrent: bool) {
         debug_assert!(!concurrent || self.common().contiguous);
         unimplemented!()
     }

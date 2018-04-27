@@ -5,7 +5,7 @@ use ::util::ObjectReference;
 pub struct VMScanning {}
 
 impl Scanning for VMScanning {
-    fn scan_object<T: TransitiveClosure>(trace: &mut T, object: ObjectReference, thread_id: usize) {
+    fn scan_object<T: TransitiveClosure>(_trace: &mut T, _object: ObjectReference, _thread_id: usize) {
         unimplemented!()
     }
 
@@ -13,27 +13,27 @@ impl Scanning for VMScanning {
         unimplemented!()
     }
 
-    fn notify_initial_thread_scan_complete(partial_scan: bool, thread_id: usize) {
+    fn notify_initial_thread_scan_complete(_partial_scan: bool, _thread_id: usize) {
         unimplemented!()
     }
 
-    fn compute_static_roots<T: TraceLocal>(trace: &mut T, thread_id: usize) {
+    fn compute_static_roots<T: TraceLocal>(_trace: &mut T, _thread_id: usize) {
         unimplemented!()
     }
 
-    fn compute_global_roots<T: TraceLocal>(trace: &mut T, thread_id: usize) {
+    fn compute_global_roots<T: TraceLocal>(_trace: &mut T, _thread_id: usize) {
         unimplemented!()
     }
 
-    fn compute_thread_roots<T: TraceLocal>(trace: &mut T, thread_id: usize) {
+    fn compute_thread_roots<T: TraceLocal>(_trace: &mut T, _thread_id: usize) {
         unimplemented!()
     }
 
-    fn compute_new_thread_roots<T: TraceLocal>(trace: &mut T, thread_id: usize) {
+    fn compute_new_thread_roots<T: TraceLocal>(_trace: &mut T, _thread_id: usize) {
         unimplemented!()
     }
 
-    fn compute_bootimage_roots<T: TraceLocal>(trace: &mut T, thread_id: usize) {
+    fn compute_bootimage_roots<T: TraceLocal>(_trace: &mut T, _thread_id: usize) {
         unimplemented!()
     }
 

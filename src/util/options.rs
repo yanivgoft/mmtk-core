@@ -79,7 +79,7 @@ impl Deref for UnsafeOptionsWrapper {
     }
 }
 
-fn always_valid<T>(val: T) -> bool {
+fn always_valid<T>(_val: T) -> bool {
     true
 }
 macro_rules! options {

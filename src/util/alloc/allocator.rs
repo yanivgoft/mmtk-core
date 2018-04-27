@@ -138,8 +138,6 @@ pub trait Allocator<PR: PageResource> {
     #[inline(always)]
     fn alloc_slow_inline(&mut self, size: usize, align: usize, offset: isize) -> Address {
         let thread_id = self.get_thread_id();
-        let tmp = self.get_space();
-        let space = tmp.as_ref().unwrap();
 
         // Information about the previous collection.
         let mut emergency_collection = false;

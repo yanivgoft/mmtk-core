@@ -104,7 +104,7 @@ pub trait Plan {
      * @param space TODO
      * @return <code>true</code> if a collection is requested by the plan.
      */
-    fn collection_required<PR: PageResource>(&self, space_full: bool, space: &'static PR::Space) -> bool {
+    fn collection_required<PR: PageResource>(&self, space_full: bool, _space: &'static PR::Space) -> bool {
         let stress_force_gc = self.stress_test_gc_required();
         trace!("self.get_pages_reserved()={}, self.get_total_pages()={}",
                self.get_pages_reserved(), self.get_total_pages());

@@ -52,8 +52,8 @@ impl CollectorContext for SSCollector {
         self.trace.init(id);
     }
 
-    fn alloc_copy(&mut self, original: ObjectReference, bytes: usize, align: usize, offset: isize,
-                  allocator: AllocationType) -> Address {
+    fn alloc_copy(&mut self, _original: ObjectReference, bytes: usize, align: usize, offset: isize,
+                  _allocator: AllocationType) -> Address {
         self.ss.alloc(bytes, align, offset)
     }
 
@@ -65,7 +65,7 @@ impl CollectorContext for SSCollector {
         }
     }
 
-    fn collection_phase(&mut self, thread_id: usize, phase: &Phase, primary: bool) {
+    fn collection_phase(&mut self, _thread_id: usize, phase: &Phase, _primary: bool) {
         match phase {
             &Phase::Prepare => { self.ss.rebind(Some(semispace::PLAN.tospace())) }
             &Phase::StackRoots => {
@@ -115,7 +115,7 @@ impl CollectorContext for SSCollector {
         self.id
     }
 
-    fn post_copy(&self, object: ObjectReference, rvm_type: Address, bytes: usize, allocator: ::plan::Allocator) {
+    fn post_copy(&self, object: ObjectReference, _rvm_type: Address, _bytes: usize, allocator: ::plan::Allocator) {
         clear_forwarding_bits(object);
         match allocator {
             ::plan::Allocator::Los => {

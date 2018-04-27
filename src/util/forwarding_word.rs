@@ -16,8 +16,7 @@ const FORWARDING_MASK: u8 = 3;
 const FORWARDING_BITS: usize = 2;
 
 pub fn attempt_to_forward(object: ObjectReference) -> usize {
-    let mut old_value: usize = 0;
-    old_value = VMObjectModel::prepare_available_bits(object);
+    let mut old_value = VMObjectModel::prepare_available_bits(object);
     if (old_value as u8) & FORWARDING_MASK != FORWARDING_NOT_TRIGGERED_YET {
         return old_value;
     }

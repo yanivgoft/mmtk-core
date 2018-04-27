@@ -65,17 +65,18 @@ pub trait Space: Sized + Debug + 'static {
     }
 
     // UNSAFE: potential data race as this mutates 'common'
-    unsafe fn grow_discontiguous_space(&self, chunks: usize) -> Address {
+    unsafe fn grow_discontiguous_space(&self, _chunks: usize) -> Address {
         // FIXME
-        let new_head: Address = unimplemented!(); /*HeapLayout.vmMap. allocate_contiguous_chunks(self.common().descriptor,
+        unimplemented!();
+        /*let new_head: Address; HeapLayout.vmMap.allocate_contiguous_chunks(self.common().descriptor,
                                                                         self, chunks,
-                                                                        self.common().head_discontiguous_region);*/
+                                                                        self.common().head_discontiguous_region);
         if new_head.is_zero() {
             return unsafe{Address::zero()};
         }
 
         self.unsafe_common_mut().head_discontiguous_region = new_head;
-        new_head
+        new_head*/
     }
 
     /**
@@ -87,7 +88,7 @@ pub trait Space: Sized + Debug + 'static {
      * @param bytes The size of the newly allocated space
      * @param new_chunk {@code true} if the new space encroached upon or started a new chunk or chunks.
      */
-    fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {}
+    fn grow_space(&self, _start: Address, _bytes: usize, _new_chunk: bool) {}
 
     fn reserved_pages(&self) -> usize {
         self.common().pr.as_ref().unwrap().reserved_pages()

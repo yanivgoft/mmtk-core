@@ -61,7 +61,7 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
         &mut self.common
     }
 
-    fn alloc_pages(&self, reserved_pages: usize, immut_required_pages: usize, zeroed: bool,
+    fn alloc_pages(&self, reserved_pages: usize, immut_required_pages: usize, _zeroed: bool,
                    thread_id: usize) -> Address {
         let mut required_pages = immut_required_pages;
         let mut new_chunk = false;

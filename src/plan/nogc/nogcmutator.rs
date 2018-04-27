@@ -14,7 +14,7 @@ pub struct NoGCMutator {
 }
 
 impl MutatorContext for NoGCMutator {
-    fn collection_phase(&mut self, thread_id: usize, phase: &Phase, primary: bool) {
+    fn collection_phase(&mut self, _thread_id: usize, _phase: &Phase, _primary: bool) {
         unimplemented!();
     }
 

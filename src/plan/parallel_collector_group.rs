@@ -109,11 +109,7 @@ impl<C: ParallelCollector> ParallelCollectorGroup<C> {
     }
 
     pub fn is_member(&self, context: &C) -> bool {
-        if let Some(i) = self.contexts.iter().position(|ref c| c.get_id() == context.get_id()) {
-            true
-        } else {
-            false
-        }
+        self.contexts.iter().position(|ref c| c.get_id() == context.get_id()).is_some()
     }
 
     pub fn rendezvous(&self) -> usize {
