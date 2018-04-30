@@ -2,10 +2,10 @@ use super::entrypoint::*;
 use super::JTOC_BASE;
 use ::plan::{TraceLocal};
 
-pub fn scan_boot_image_sanity<T: TraceLocal>(trace: &mut T, thread_id: usize) {
+pub fn scan_boot_image_sanity<T: TraceLocal>(_trace: &mut T, thread_id: usize) {
     trace!("scan_boot_image_sanity");
     let mut boot_image_roots: [usize; 10000] = [0; 10000];
-    let addr = &boot_image_roots as *const usize;
+    let addr = &mut boot_image_roots[0] as *mut usize;
 
     unsafe {
         jtoc_call!(SCAN_BOOT_IMAGE_METHOD_OFFSET, thread_id, addr);

@@ -10,6 +10,11 @@ use plan::Plan;
 use ::plan::MutatorContext;
 use ::plan::TraceLocal;
 use ::plan::CollectorContext;
+#[cfg(feature = "jikesrvm")]
+use ::plan::plan::CONTROL_COLLECTOR_CONTEXT;
+
+#[cfg(feature = "jikesrvm")]
+use ::vm::{Collection, VMCollection};
 
 #[cfg(feature = "jikesrvm")]
 use ::vm::jikesrvm::JTOC_BASE;

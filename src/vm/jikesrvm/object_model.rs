@@ -1,7 +1,7 @@
 extern crate libc;
 use libc::*;
 
-use super::java_header_constants::{ADDRESS_BASED_HASHING, gc_header_offset, DYNAMIC_HASH_OFFSET,
+use super::java_header_constants::{ADDRESS_BASED_HASHING, GC_HEADER_OFFSET, DYNAMIC_HASH_OFFSET,
     HASH_STATE_MASK, HASH_STATE_HASHED_AND_MOVED, ARRAY_BASE_OFFSET, ARRAY_LENGTH_OFFSET,
     HASHCODE_BYTES, HASH_STATE_UNHASHED, HASH_STATE_HASHED, HASHCODE_OFFSET, ALIGNMENT_MASK};
 use super::java_header::*;
@@ -19,7 +19,6 @@ use super::active_plan::VMActivePlan;
 use ::vm::object_model::ObjectModel;
 use ::util::{Address, ObjectReference};
 use ::util::alloc::allocator::fill_alignment_gap;
-use ::util::constants::{};
 use ::plan::{Allocator, CollectorContext};
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -72,7 +71,6 @@ impl ObjectModel for VMObjectModel {
             let copy = from != to;
 
             if copy {
-                let size = Self::bytes_required_when_copied(from, rvm_type);
                 Self::move_object(Address::zero(), from, to, bytes, rvm_type);
             } else {
                 bytes = Self::bytes_used(from, rvm_type);
@@ -201,7 +199,7 @@ impl ObjectModel for VMObjectModel {
         }
     }
 
-    fn get_type_descriptor(reference: ObjectReference) -> &'static [i8] {
+    fn get_type_descriptor(_reference: ObjectReference) -> &'static [i8] {
         unimplemented!()
     }
 
@@ -282,7 +280,7 @@ impl ObjectModel for VMObjectModel {
     }
 
     fn gc_header_offset() -> isize {
-        gc_header_offset
+        GC_HEADER_OFFSET
     }
 
     #[inline(always)]
@@ -327,7 +325,7 @@ impl ObjectModel for VMObjectModel {
         }
     }
 
-    fn dump_object(object: ObjectReference) {
+    fn dump_object(_object: ObjectReference) {
         unimplemented!()
     }
 
@@ -335,7 +333,7 @@ impl ObjectModel for VMObjectModel {
         ARRAY_BASE_OFFSET
     }
 
-    fn array_base_offset_trapdoor<T>(o: T) -> isize {
+    fn array_base_offset_trapdoor<T>(_o: T) -> isize {
         panic!("This should (?) never be called")
     }
 
@@ -470,7 +468,7 @@ impl VMObjectModel {
 
     #[inline(always)]
     fn move_object(immut_to_address: Address, from_obj: ObjectReference, immut_to_obj: ObjectReference,
-                   num_bytes: usize, rvm_type: Address) -> ObjectReference {
+                   num_bytes: usize, _rvm_type: Address) -> ObjectReference {
         trace!("VMObjectModel.move_object");
         let mut to_address = immut_to_address;
         let mut to_obj = immut_to_obj;
@@ -499,7 +497,7 @@ impl VMObjectModel {
                     }
                 } else if !DYNAMIC_HASH_OFFSET && hash_state == HASH_STATE_HASHED_AND_MOVED {
                     // Simple operation (no hash state change), but one word larger header
-                    obj_ref_offset += (HASHCODE_BYTES as isize);
+                    obj_ref_offset += HASHCODE_BYTES as isize;
                 }
             }
         }
@@ -578,7 +576,7 @@ impl VMObjectModel {
     }
 
     #[inline(always)]
-    fn get_offset_for_alignment_array(object: ObjectReference, rvm_type: Address) -> isize {
+    fn get_offset_for_alignment_array(object: ObjectReference, _rvm_type: Address) -> isize {
         trace!("VMObjectModel.get_offset_for_alignment_array");
         let mut offset = OBJECT_REF_OFFSET;
 
@@ -595,7 +593,7 @@ impl VMObjectModel {
     }
 
     #[inline(always)]
-    fn get_offset_for_alignment_class(object: ObjectReference, rvm_type: Address) -> isize {
+    fn get_offset_for_alignment_class(object: ObjectReference, _rvm_type: Address) -> isize {
         trace!("VMObjectModel.get_offset_for_alignment_class");
         let mut offset = SCALAR_HEADER_SIZE as isize;
 

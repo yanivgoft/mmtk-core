@@ -5,9 +5,8 @@ use super::super::unboxed_size_constants::*;
 use super::java_size_constants::*;
 use super::entrypoint::*;
 use super::JTOC_BASE;
-use ::plan::{TraceLocal, Plan, SelectedPlan, ParallelCollector};
+use ::plan::{TraceLocal, ParallelCollector};
 
-use super::collection::VMCollection;
 use super::super::{ActivePlan, VMActivePlan};
 
 const DEBUG: bool = false;
@@ -57,7 +56,7 @@ pub fn scan_boot_image<T: TraceLocal>(trace: &mut T, thread_id: usize) {
 }
 
 fn process_chunk<T: TraceLocal>(chunk_start: Address, image_start: Address,
-                                map_start: Address, map_end: Address, trace: &mut T) {
+                                _map_start: Address, map_end: Address, trace: &mut T) {
     let mut value: usize;
     let mut offset: usize = 0;
     let mut cursor: Address = chunk_start;
@@ -91,7 +90,7 @@ fn process_chunk<T: TraceLocal>(chunk_start: Address, image_start: Address,
                 trace.process_root_edge(slot, false);
             }
             if runlength != 0 {
-                for i in 0..runlength {
+                for _ in 0..runlength {
                     offset += BYTES_IN_ADDRESS;
                     slot = image_start + offset;
                     debug_assert!(is_address_aligned(slot));

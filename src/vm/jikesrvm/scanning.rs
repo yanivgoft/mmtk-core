@@ -3,7 +3,7 @@ use super::java_header_constants::*;
 use super::scan_sanity;
 
 use ::vm::Scanning;
-use ::plan::{TransitiveClosure, TraceLocal, MutatorContext, Plan, SelectedPlan, ParallelCollector};
+use ::plan::{TransitiveClosure, TraceLocal, MutatorContext, ParallelCollector};
 use ::util::{ObjectReference, Address, SynchronizedCounter};
 use ::vm::jikesrvm::entrypoint::*;
 use super::JTOC_BASE;
