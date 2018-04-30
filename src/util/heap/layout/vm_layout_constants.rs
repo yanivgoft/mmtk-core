@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use ::util::Address;
 use ::util::constants::*;
 use super::heap_parameters::*;

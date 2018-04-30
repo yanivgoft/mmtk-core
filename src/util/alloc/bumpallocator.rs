@@ -15,14 +15,19 @@ use ::policy::space::Space;
 use util::conversions::bytes_to_pages;
 use ::util::constants::BYTES_IN_ADDRESS;
 
+mod constants {
+    #![allow(dead_code)]
+    use super::*;
 
-const BYTES_IN_PAGE: usize = 1 << 12;
-const BLOCK_SIZE: usize = 8 * BYTES_IN_PAGE;
-const BLOCK_MASK: usize = BLOCK_SIZE - 1;
+    pub const BYTES_IN_PAGE: usize = 1 << 12;
+    pub const BLOCK_SIZE: usize = 8 * BYTES_IN_PAGE;
+    pub const BLOCK_MASK: usize = BLOCK_SIZE - 1;
 
-const REGION_LIMIT_OFFSET: isize = 0;
-const NEXT_REGION_OFFSET: isize = REGION_LIMIT_OFFSET + BYTES_IN_ADDRESS as isize;
-const DATA_END_OFFSET: isize = NEXT_REGION_OFFSET + BYTES_IN_ADDRESS as isize;
+    pub const REGION_LIMIT_OFFSET: isize = 0;
+    pub const NEXT_REGION_OFFSET: isize = REGION_LIMIT_OFFSET + BYTES_IN_ADDRESS as isize;
+    pub const DATA_END_OFFSET: isize = NEXT_REGION_OFFSET + BYTES_IN_ADDRESS as isize;
+}
+use self::constants::*;
 
 #[repr(C)]
 #[derive(Debug)]

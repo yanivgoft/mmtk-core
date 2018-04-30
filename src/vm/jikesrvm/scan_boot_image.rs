@@ -9,16 +9,21 @@ use ::plan::{TraceLocal, ParallelCollector};
 
 use super::super::{ActivePlan, VMActivePlan};
 
-const DEBUG: bool = false;
-const FILTER: bool = true;
+mod constants {
+    #![allow(dead_code)]
+    use super::*;
+    pub const DEBUG: bool = false;
+    pub const FILTER: bool = true;
 
-const LOG_CHUNK_BYTES: usize = 12;
-const CHUNK_BYTES: usize = 1 << LOG_CHUNK_BYTES;
-const LONGENCODING_MASK: usize = 0x1;
-const RUN_MASK: usize = 0x2;
-const MAX_RUN: usize = (1 << BITS_IN_BYTE) - 1;
-const LONGENCODING_OFFSET_BYTES: usize = 4;
-const GUARD_REGION: usize = LONGENCODING_OFFSET_BYTES + 1; /* long offset + run encoding */
+    pub const LOG_CHUNK_BYTES: usize = 12;
+    pub const CHUNK_BYTES: usize = 1 << LOG_CHUNK_BYTES;
+    pub const LONGENCODING_MASK: usize = 0x1;
+    pub const RUN_MASK: usize = 0x2;
+    pub const MAX_RUN: usize = (1 << BITS_IN_BYTE) - 1;
+    pub const LONGENCODING_OFFSET_BYTES: usize = 4;
+    pub const GUARD_REGION: usize = LONGENCODING_OFFSET_BYTES + 1; /* long offset + run encoding */
+}
+use self::constants::*;
 
 static ROOTS: AtomicUsize = AtomicUsize::new(0);
 static REFS: AtomicUsize = AtomicUsize::new(0);

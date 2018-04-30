@@ -23,6 +23,7 @@ use ::plan::{Allocator, CollectorContext};
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+
 /** Should we gather stats on hash code state transitions for address-based hashing? */
 const HASH_STATS: bool = false;
 /** count number of Object.hashCode() operations */

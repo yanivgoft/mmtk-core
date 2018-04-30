@@ -18,6 +18,7 @@ use super::layout::heap_layout::MMAPPER;
 use super::PageResource;
 use std::sync::atomic::Ordering;
 
+#[allow(dead_code)]
 const SPACE_ALIGN: usize = 1 << 19;
 
 #[derive(Debug)]

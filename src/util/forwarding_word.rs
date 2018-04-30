@@ -5,15 +5,19 @@ use ::vm::VMObjectModel;
 
 use ::plan::Allocator;
 
-// ...00
-const FORWARDING_NOT_TRIGGERED_YET: u8 = 0;
-// ...10
-const BEING_FORWARDED: u8 = 2;
-// ...11
-const FORWARDED: u8 = 3;
-// ...11
-const FORWARDING_MASK: u8 = 3;
-const FORWARDING_BITS: usize = 2;
+mod constants {
+    #![allow(dead_code)]
+    // ...00
+    pub const FORWARDING_NOT_TRIGGERED_YET: u8 = 0;
+    // ...10
+    pub const BEING_FORWARDED: u8 = 2;
+    // ...11
+    pub const FORWARDED: u8 = 3;
+    // ...11
+    pub const FORWARDING_MASK: u8 = 3;
+    pub const FORWARDING_BITS: usize = 2;
+}
+use self::constants::*;
 
 pub fn attempt_to_forward(object: ObjectReference) -> usize {
     let mut old_value = VMObjectModel::prepare_available_bits(object);

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //pub use ::plan::plan_constraints::{NEEDS_LOG_BIT_IN_HEADER, NEEDS_LOG_BIT_IN_HEADER_NUM};
 pub use ::plan::plan_constraints::*;
 

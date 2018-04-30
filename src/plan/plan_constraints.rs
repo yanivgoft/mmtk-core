@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use ::util::constants::*;
 
 pub const MOVES_OBJECTS: bool = false;
