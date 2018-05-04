@@ -185,7 +185,6 @@ impl Plan for SemiSpace {
     }
 
     fn get_collection_reserve(&self) -> usize {
-        //let unsync = unsafe{&*self.unsync.get()};
         self.tospace().reserved_pages()
     }
 

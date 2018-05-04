@@ -8,18 +8,9 @@ use ::util::heap::PageResource;
 use ::util::options::OPTION_MAP;
 
 use super::controller_collector_context::ControllerCollectorContext;
-#[cfg(feature = "jikesrvm")]
-use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
-#[cfg(feature = "jikesrvm")]
-use util::constants::LOG_BYTES_IN_MBYTE;
 use util::heap::VMRequest;
 use policy::immortalspace::ImmortalSpace;
-#[cfg(feature = "jikesrvm")]
-use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_END;
-#[cfg(feature = "jikesrvm")]
-use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_DATA_START;
-#[cfg(feature = "jikesrvm")]
-use util::Address;
+
 use util::heap::pageresource::cumulative_committed_pages;
 
 pub static EMERGENCY_COLLECTION: AtomicBool = AtomicBool::new(false);
@@ -31,6 +22,13 @@ lazy_static! {
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
 pub fn create_vm_space() -> ImmortalSpace {
+    use util::{
+        Address,
+        heap::layout::vm_layout_constants::BYTES_IN_CHUNK,
+        constants::LOG_BYTES_IN_MBYTE
+    };
+    use vm::jikesrvm::heap_layout_constants::{BOOT_IMAGE_END, BOOT_IMAGE_DATA_START};
+
     let boot_segment_bytes = BOOT_IMAGE_END - BOOT_IMAGE_DATA_START;
     debug_assert!(boot_segment_bytes > 0);
 
