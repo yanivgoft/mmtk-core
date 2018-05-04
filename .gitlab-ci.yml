@@ -1,8 +1,40 @@
+cache:
+  paths:
+    - benchmarks/
+
 stages:
-  - test
-  
-test:
-  stage: test
+  - build
+  - jikesrvm
+
+build:
+  stage: build
   script:
     - ./build.py
     - cargo +nightly test
+
+jikesrvm:pre-commit:
+  stage: jikesrvm
+  script: ./jikesrvm_test.fish python scripts/testMMTk.py -T pre-commit
+
+jikesrvm:rbasebasenogc:
+  stage: jikesrvm
+  script: ./jikesrvm_test.fish python scripts/testMMTk.py -g RBaseBaseNoGC
+
+jikesrvm:rfastadaptivenogc:
+  stage: jikesrvm
+  script: ./jikesrvm_test.fish python scripts/testMMTk.py -g RFastAdaptiveNoGC
+
+jikesrvm:rfulladaptivenogc:
+  stage: jikesrvm
+  script: ./jikesrvm_test.fish python scripts/testMMTk.py -g RFullAdaptiveNoGC
+jikesrvm:rbasebasesemispace:
+  stage: jikesrvm
+  script: ./jikesrvm_test.fish python scripts/testMMTk.py -g RBaseBaseSemiSpace
+
+jikesrvm:rfastadaptivesemispace:
+  stage: jikesrvm
+  script: ./jikesrvm_test.fish python scripts/testMMTk.py -g RFastAdaptiveSemiSpace
+
+jikesrvm:rfulladaptivesemispace:
+  stage: jikesrvm
+  script: ./jikesrvm_test.fish python scripts/testMMTk.py -g RFullAdaptiveSemiSpace
