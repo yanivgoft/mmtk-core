@@ -2,6 +2,9 @@ cache:
   paths:
     - benchmarks/
 
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 stages:
   - build
   - jikesrvm

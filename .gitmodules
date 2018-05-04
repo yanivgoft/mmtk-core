@@ -1,0 +1,3 @@
+[submodule "jikesrvm"]
+	path = jikesrvm
+	url = ../jikesrvm.git
