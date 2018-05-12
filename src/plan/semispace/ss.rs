@@ -23,10 +23,12 @@ use std::cell::UnsafeCell;
 use std::sync::atomic::{self, AtomicBool, AtomicUsize, Ordering};
 
 use ::vm::{Scanning, VMScanning};
+use ::vm::jikesrvm::entrypoint::*;
 use std::thread;
 use util::conversions::bytes_to_pages;
 use plan::plan::create_vm_space;
 use plan::plan::EMERGENCY_COLLECTION;
+use vm::jikesrvm::JTOC_BASE;
 
 pub type SelectedPlan = SemiSpace;
 
@@ -97,6 +99,17 @@ impl Plan for SemiSpace {
         unsync.copyspace1.init();
         unsync.versatile_space.init();
 
+        debug!("vm_space at: {}", unsync.vm_space.common().start);
+        debug!("copyspace0 at: {}", unsync.copyspace0.common().start);
+        debug!("copyspace1 at: {}", unsync.copyspace1.common().start);
+        debug!("versatile_space at: {}", unsync.versatile_space.common().start);
+
+        debug!("beep, hi={}", unsync.hi);
+        let cts = self.fromspace().common();
+        (JTOC_BASE + SPACE_START_FIELD_OFFSET).store::<usize>(cts.start.as_usize());
+        (JTOC_BASE + SPACE_END_FIELD_OFFSET).store::<usize>((cts.start + cts.extent).as_usize());
+        debug!("boop");
+
         if !cfg!(feature = "jikesrvm") {
             thread::spawn(|| {
                 ::plan::plan::CONTROL_COLLECTOR_CONTEXT.run(0)
@@ -149,6 +162,7 @@ impl Plan for SemiSpace {
                 plan::STACKS_PREPARED.store(true, atomic::Ordering::Relaxed);
             }
             &Phase::Prepare => {
+                debug!("Flipping spaces ...");
                 unsync.hi = !unsync.hi; // flip the semi-spaces
                 // prepare each of the collected regions
                 unsync.copyspace0.prepare(unsync.hi);
@@ -165,6 +179,12 @@ impl Plan for SemiSpace {
             }
             &Phase::Closure => {}
             &Phase::Release => {
+                debug!("beep, hi={}", unsafe{(&*self.unsync.get()).hi});
+                let cts = self.fromspace().common();
+                (JTOC_BASE + SPACE_START_FIELD_OFFSET).store::<usize>(cts.start.as_usize());
+                (JTOC_BASE + SPACE_END_FIELD_OFFSET).store::<usize>((cts.start + cts.extent).as_usize());
+                debug!("boop");
+
                 // release the collected region
                 if unsync.hi {
                     unsync.copyspace0.release();

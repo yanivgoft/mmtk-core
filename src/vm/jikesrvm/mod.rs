@@ -1,7 +1,7 @@
 use self::entrypoint::*;
 pub use self::collection::BOOT_THREAD;
 
-mod entrypoint;
+pub mod entrypoint;
 
 #[macro_use]
 mod jtoc_call;

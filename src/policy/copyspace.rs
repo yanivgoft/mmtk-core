@@ -30,6 +30,7 @@ impl Space<MonotonePageResource<CopySpace>> for CopySpace {
     fn common_mut(&self) -> &mut CommonSpace<CopySpace, MonotonePageResource<CopySpace>> {
         unsafe{&mut *self.common.get()}
     }
+
     fn init(&mut self) {
         // Borrow-checker fighting so that we can have a cyclic reference
         let me = unsafe { &*(self as *const Self) };

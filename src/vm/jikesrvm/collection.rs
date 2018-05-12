@@ -41,7 +41,9 @@ impl Collection for VMCollection {
     fn prepare_mutator<T: MutatorContext>(thread_id: usize, m: &T) {
         unsafe {
             let mutator_thread = Self::thread_from_id(m.get_thread_id()).as_usize();
+            debug!("Calling prepare_mutator");
             jtoc_call!(PREPARE_MUTATOR_METHOD_OFFSET, thread_id, mutator_thread);
+            debug!("Returning from prepare_mutator");
         }
     }
 }

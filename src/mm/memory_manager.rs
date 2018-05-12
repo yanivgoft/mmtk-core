@@ -14,10 +14,14 @@ use ::plan::CollectorContext;
 use ::plan::ParallelCollectorGroup;
 use ::plan::plan::CONTROL_COLLECTOR_CONTEXT;
 
+use ::policy::space::Space;
+
 use ::vm::{Collection, VMCollection};
 
 #[cfg(feature = "jikesrvm")]
 use ::vm::jikesrvm::JTOC_BASE;
+
+use ::vm::ActivePlan;
 
 use ::util::{Address, ObjectReference};
 use ::util::options::options::OptionMap;
@@ -29,11 +33,15 @@ use ::plan::Allocator;
 use util::constants::LOG_BYTES_IN_PAGE;
 use util::heap::layout::vm_layout_constants::HEAP_START;
 use util::heap::layout::vm_layout_constants::HEAP_END;
+use plan::plan::GcStatus;
+use plan::plan::gc_in_progress;
 
 #[no_mangle]
 #[cfg(feature = "jikesrvm")]
 pub unsafe extern fn jikesrvm_gc_init(jtoc: *mut c_void, heap_size: usize) {
+    println!("kill me");
     ::util::logger::init().unwrap();
+    trace!("jikesrvm_gc_init");
     JTOC_BASE = Address::from_mut_ptr(jtoc);
     selected_plan::PLAN.gc_init(heap_size);
     debug_assert!(54 == ::vm::JikesRVM::test(44));
@@ -71,6 +79,7 @@ pub unsafe extern fn gc_init(heap_size: usize) {
 
 #[no_mangle]
 pub extern fn bind_mutator(thread_id: usize) -> *mut c_void {
+    println!("really kill me");
     SelectedPlan::bind_mutator(&selected_plan::PLAN, thread_id)
 }
 
@@ -218,4 +227,20 @@ pub extern fn executable() -> bool {
 #[cfg(not(feature = "openjdk"))]
 pub extern fn executable() -> bool {
     panic!("Cannot call executable when not building for OpenJDK")
+}
+
+#[no_mangle]
+#[cfg(feature = "semispace")]
+pub unsafe extern fn is_valid_ref(val: *mut c_void) -> bool {
+    if gc_in_progress() {
+        debug!("Calling is_valid_ref while in GC");
+    }
+    !gc_in_progress() && !::plan::semispace::ss::PLAN.fromspace()
+        .in_space(Address::from_mut_ptr(val).to_object_reference())
+}
+
+#[no_mangle]
+#[cfg(not(feature = "semispace"))]
+pub extern fn is_valid_ref(val: *mut c_void) -> bool {
+    unimplemented!()
 }

@@ -1,4 +1,4 @@
-mod ss;
+pub mod ss;
 mod sscollector;
 mod ssmutator;
 pub mod ssconstraints;
