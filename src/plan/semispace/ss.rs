@@ -201,6 +201,13 @@ impl Plan for SemiSpace {
                     unsync.sanity_checker.check(thread_id);
                 }
                 plan::set_gc_status(plan::GcStatus::NotInGC);
+
+                if cfg!(feature = "jikesrvm") {
+                    unsafe {
+                        ::vm::jikesrvm::JikesRVM::increment_gc_count();
+                    }
+                }
+
                 println!("Finished one GC")
             }
             _ => {

@@ -96,7 +96,7 @@ impl CopySpace {
             ForwardingWord::set_forwarding_pointer(object, new_object);
             trace!("Forwarding pointer");
             trace.process_node(new_object);
-            trace!("Copying [{:?} -> {:?}]", object, new_object);
+            println!("Copying [{:?} -> {:?}]", object, new_object);
             return new_object;
         }
     }

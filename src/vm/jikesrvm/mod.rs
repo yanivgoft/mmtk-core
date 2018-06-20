@@ -57,4 +57,12 @@ impl JikesRVM {
             jtoc_call!(TEST3_METHOD_OFFSET, BOOT_THREAD, input1, input2, input3, input4)
         }
     }
+
+    #[inline(always)]
+    pub fn increment_gc_count() {
+        unsafe {
+            (JTOC_BASE + NUM_GC_FINISHED_FIELD_OFFSET).store((JTOC_BASE + NUM_GC_FINISHED_FIELD_OFFSET).load::<usize>() + 1);
+        }
+    }
+
 }

@@ -133,7 +133,7 @@ static mut SPACE_COUNT: usize = 0;
 static mut HEAP_CURSOR: Address = HEAP_START;
 static mut HEAP_LIMIT: Address = HEAP_END;
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 
 impl<PR: PageResource> CommonSpace<PR> {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
