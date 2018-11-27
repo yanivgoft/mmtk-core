@@ -17,9 +17,13 @@ use ::util::constants::LOG_BYTES_IN_MBYTE;
 use std::fmt::Debug;
 
 use libc::c_void;
+use std::mem;
 
-pub trait Space: Sized + Debug + 'static {
-    type PR: PageResource<Space = Self>;
+pub trait Space: Debug + 'static {
+    // type PR: PageResource<Space = Self>;
+
+    fn page_resource(&self) -> Option<&PageResource>;
+    fn as_space(&self) -> &Space;
 
     fn init(&mut self);
 
@@ -30,16 +34,17 @@ pub trait Space: Sized + Debug + 'static {
             && PLAN.is_initialized();
 
         trace!("Reserving pages");
-        let pr = self.common().pr.as_ref().unwrap();
+        let pr = self.page_resource().unwrap();
         let pages_reserved = pr.reserve_pages(pages);
         trace!("Pages reserved");
 
         // FIXME: Possibly unnecessary borrow-checker fighting
-        let me = unsafe { &*(self as *const Self) };
+        // let me = unsafe { &*(self as *const Self) };
+        let me = unsafe { mem::transmute(self.as_space()) };
 
         trace!("Polling ..");
 
-        if allow_poll && VMActivePlan::global().poll::<Self::PR>(false, me) {
+        if allow_poll && VMActivePlan::global().poll(false, me) {
             trace!("Collection required");
             pr.clear_request(pages_reserved);
             VMCollection::block_for_gc(tls);
@@ -52,7 +57,7 @@ pub trait Space: Sized + Debug + 'static {
                     panic!("Physical allocation failed when polling not allowed!");
                 }
 
-                let gc_performed = VMActivePlan::global().poll::<Self::PR>(true, me);
+                let gc_performed = VMActivePlan::global().poll(true, me);
                 debug_assert!(gc_performed, "GC not performed when forced.");
                 pr.clear_request(pages_reserved);
                 VMCollection::block_for_gc(tls);
@@ -94,29 +99,29 @@ pub trait Space: Sized + Debug + 'static {
     fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {}
 
     fn reserved_pages(&self) -> usize {
-        self.common().pr.as_ref().unwrap().reserved_pages()
+        self.page_resource().unwrap().reserved_pages()
     }
 
     fn get_name(&self) -> &'static str {
         self.common().name
     }
 
-    fn common(&self) -> &CommonSpace<Self::PR>;
-    fn common_mut(&mut self) -> &mut CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace;
+    fn common_mut(&mut self) -> &mut CommonSpace {
         // SAFE: Reference is exclusive
         unsafe {self.unsafe_common_mut()}
     }
 
     // UNSAFE: This get's a mutable reference from self
     // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR>;
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace;
 
     fn is_live(&self, object: ObjectReference) -> bool;
     fn is_movable(&self) -> bool;
 }
 
 #[derive(Debug)]
-pub struct CommonSpace<PR: PageResource> {
+pub struct CommonSpace {
     pub name: &'static str,
     name_length: usize,
     pub descriptor: usize,
@@ -128,7 +133,7 @@ pub struct CommonSpace<PR: PageResource> {
     pub contiguous: bool,
     pub zeroed: bool,
 
-    pub pr: Option<PR>,
+    // pub pr: Option<Box<PageResource>>,
     pub start: Address,
     pub extent: usize,
     pub head_discontiguous_region: Address,
@@ -141,7 +146,7 @@ static mut HEAP_LIMIT: Address = HEAP_END;
 
 const DEBUG: bool = false;
 
-impl<PR: PageResource> CommonSpace<PR> {
+impl CommonSpace {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
                vmrequest: VMRequest) -> Self {
         let mut rtn = CommonSpace {
@@ -154,7 +159,7 @@ impl<PR: PageResource> CommonSpace<PR> {
             movable,
             contiguous: true,
             zeroed,
-            pr: None,
+            // pr: None,
             start: unsafe{Address::zero()},
             extent: 0,
             head_discontiguous_region: unsafe{Address::zero()},

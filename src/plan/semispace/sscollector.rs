@@ -11,7 +11,6 @@ use ::util::{Address, ObjectReference};
 use ::util::alloc::Allocator;
 use ::util::alloc::BumpAllocator;
 use ::util::forwarding_word::clear_forwarding_bits;
-use ::util::heap::{MonotonePageResource, PageResource};
 use ::util::reference_processor::*;
 use ::vm::{Scanning, VMScanning};
 use libc::c_void;
@@ -22,7 +21,7 @@ use ::plan::selected_plan::SelectedConstraints;
 pub struct SSCollector {
     pub tls: *mut c_void,
     // CopyLocal
-    pub ss: BumpAllocator<MonotonePageResource<CopySpace>>,
+    pub ss: BumpAllocator<CopySpace>,
     trace: SSTraceLocal,
 
     last_trigger_count: usize,

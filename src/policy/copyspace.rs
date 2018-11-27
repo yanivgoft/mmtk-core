@@ -20,17 +20,24 @@ const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
 #[derive(Debug)]
 pub struct CopySpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<CopySpace>>>,
+    common: UnsafeCell<CommonSpace>,
+    pr: Option<MonotonePageResource>,
     from_space: bool,
 }
 
 impl Space for CopySpace {
-    type PR = MonotonePageResource<CopySpace>;
+    // type PR = MonotonePageResource<CopySpace>;
+    fn page_resource(&self) -> Option<&PageResource> {
+        self.pr.as_ref().map(|x| x as _)
+    }
+    fn as_space(&self) -> &Space {
+        self
+    }
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace {
         unsafe {&*self.common.get()}
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace {
         &mut *self.common.get()
     }
 
@@ -38,16 +45,17 @@ impl Space for CopySpace {
         // Borrow-checker fighting so that we can have a cyclic reference
         let me = unsafe { &*(self as *const Self) };
 
-        let common_mut = self.common_mut();
-        if common_mut.vmrequest.is_discontiguous() {
-            common_mut.pr = Some(MonotonePageResource::new_discontiguous(
-                META_DATA_PAGES_PER_REGION));
-        } else {
-            common_mut.pr = Some(MonotonePageResource::new_contiguous(common_mut.start,
-                                                                      common_mut.extent,
-                                                                      META_DATA_PAGES_PER_REGION));
-        }
-        common_mut.pr.as_mut().unwrap().bind_space(me);
+        let mut pr = {
+            let common = self.common();
+            if common.vmrequest.is_discontiguous() {
+                MonotonePageResource::new_discontiguous(META_DATA_PAGES_PER_REGION)
+            } else {
+                MonotonePageResource::new_contiguous(
+                    common.start, common.extent, META_DATA_PAGES_PER_REGION)
+            }
+        };
+        pr.bind_space(me);
+        self.pr = Some(pr);
     }
 
     fn is_live(&self, object: ObjectReference) -> bool {
@@ -63,6 +71,7 @@ impl CopySpace {
     pub fn new(name: &'static str, from_space: bool, zeroed: bool, vmrequest: VMRequest) -> Self {
         CopySpace {
             common: UnsafeCell::new(CommonSpace::new(name, true, false, zeroed, vmrequest)),
+            pr: None,
             from_space,
         }
     }
@@ -72,7 +81,7 @@ impl CopySpace {
     }
 
     pub fn release(&mut self) {
-        self.common().pr.as_ref().unwrap().reset();
+        self.pr.as_ref().unwrap().reset();
         self.from_space = false;
     }
 

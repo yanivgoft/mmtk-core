@@ -63,8 +63,8 @@ pub trait Plan {
         INITIALIZED.load(Ordering::SeqCst)
     }
 
-    fn poll<PR: PageResource>(&self, space_full: bool, space: &'static PR::Space) -> bool {
-        if self.collection_required::<PR>(space_full, space) {
+    fn poll(&self, space_full: bool, space: &'static Space) -> bool {
+        if self.collection_required(space_full, space) {
             // FIXME
             /*if space == META_DATA_SPACE {
                 /* In general we must not trigger a GC on metadata allocation since
@@ -75,7 +75,7 @@ pub trait Plan {
                 self.common().control_collector_context.request();
                 return false;
             }*/
-            self.log_poll::<PR>(space, "Triggering collection");
+            self.log_poll(space, "Triggering collection");
             CONTROL_COLLECTOR_CONTEXT.request();
             return true;
         }
@@ -96,7 +96,7 @@ pub trait Plan {
         return false;
     }
 
-    fn log_poll<PR: PageResource>(&self, space: &'static PR::Space, message: &'static str) {
+    fn log_poll(&self, space: &'static Space, message: &'static str) {
         if OPTION_MAP.verbose >= 5 {
             println!("  [POLL] {}: {}", space.get_name(), message);
         }
@@ -110,7 +110,7 @@ pub trait Plan {
      * @param space TODO
      * @return <code>true</code> if a collection is requested by the plan.
      */
-    fn collection_required<PR: PageResource>(&self, space_full: bool, space: &'static PR::Space) -> bool {
+    fn collection_required(&self, space_full: bool, space: &'static Space) -> bool {
         let stress_force_gc = self.stress_test_gc_required();
         trace!("self.get_pages_reserved()={}, self.get_total_pages()={}",
                self.get_pages_reserved(), self.get_total_pages());

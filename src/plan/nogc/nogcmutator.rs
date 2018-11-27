@@ -5,14 +5,13 @@ use ::plan::Phase;
 use ::util::{Address, ObjectReference};
 use ::util::alloc::Allocator;
 use ::plan::Allocator as AllocationType;
-use ::util::heap::MonotonePageResource;
 
 use libc::c_void;
 
 #[repr(C)]
 pub struct NoGCMutator {
     // ImmortalLocal
-    nogc: BumpAllocator<MonotonePageResource<ImmortalSpace>>
+    nogc: BumpAllocator<ImmortalSpace>
 }
 
 impl MutatorContext for NoGCMutator {

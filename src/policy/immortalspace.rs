@@ -15,7 +15,8 @@ use std::cell::UnsafeCell;
 
 #[derive(Debug)]
 pub struct ImmortalSpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<ImmortalSpace>>>,
+    common: UnsafeCell<CommonSpace>,
+    pr: Option<MonotonePageResource>,
     mark_state: u8,
 }
 
@@ -25,12 +26,17 @@ const GC_MARK_BIT_MASK: u8 = 1;
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
 impl Space for ImmortalSpace {
-    type PR = MonotonePageResource<ImmortalSpace>;
-
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    // type PR = MonotonePageResource<ImmortalSpace>;
+    fn page_resource(&self) -> Option<&PageResource> {
+        self.pr.as_ref().map(|x| x as _)
+    }
+    fn as_space(&self) -> &Space {
+        self
+    }
+    fn common(&self) -> &CommonSpace {
         unsafe {&*self.common.get()}
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace {
         &mut *self.common.get()
     }
 
@@ -38,16 +44,17 @@ impl Space for ImmortalSpace {
         // Borrow-checker fighting so that we can have a cyclic reference
         let me = unsafe { &*(self as *const Self) };
 
-        let common_mut = self.common_mut();
-        if common_mut.vmrequest.is_discontiguous() {
-            common_mut.pr = Some(MonotonePageResource::new_discontiguous(
-                META_DATA_PAGES_PER_REGION));
-        } else {
-            common_mut.pr = Some(MonotonePageResource::new_contiguous(common_mut.start,
-                                                                      common_mut.extent,
-                                                                      META_DATA_PAGES_PER_REGION));
-        }
-        common_mut.pr.as_mut().unwrap().bind_space(me);
+        let mut pr = {
+            let common = self.common();
+            if common.vmrequest.is_discontiguous() {
+                MonotonePageResource::new_discontiguous(META_DATA_PAGES_PER_REGION)
+            } else {
+                MonotonePageResource::new_contiguous(
+                    common.start, common.extent, META_DATA_PAGES_PER_REGION)
+            }
+        };
+        pr.bind_space(me);
+        self.pr = Some(pr);
     }
 
     fn is_live(&self, object: ObjectReference) -> bool {
@@ -63,6 +70,7 @@ impl ImmortalSpace {
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest) -> Self {
         ImmortalSpace {
             common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest)),
+            pr: None,
             mark_state: 0,
         }
     }

@@ -25,8 +25,8 @@ use libc::{c_void, memset};
 const SPACE_ALIGN: usize = 1 << 19;
 
 #[derive(Debug)]
-pub struct MonotonePageResource<S: Space<PR = MonotonePageResource<S>>> {
-    common: CommonPageResource<MonotonePageResource<S>>,
+pub struct MonotonePageResource {
+    common: CommonPageResource,
 
     /** Number of pages to reserve at the start of every allocation */
     meta_data_pages_per_region: usize,
@@ -55,13 +55,13 @@ pub enum MonotonePageResourceConditional {
     },
     Discontiguous,
 }
-impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResource<S> {
-    type Space = S;
+impl PageResource for MonotonePageResource {
+    // type Space = S;
 
-    fn common(&self) -> &CommonPageResource<Self> {
+    fn common(&self) -> &CommonPageResource {
         &self.common
     }
-    fn common_mut(&mut self) -> &mut CommonPageResource<Self> {
+    fn common_mut(&mut self) -> &mut CommonPageResource {
         &mut self.common
     }
 
@@ -162,7 +162,7 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
     }
 }
 
-impl<S: Space<PR = MonotonePageResource<S>>> MonotonePageResource<S> {
+impl MonotonePageResource {
     pub fn new_contiguous(start: Address, bytes: usize,
                           meta_data_pages_per_region: usize) -> Self {
         let sentinel = start + bytes;

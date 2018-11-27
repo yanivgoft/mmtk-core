@@ -28,14 +28,14 @@ const DATA_END_OFFSET: isize = NEXT_REGION_OFFSET + BYTES_IN_ADDRESS as isize;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct BumpAllocator<PR: PageResource> {
+pub struct BumpAllocator<S: Space> {
     pub tls: *mut c_void,
     cursor: Address,
     limit: Address,
-    space: Option<&'static PR::Space>
+    space: Option<&'static S>
 }
 
-impl<PR: PageResource> BumpAllocator<PR> {
+impl <S: Space> BumpAllocator<S> {
     pub fn set_limit(&mut self, cursor: Address, limit: Address) {
         self.cursor = cursor;
         self.limit = limit;
@@ -46,7 +46,7 @@ impl<PR: PageResource> BumpAllocator<PR> {
         self.limit = unsafe { Address::zero() };
     }
 
-    pub fn rebind(&mut self, space: Option<&'static PR::Space>) {
+    pub fn rebind(&mut self, space: Option<&'static S>) {
         self.reset();
         self.space = space;
     }
@@ -93,9 +93,9 @@ impl<PR: PageResource> BumpAllocator<PR> {
     }
 }
 
-impl<PR: PageResource> Allocator<PR> for BumpAllocator<PR> {
-    fn get_space(&self) -> Option<&'static PR::Space> {
-        self.space
+impl <S: Space> Allocator for BumpAllocator<S> {
+    fn get_space(&self) -> Option<&'static Space> {
+        self.space.map(|s| s as _)
     }
 
     fn alloc(&mut self, size: usize, align: usize, offset: isize) -> Address {
@@ -141,8 +141,8 @@ impl<PR: PageResource> Allocator<PR> for BumpAllocator<PR> {
     }
 }
 
-impl<PR: PageResource> BumpAllocator<PR> {
-    pub fn new(tls: *mut c_void, space: Option<&'static PR::Space>) -> Self {
+impl <S: Space> BumpAllocator<S> {
+    pub fn new(tls: *mut c_void, space: Option<&'static S>) -> Self {
         BumpAllocator {
             tls,
             cursor: unsafe { Address::zero() },

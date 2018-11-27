@@ -11,9 +11,9 @@ use libc::c_void;
 
 static CUMULATIVE_COMMITTED: AtomicUsize = AtomicUsize::new(0);
 
-pub trait PageResource: Sized + 'static + Debug {
-    type Space: Space<PR = Self>;
-
+pub trait PageResource: 'static + Debug {
+    // type Space: Space;
+    
     /// Allocate pages from this resource.
     /// Simply bump the cursor, and fail if we hit the sentinel.
     /// Return The start of the first page if successful, zero on failure.
@@ -71,7 +71,7 @@ pub trait PageResource: Sized + 'static + Debug {
         self.common().committed.store(self.common().committed.load(Ordering::Relaxed) + actual_pages,
                                       Ordering::Relaxed);
         if unsafe{VMActivePlan::is_mutator(tls)} {
-            Self::add_to_committed(actual_pages);
+            self.add_to_committed(actual_pages);
         }
     }
 
@@ -83,17 +83,17 @@ pub trait PageResource: Sized + 'static + Debug {
         self.common().committed.load(Ordering::Relaxed)
     }
 
-    fn add_to_committed(pages: usize) {
+    fn add_to_committed(&self, pages: usize) {
         CUMULATIVE_COMMITTED.fetch_add(pages, Ordering::Relaxed);
     }
 
 
-    fn bind_space(&mut self, space: &'static Self::Space) {
+    fn bind_space(&mut self, space: &'static Space) {
         self.common_mut().space = Some(space);
     }
 
-    fn common(&self) -> &CommonPageResource<Self>;
-    fn common_mut(&mut self) -> &mut CommonPageResource<Self>;
+    fn common(&self) -> &CommonPageResource;
+    fn common_mut(&mut self) -> &mut CommonPageResource;
 }
 
 pub fn cumulative_committed_pages() -> usize {
@@ -101,11 +101,11 @@ pub fn cumulative_committed_pages() -> usize {
 }
 
 #[derive(Debug)]
-pub struct CommonPageResource<PR: PageResource> {
+pub struct CommonPageResource {
     pub reserved: AtomicUsize,
     pub committed: AtomicUsize,
 
     pub contiguous: bool,
     pub growable: bool,
-    pub space: Option<&'static PR::Space>,
+    pub space: Option<&'static Space>,
 }
