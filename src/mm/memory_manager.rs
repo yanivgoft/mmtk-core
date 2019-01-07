@@ -120,6 +120,17 @@ pub unsafe fn alloc_slow(mutator: *mut c_void, size: usize,
 }
 
 #[no_mangle]
+pub unsafe fn jikesrvm_object_reference_write_slow(handle: *mut c_void,src: ObjectReference, slot:*mut c_void,value: ObjectReference,worda:usize, wordb:usize,
+                  mode:isize){
+
+                  let slot = slot as *mut ObjectReference;
+                  slot.write(value);
+
+}
+
+
+
+#[no_mangle]
 pub extern fn post_alloc(mutator: *mut c_void, refer: ObjectReference, type_refer: ObjectReference,
                          bytes: usize, allocator: Allocator) {
     let local = unsafe {&mut *(mutator as *mut <SelectedPlan as Plan>::MutatorT)};
