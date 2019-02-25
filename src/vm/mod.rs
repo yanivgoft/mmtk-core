@@ -59,3 +59,6 @@ pub use self::openjdk::reference_glue::VMReferenceGlue as VMReferenceGlue;
 
 #[cfg(feature = "openjdk")]
 pub use self::openjdk::memory::VMMemory as VMMemory;
+
+#[cfg(feature = "v8")]
+pub use self::v8::active_plan::VMActivePlan as VMActivePlan;
