@@ -41,6 +41,13 @@ pub struct NoGCUnsync {
     pub total_pages: usize,
 }
 
+impl NoGC {
+    pub fn get_space(&self) -> &'static ImmortalSpace {
+        let unsync = unsafe { &*self.unsync.get() };
+        &unsync.space
+    }
+}
+
 impl Plan for NoGC {
     type MutatorT = NoGCMutator;
     type TraceLocalT = NoGCTraceLocal;

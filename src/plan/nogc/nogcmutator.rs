@@ -25,6 +25,10 @@ impl MutatorContext for NoGCMutator {
 
     fn alloc(&mut self, size: usize, align: usize, offset: isize, allocator: AllocationType) -> Address {
         trace!("MutatorContext.alloc({}, {}, {}, {:?})", size, align, offset, allocator);
+        debug_assert!(self.nogc.get_space().unwrap() as *const _ == PLAN.get_space() as *const _,
+                      "bumpallocator {:?} holds wrong space, nogc.space: {:?}",
+                      self as *const _,
+                      self.nogc.get_space().unwrap() as *const _);
         match allocator {
             AllocationType::Los => self.los.alloc(size, align, offset),
             _ => self.nogc.alloc(size, align, offset)
