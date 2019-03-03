@@ -61,4 +61,25 @@ pub use self::openjdk::reference_glue::VMReferenceGlue as VMReferenceGlue;
 pub use self::openjdk::memory::VMMemory as VMMemory;
 
 #[cfg(feature = "v8")]
+pub mod v8;
+
+#[cfg(feature = "v8")]
+pub use self::v8::*;
+
+#[cfg(feature = "v8")]
+pub use self::v8::object_model::VMObjectModel as VMObjectModel;
+
+#[cfg(feature = "v8")]
+pub use self::v8::scanning::VMScanning as VMScanning;
+
+#[cfg(feature = "v8")]
+pub use self::v8::collection::VMCollection as VMCollection;
+
+#[cfg(feature = "v8")]
 pub use self::v8::active_plan::VMActivePlan as VMActivePlan;
+
+#[cfg(feature = "v8")]
+pub use self::v8::reference_glue::VMReferenceGlue as VMReferenceGlue;
+
+#[cfg(feature = "v8")]
+pub use self::v8::memory::VMMemory as VMMemory;

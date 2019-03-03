@@ -47,6 +47,12 @@ pub fn create_vm_space() -> ImmortalSpace {
     ImmortalSpace::new("boot", false, VMRequest::fixed_size(0))
 }
 
+#[cfg(feature = "v8")]
+pub fn create_vm_space() -> ImmortalSpace {
+    // FIXME: Does v8 care?
+    ImmortalSpace::new("boot", false, VMRequest::fixed_size(0))
+}
+
 pub trait Plan: Sized {
     type MutatorT: MutatorContext;
     type TraceLocalT: TraceLocal;
