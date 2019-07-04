@@ -116,7 +116,7 @@ macro_rules! options {
     ]
 }
 options!{
-    threads:               usize                [|v| v > 0]    = num_cpus::get(),
+    threads:               usize                [|v| v > 0]    = 1,
     use_short_stack_scans: bool                 [always_valid] = false,
     use_return_barrier:    bool                 [always_valid] = false,
     eager_complete_sweep:  bool                 [always_valid] = false,

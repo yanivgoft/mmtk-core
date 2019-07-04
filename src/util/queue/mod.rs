@@ -4,6 +4,7 @@ use ::util::constants::LOG_BYTES_IN_PAGE;
 
 mod local_queue;
 mod shared_queue;
+pub mod vec_queue;
 
 const TRACE_QUEUE: bool = false;
 const LOG_PAGES_PER_BUFFER: usize = 0;

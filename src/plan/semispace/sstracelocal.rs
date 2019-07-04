@@ -3,7 +3,7 @@ use ::plan::semispace::PLAN;
 use ::plan::trace::Trace;
 use ::policy::space::Space;
 use ::util::{Address, ObjectReference};
-use ::util::queue::LocalQueue;
+use ::util::queue::vec_queue::LocalQueue;
 use ::vm::Scanning;
 use ::vm::VMScanning;
 use libc::c_void;
@@ -170,8 +170,8 @@ impl SSTraceLocal {
     pub fn new(ss_trace: &'static Trace) -> Self {
         SSTraceLocal {
             tls: 0 as *mut c_void,
-            values: ss_trace.values.spawn_local(),
-            root_locations: ss_trace.root_locations.spawn_local(),
+            values: LocalQueue::new(0),
+            root_locations: LocalQueue::new(0),
         }
     }
 
