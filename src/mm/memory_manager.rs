@@ -13,6 +13,7 @@ use ::plan::TraceLocal;
 use ::plan::CollectorContext;
 use ::plan::ParallelCollectorGroup;
 use ::plan::plan::CONTROL_COLLECTOR_CONTEXT;
+use ::plan::transitive_closure::TransitiveClosure;
 
 use ::vm::{Collection, VMCollection};
 
@@ -58,6 +59,13 @@ pub unsafe extern fn jikesrvm_gc_init(_jtoc: *mut c_void, _heap_size: usize) {
 pub struct OpenJDK_Upcalls {
     pub stop_all_mutators: extern "C" fn(tls: *mut c_void),
     pub resume_mutators: extern "C" fn(tls: *mut c_void),
+    pub spawn_collector_thread: extern "C" fn(tls: *mut c_void, ctx: *mut c_void),
+    pub block_for_gc: extern "C" fn(),
+    pub active_collector: extern "C" fn(tls: *mut c_void) -> *mut c_void,
+    pub get_next_mutator: extern "C" fn() -> *mut c_void,
+    pub reset_mutator_iterator: extern "C" fn(),
+    pub compute_thread_roots: extern "C" fn(trace: *mut c_void, tls: *mut c_void),
+    pub scan_object: extern "C" fn(trace: *mut c_void, object: *mut c_void, tls: *mut c_void),
 }
 
 #[no_mangle]
@@ -84,6 +92,11 @@ pub extern fn start_control_collector(tls: *mut c_void) {
 #[cfg(not(any(feature = "jikesrvm", feature = "openjdk")))]
 pub extern fn start_control_collector(tls: *mut c_void) {
     panic!("Cannot call start_control_collector when not building for JikesRVM or OpenJDK");
+}
+
+#[no_mangle]
+pub extern fn request_gc() {
+    CONTROL_COLLECTOR_CONTEXT.request();
 }
 
 #[no_mangle]
@@ -206,8 +219,12 @@ pub unsafe extern fn enable_collection(tls: *mut c_void) {
 
 #[no_mangle]
 #[cfg(not(feature = "jikesrvm"))]
-pub extern fn enable_collection(size: usize) {
-    panic!("Cannot call enable_collection when not building for JikesRVM");
+pub unsafe extern fn enable_collection(tls: *mut c_void) {
+    debug_assert!(tls == 0 as *mut c_void);
+    (&mut *CONTROL_COLLECTOR_CONTEXT.workers.get()).init_group(tls);
+    VMCollection::spawn_worker_thread::<<SelectedPlan as Plan>::CollectorT>(tls, null_mut()); // spawn controller thread
+    ::plan::plan::INITIALIZED.store(true, Ordering::SeqCst);
+    // panic!("Cannot call enable_collection when not building for JikesRVM");
 }
 
 #[no_mangle]
@@ -299,6 +316,12 @@ pub unsafe extern fn trace_get_forwarded_reference(trace_local: *mut c_void, obj
 pub unsafe extern fn trace_is_live(trace_local: *mut c_void, object: ObjectReference) -> bool{
     let local = &mut *(trace_local as *mut <SelectedPlan as Plan>::TraceLocalT);
     local.is_live(object)
+}
+
+#[no_mangle]
+pub unsafe extern fn process_edge(trace_local: *mut c_void, object: Address) {
+    let local = &mut *(trace_local as *mut <SelectedPlan as Plan>::TraceLocalT);
+    local.process_edge(object);
 }
 
 #[no_mangle]

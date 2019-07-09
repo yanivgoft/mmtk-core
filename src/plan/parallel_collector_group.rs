@@ -51,7 +51,7 @@ impl<C: ParallelCollector> ParallelCollectorGroup<C> {
             let inner = self.sync.get_mut().unwrap();
             inner.trigger_count = 1;
         }
-        let size = OPTION_MAP.threads;
+        let size = 1;//OPTION_MAP.threads;
         self.contexts = Vec::<C>::with_capacity(size);
         for i in 0..size {
             self.contexts.push(C::new());
