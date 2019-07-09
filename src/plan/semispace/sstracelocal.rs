@@ -119,7 +119,7 @@ impl TraceLocal for SSTraceLocal {
     }
 
     fn report_delayed_root_edge(&mut self, slot: Address) {
-        trace!("report_delayed_root_edge {:?}", slot);
+        println!("report_delayed_root_edge {:?} -> {:?}", slot, unsafe { slot.load::<Address>() });
         self.root_locations.enqueue(slot);
     }
 

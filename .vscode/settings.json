@@ -1,7 +1,8 @@
 {
     "rust.no_default_features": true,
     "rust.features": [
-        "nogc"
+        "nogc", "openjdk"
     ],
+    "rust.target": "x86_64-unknown-linux-gnu",
     "rust.unstable_features": true
 }

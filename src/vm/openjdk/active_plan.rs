@@ -1,13 +1,15 @@
 use ::plan::{Plan, SelectedPlan};
 use super::super::ActivePlan;
-
+use super::UPCALLS;
 use libc::c_void;
 
 pub struct VMActivePlan<> {}
 
 impl ActivePlan for VMActivePlan {
     unsafe fn collector(tls: *mut c_void) -> &'static mut <SelectedPlan as Plan>::CollectorT {
-        unimplemented!()
+        let c = ((*UPCALLS).active_collector)(tls);
+        assert!(c != 0 as *mut c_void);
+        unsafe { ::std::mem::transmute(c) }
     }
 
     unsafe fn is_mutator(tls: *mut c_void) -> bool {
@@ -24,10 +26,15 @@ impl ActivePlan for VMActivePlan {
     }
 
     fn reset_mutator_iterator() {
-        unimplemented!()
+        unsafe {
+            ((*UPCALLS).reset_mutator_iterator)();
+        }
     }
 
     fn get_next_mutator() -> Option<&'static mut <SelectedPlan as Plan>::MutatorT> {
-        unimplemented!()
+        unsafe {
+            let c = ((*UPCALLS).get_next_mutator)();
+            ::std::mem::transmute(c)
+        }
     }
 }
