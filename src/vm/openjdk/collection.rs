@@ -24,6 +24,12 @@ impl Collection for VMCollection {
         }
     }
 
+    fn collect_work() {
+        // unsafe {
+        //     ((*UPCALLS).collect_work)();
+        // }
+    }
+
     fn block_for_gc(tls: *mut c_void) {
         println!("Block for GC");
         unsafe {

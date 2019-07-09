@@ -12,4 +12,5 @@ pub trait Collection {
     fn out_of_memory(tls: OpaquePointer) {
         panic!("Out of memory!");
     }
+    fn collect_work() {}
 }
