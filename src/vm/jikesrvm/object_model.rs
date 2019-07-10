@@ -243,22 +243,35 @@ impl ObjectModel for VMObjectModel {
 
     fn attempt_available_bits(object: ObjectReference, old: usize, new: usize) -> bool {
         trace!("ObjectModel.attempt_available_bits");
+//        let loc = unsafe {
+//            &*((object.to_address() + STATUS_OFFSET).as_usize() as *const AtomicUsize)
+//        };
+//        // XXX: Relaxed in OK on failure, right??
+//        // FIXME: [ZC] What about weak/strong compare_exchange?
+//        // And what about CAS?
+//        // We use this function in a loop, where the weaker version might be more suitable
+//        loc.compare_exchange(old, new, Ordering::SeqCst, Ordering::SeqCst).is_ok()
         let loc = unsafe {
-            &*((object.to_address() + STATUS_OFFSET).as_usize() as *const AtomicUsize)
+            &mut *((object.to_address() + STATUS_OFFSET).as_usize() as *mut usize)
         };
-        // XXX: Relaxed in OK on failure, right??
-        // FIXME: [ZC] What about weak/strong compare_exchange?
-        // And what about CAS?
-        // We use this function in a loop, where the weaker version might be more suitable
-        loc.compare_exchange(old, new, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+        if *loc == old {
+            *loc = new;
+            true
+        } else {
+            false
+        }
     }
 
     fn prepare_available_bits(object: ObjectReference) -> usize {
         trace!("ObjectModel.prepare_available_bits");
+//        let loc = unsafe {
+//            &*((object.to_address() + STATUS_OFFSET).as_usize() as *const AtomicUsize)
+//        };
+//        loc.load(Ordering::SeqCst)
         let loc = unsafe {
-            &*((object.to_address() + STATUS_OFFSET).as_usize() as *const AtomicUsize)
+            &mut *((object.to_address() + STATUS_OFFSET).as_usize() as *mut usize)
         };
-        loc.load(Ordering::SeqCst)
+        *loc
     }
 
     // XXX: Supposedly none of the 4 methods below need to use atomic loads/stores
@@ -268,34 +281,50 @@ impl ObjectModel for VMObjectModel {
     // Common subexpression elimination might also combine multiple reads into one
     fn write_available_byte(object: ObjectReference, val: u8) {
         trace!("ObjectModel.write_available_byte");
+//        let loc = unsafe {
+//            &*((object.to_address() + AVAILABLE_BITS_OFFSET).as_usize() as *const AtomicU8)
+//        };
+//        loc.store(val, Ordering::SeqCst);
         let loc = unsafe {
-            &*((object.to_address() + AVAILABLE_BITS_OFFSET).as_usize() as *const AtomicU8)
+            &mut *((object.to_address() + AVAILABLE_BITS_OFFSET).as_usize() as *mut u8)
         };
-        loc.store(val, Ordering::SeqCst);
+        *loc = val;
     }
 
     fn read_available_byte(object: ObjectReference) -> u8 {
         trace!("ObjectModel.read_available_byte");
+//        let loc = unsafe {
+//            &*((object.to_address() + AVAILABLE_BITS_OFFSET).as_usize() as *const AtomicU8)
+//        };
+//        loc.load(Ordering::SeqCst)
         let loc = unsafe {
-            &*((object.to_address() + AVAILABLE_BITS_OFFSET).as_usize() as *const AtomicU8)
+            &mut *((object.to_address() + AVAILABLE_BITS_OFFSET).as_usize() as *mut u8)
         };
-        loc.load(Ordering::SeqCst)
+        *loc
     }
 
     fn write_available_bits_word(object: ObjectReference, val: usize) {
         trace!("ObjectModel.write_available_bits_word");
+//        let loc = unsafe {
+//            &*((object.to_address() + STATUS_OFFSET).as_usize() as *const AtomicUsize)
+//        };
+//        loc.store(val, Ordering::SeqCst);
         let loc = unsafe {
-            &*((object.to_address() + STATUS_OFFSET).as_usize() as *const AtomicUsize)
+            &mut *((object.to_address() + STATUS_OFFSET).as_usize() as *mut usize)
         };
-        loc.store(val, Ordering::SeqCst);
+        *loc = val;
     }
 
     fn read_available_bits_word(object: ObjectReference) -> usize {
         trace!("ObjectModel.read_available_bits_word");
+//        let loc = unsafe {
+//            &*((object.to_address() + STATUS_OFFSET).as_usize() as *const AtomicUsize)
+//        };
+//        loc.load(Ordering::SeqCst)
         let loc = unsafe {
-            &*((object.to_address() + STATUS_OFFSET).as_usize() as *const AtomicUsize)
+            &mut *((object.to_address() + STATUS_OFFSET).as_usize() as *mut usize)
         };
-        loc.load(Ordering::SeqCst)
+        *loc
     }
 
     fn GC_HEADER_OFFSET() -> isize {

@@ -8,11 +8,18 @@ use ::vm::Scanning;
 use ::vm::VMScanning;
 use libc::c_void;
 use super::ss;
+use std::collections::{HashSet, HashMap};
 
 pub struct SSTraceLocal {
     tls: *mut c_void,
     values: LocalQueue<'static, ObjectReference>,
     root_locations: LocalQueue<'static, Address>,
+    pub count: u64,
+    scanned: HashMap<ObjectReference, usize>,
+    vs_count: u64,
+    vm_count: u64,
+    ss0_count: u64,
+    ss1_count: u64
 }
 
 impl TransitiveClosure for SSTraceLocal {
@@ -96,6 +103,9 @@ impl TraceLocal for SSTraceLocal {
         loop {
             match self.values.dequeue() {
                 Some(object) => {
+                    self.count += 1;
+                    *self.scanned.entry(object).or_insert(0) += 1;
+                    self.log_object(object);
                     VMScanning::scan_object(self, object, id);
                 }
                 None => {
@@ -103,6 +113,21 @@ impl TraceLocal for SSTraceLocal {
                 }
             }
         }
+        println!("deque count {}", self.count);
+        println!("hashmap len {}", self.scanned.len());
+        println!("copy count {}", unsafe{::policy::copyspace::copycount});
+        println!("immortal count {}", self.vs_count);
+        println!("vmspace count {}", self.vm_count);
+        println!("ss0 count {}", self.ss0_count);
+        println!("ss1 count {}", self.ss1_count);
+        /*
+        for (k, v) in &self.scanned {
+            if *v > 1 {
+                println!("{}: {}", k, v);
+            }
+        }*/
+
+        self.scanned.clear();
         debug_assert!(self.root_locations.is_empty());
         debug_assert!(self.values.is_empty());
     }
@@ -172,6 +197,12 @@ impl SSTraceLocal {
             tls: 0 as *mut c_void,
             values: ss_trace.values.spawn_local(),
             root_locations: ss_trace.root_locations.spawn_local(),
+            count: 0,
+            scanned: HashMap::new(),
+            vs_count: 0,
+            vm_count: 0,
+            ss0_count: 0,
+            ss1_count: 0
         }
     }
 
@@ -181,5 +212,21 @@ impl SSTraceLocal {
 
     pub fn is_empty(&self) -> bool {
         self.root_locations.is_empty() && self.values.is_empty()
+    }
+
+    pub fn log_object(&mut self, object: ObjectReference)  {
+        let unsync = unsafe { &(*PLAN.unsync.get()) };
+        if unsync.copyspace0.in_space(object) {
+            self.ss0_count+=1;
+        }
+        if unsync.copyspace1.in_space(object) {
+            self.ss1_count+=1;
+        }
+        if unsync.versatile_space.in_space(object) {
+            self.vs_count+=1;
+        }
+        if unsync.vm_space.in_space(object) {
+            self.vm_count+=1;
+        }
     }
 }

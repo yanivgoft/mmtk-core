@@ -17,6 +17,7 @@ use std::cell::UnsafeCell;
 use libc::{c_void, mprotect, PROT_NONE, PROT_EXEC, PROT_WRITE, PROT_READ};
 
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
+pub static mut copycount: u64 = 0;
 
 #[derive(Debug)]
 pub struct CopySpace {
@@ -104,6 +105,7 @@ impl CopySpace {
             return ForwardingWord::extract_forwarding_pointer(forwarding_word);
         } else {
             trace!("... no it isn't. Copying");
+            unsafe{copycount+=1};
             let new_object = VMObjectModel::copy(object, allocator, tls);
             trace!("Setting forwarding pointer");
             ForwardingWord::set_forwarding_pointer(object, new_object);
