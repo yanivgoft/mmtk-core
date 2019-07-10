@@ -78,7 +78,11 @@ impl TraceLocal for SSTraceLocal {
         }
         if plan_unsync.vm_space.in_space(object) {
             trace!("trace_object: object in boot space");
-            return plan_unsync.vm_space.trace_object(self, object);
+            if ss::SCAN_BOOT_IMAGE {
+                object
+            } else {
+                plan_unsync.vm_space.trace_object(self, object)
+            }
         }
         if plan_unsync.los.in_space(object) {
             trace!("trace_object: object in los");
