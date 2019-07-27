@@ -80,6 +80,11 @@ impl CopySpace {
         self.from_space = false;
     }
 
+    #[inline(always)]
+    pub fn is_tospace(&self) -> bool {
+        !self.from_space
+    }
+
     pub fn trace_object<T: TransitiveClosure>(
         &self,
         trace: &mut T,

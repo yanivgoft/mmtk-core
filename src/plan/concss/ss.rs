@@ -213,7 +213,7 @@ impl Plan for SemiSpace {
             // return self.get_pages_used() as f32 / self.get_total_pages() as f32 > 0.3f32;
             let used = self.tospace().reserved_pages() as f32;
             let total = (self.get_total_pages() >> 1) as f32;
-            if used / total > 0.3f32 {
+            if used / total > super::CONCURRENT_TRIGGER {
                 return true;
             }
         }

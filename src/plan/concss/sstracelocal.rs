@@ -4,13 +4,13 @@ use ::plan::trace::Trace;
 use ::policy::space::Space;
 use ::util::{Address, ObjectReference};
 use ::util::queue::LocalQueue;
-use ::vm::Scanning;
-use ::vm::VMScanning;
 use libc::c_void;
 use super::ss;
 use util::heap::layout::heap_layout::VM_MAP;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use plan::plan::Plan;
+use ::util::forwarding_word as ForwardingWord;
+use ::vm::*;
 
 fn validate(o: ObjectReference) {
     assert!(!PLAN.fromspace().in_space(o), "Object in from space");
@@ -39,17 +39,24 @@ pub struct SSTraceLocal {
 impl TransitiveClosure for SSTraceLocal {
     fn process_edge(&mut self, slot: Address) {
         validate_slot(slot);
-        let a = unsafe { ::std::mem::transmute::<Address, &AtomicUsize>(slot) };
-        loop {
-            let object: ObjectReference = unsafe { slot.load() };
-            let new_object = self.trace_object(object);
-            if object == new_object {
-                return
-            }
-            if a.compare_and_swap(object.to_address().as_usize(), new_object.to_address().as_usize(), Ordering::Relaxed) == object.to_address().as_usize() {
-                return
-            }
+        
+        let old: ObjectReference = unsafe { slot.load() };
+        let new = self.trace_object(old);
+        if old != new {
+            let slot = unsafe { ::std::mem::transmute::<Address, &AtomicUsize>(slot) };
+            slot.compare_and_swap(old.to_address().as_usize(), new.to_address().as_usize(), Ordering::Relaxed);
         }
+        // let a = unsafe { ::std::mem::transmute::<Address, &AtomicUsize>(slot) };
+        // loop {
+            // let object: ObjectReference = unsafe { slot.load() };
+            // let new_object = self.trace_object(object);
+            // if object == new_object {
+            //     return
+            // }
+            // if a.compare_and_swap(object.to_address().as_usize(), new_object.to_address().as_usize(), Ordering::Relaxed) == object.to_address().as_usize() {
+            //     return
+            // }
+        // }
     }
 
     fn process_node(&mut self, object: ObjectReference) {
@@ -89,9 +96,25 @@ impl TraceLocal for SSTraceLocal {
             super::validate::trace_validate_object(self, object, validate)
         } else {
             if PLAN.copyspace0.in_space(object) {
-                PLAN.copyspace0.trace_object(self, object, ss::ALLOC_SS, self.tls)
+                if super::RTM_SUPPORTED_EVACUATION {
+                    if !PLAN.copyspace0.is_tospace() {
+                        self.rtm_evacuate(object, 0)
+                    } else {
+                        object
+                    }
+                } else {
+                    PLAN.copyspace0.trace_object(self, object, ss::ALLOC_SS, self.tls)
+                }
             } else if PLAN.copyspace1.in_space(object) {
-                PLAN.copyspace1.trace_object(self, object, ss::ALLOC_SS, self.tls)
+                if super::RTM_SUPPORTED_EVACUATION {
+                    if !PLAN.copyspace1.is_tospace() {
+                        self.rtm_evacuate(object, 0)
+                    } else {
+                        object
+                    }
+                } else {
+                    PLAN.copyspace1.trace_object(self, object, ss::ALLOC_SS, self.tls)
+                }
             } else if PLAN.versatile_space.in_space(object) {
                 PLAN.versatile_space.trace_object(self, object)
             } else if PLAN.vm_space.in_space(object) {
@@ -218,5 +241,50 @@ impl SSTraceLocal {
             }
         }
         return self.values.is_empty();
+    }
+
+    fn atomic_evacuate(&mut self, object: ObjectReference) -> ObjectReference {
+        let mut forwarding_word = ForwardingWord::attempt_to_forward(object);
+        if ForwardingWord::state_is_forwarded_or_being_forwarded(forwarding_word) {
+            while ForwardingWord::state_is_being_forwarded(forwarding_word) {
+                forwarding_word = VMObjectModel::read_available_bits_word(object);
+            }
+            ForwardingWord::extract_forwarding_pointer(forwarding_word)
+        } else {
+            let new_object = VMObjectModel::copy(object, ss::ALLOC_SS, self.tls);
+            ForwardingWord::set_forwarding_pointer(object, new_object);
+            self.process_node(new_object);
+            new_object
+        }
+    }
+    
+    #[inline]
+    fn rtm_evacuate(&mut self, object: ObjectReference, retry: usize) -> ObjectReference {
+        let result = super::rtm::execute_transaction(|| {
+            if ForwardingWord::is_forwarded(object) {
+                return (false, ForwardingWord::get_forwarded_object(object));
+            }
+            if ForwardingWord::is_forwarded_or_being_forwarded(object) {
+                unsafe { super::rtm::_xabort() };
+            }
+            let new_object = VMObjectModel::copy(object, ss::ALLOC_SS, self.tls);
+            ForwardingWord::set_forwarding_pointer(object, new_object);
+            (true, new_object)
+        });
+        match result {
+            Ok((copied, new_object)) => {
+                if copied {
+                    self.process_node(new_object);
+                }
+                new_object
+            },
+            Err(code) => {
+                if code != 0b110 || retry > super::RTM_EVACUATION_MAX_RETRY {
+                    self.atomic_evacuate(object)
+                } else {
+                    self.rtm_evacuate(object, retry + 1)
+                }
+            }
+        }
     }
 }

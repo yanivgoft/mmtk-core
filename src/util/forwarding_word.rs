@@ -75,3 +75,8 @@ pub fn clear_forwarding_bits(object: ObjectReference) {
 pub fn extract_forwarding_pointer(forwarding_word: usize) -> ObjectReference {
     unsafe { Address::from_usize(forwarding_word & (!(FORWARDING_MASK as usize))).to_object_reference() }
 }
+
+pub fn get_forwarded_object(old: ObjectReference) -> ObjectReference {
+    let header = VMObjectModel::read_available_bits_word(old);
+    extract_forwarding_pointer(header)
+}

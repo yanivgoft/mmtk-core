@@ -147,23 +147,23 @@ impl MutatorContext for SSMutator {
     fn object_reference_try_compare_and_swap_slow(&mut self, mut src: ObjectReference, slot: Address, old: ObjectReference, mut tgt: ObjectReference) -> bool {
         debug_assert!(self.barrier_active());
         
-        let mut result = compare_and_swap(slot, old, tgt);
-        if !result {
-            result = compare_and_swap(slot, self.forward(old), tgt);
-        }
+        let result = compare_and_swap(slot, old, tgt);
+        // if !result {
+        //     result = compare_and_swap(slot, self.forward(old), tgt);
+        // }
         self.check_and_enqueue_reference(old);
         return result;
     }
 
-    fn java_lang_reference_read_slow(&mut self, mut obj: ObjectReference) -> ObjectReference {
+    fn java_lang_reference_read_slow(&mut self, obj: ObjectReference) -> ObjectReference {
         debug_assert!(self.barrier_active());
         self.check_and_enqueue_reference(obj);
-        self.forward(obj)
+        self.forward(obj, None)
     }
 
     fn object_reference_read_slow(&mut self, mut src: ObjectReference, mut slot: Address) -> ObjectReference {
         debug_assert!(self.barrier_active());
-        self.forward(unsafe { slot.load() })
+        self.forward(unsafe { slot.load() }, Some(slot))
     }
 }
 
@@ -178,23 +178,71 @@ impl SSMutator {
             barrier_active: PLAN.new_barrier_active as usize,
         }
     }
-    #[inline(always)]
-    fn forward(&mut self, object: ObjectReference) -> ObjectReference {
-        if !object.is_null() && PLAN.fromspace().in_space(object) {
-            // Copy
-            let mut forwarding_word = ForwardingWord::attempt_to_forward(object);
-            let new_object = if ForwardingWord::state_is_forwarded_or_being_forwarded(forwarding_word) {
-                while ForwardingWord::state_is_being_forwarded(forwarding_word) {
-                    forwarding_word = VMObjectModel::read_available_bits_word(object);
+
+    fn atomic_evacuate(&mut self, object: ObjectReference) -> ObjectReference {
+        let mut forwarding_word = ForwardingWord::attempt_to_forward(object);
+        if ForwardingWord::state_is_forwarded_or_being_forwarded(forwarding_word) {
+            while ForwardingWord::state_is_being_forwarded(forwarding_word) {
+                forwarding_word = VMObjectModel::read_available_bits_word(object);
+            }
+            ForwardingWord::extract_forwarding_pointer(forwarding_word)
+        } else {
+            let new_object = VMObjectModel::mutator_copy(object, super::ss::ALLOC_SS, self);
+            ForwardingWord::set_forwarding_pointer(object, new_object);
+            self.trace.enqueue(new_object);
+            new_object
+        }
+    }
+
+    fn rtm_evacuate(&mut self, object: ObjectReference, retry: usize) -> ObjectReference {
+        let result = super::rtm::execute_transaction(|| {
+            if ForwardingWord::is_forwarded(object) {
+                return (false, ForwardingWord::get_forwarded_object(object));
+            }
+            if ForwardingWord::is_forwarded_or_being_forwarded(object) {
+                unsafe { super::rtm::_xabort() };
+            }
+            let new_object = VMObjectModel::mutator_copy(object, super::ss::ALLOC_SS, self);
+            ForwardingWord::set_forwarding_pointer(object, new_object);
+            (true, new_object)
+        });
+        match result {
+            Ok((copied, new_object)) => {
+                if copied {
+                    self.trace.enqueue(new_object);
                 }
-                ForwardingWord::extract_forwarding_pointer(forwarding_word)
-            } else {
-                let new_object = VMObjectModel::mutator_copy(object, super::ss::ALLOC_SS, self);
-                ForwardingWord::set_forwarding_pointer(object, new_object);
-                self.trace.enqueue(new_object);
                 new_object
+            },
+            Err(code) => {
+                if code != 0b110 || retry > super::RTM_EVACUATION_MAX_RETRY {
+                    self.atomic_evacuate(object)
+                } else {
+                    self.rtm_evacuate(object, retry + 1)
+                }
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn forward(&mut self, object: ObjectReference, slot: Option<Address>) -> ObjectReference {
+        if !object.is_null() && PLAN.fromspace().in_space(object) {
+            let new = {
+                if super::RTM_SUPPORTED_EVACUATION {
+                    self.rtm_evacuate(object, 0)
+                } else {
+                    self.atomic_evacuate(object)
+                }
             };
-            return new_object
+            if super::SELF_HEALING_BARRIER {
+                if let Some(slot) = slot {
+                    let old = object;
+                    if old != new {
+                        let slot = unsafe { ::std::mem::transmute::<Address, &AtomicUsize>(slot) };
+                        slot.compare_and_swap(old.to_address().as_usize(), new.to_address().as_usize(), Ordering::Relaxed);
+                    }
+                }
+            }
+            return new;
         }
         object
     }
