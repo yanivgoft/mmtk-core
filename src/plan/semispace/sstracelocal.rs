@@ -51,7 +51,9 @@ impl TraceLocal for SSTraceLocal {
     fn process_root_edge(&mut self, slot: Address, untraced: bool) {
         trace!("process_root_edge({:?}, {:?})", slot, untraced);
         let object: ObjectReference = unsafe { slot.load() };
+        println!("process_root_edge({:?}, {:?}) -> {:?}", slot, untraced, object);
         let new_object = self.trace_object(object);
+        println!("Overwrite to {:?}", new_object);
         if self.overwrite_reference_during_trace() {
             unsafe { slot.store(new_object) };
         }
@@ -67,19 +69,19 @@ impl TraceLocal for SSTraceLocal {
             return object;
         }
         if plan_unsync.copyspace0.in_space(object) {
-            trace!("trace_object: object in copyspace0");
+            println!("trace_object: object in copyspace0");
             return plan_unsync.copyspace0.trace_object(self, object, ss::ALLOC_SS, tls);
         }
         if plan_unsync.copyspace1.in_space(object) {
-            trace!("trace_object: object in copyspace1");
+            println!("trace_object: object in copyspace1");
             return plan_unsync.copyspace1.trace_object(self, object, ss::ALLOC_SS, tls);
         }
         if plan_unsync.versatile_space.in_space(object) {
-            trace!("trace_object: object in versatile_space");
+            println!("trace_object: object in versatile_space");
             return plan_unsync.versatile_space.trace_object(self, object);
         }
         if plan_unsync.vm_space.in_space(object) {
-            trace!("trace_object: object in boot space");
+            println!("trace_object: object in boot space");
             return plan_unsync.vm_space.trace_object(self, object);
         }
         if plan_unsync.los.in_space(object) {
@@ -87,7 +89,7 @@ impl TraceLocal for SSTraceLocal {
             return plan_unsync.los.trace_object(self, object);
         }
 
-        panic!("No special case for space in trace_object");
+        panic!("No special case for space in trace_object, object = {:?}", object);
     }
 
     fn complete_trace(&mut self) {

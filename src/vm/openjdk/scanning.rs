@@ -27,12 +27,12 @@ impl Scanning for VMScanning {
         // TODO
     }
 
-    fn compute_static_roots<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-        unimplemented!()
+    fn compute_static_roots<T: TraceLocal>(trace: &mut T, tls: *mut c_void) {
+        // Do nothing
     }
 
-    fn compute_global_roots<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-        unimplemented!()
+    fn compute_global_roots<T: TraceLocal>(trace: &mut T, tls: *mut c_void) {
+        // Do nothing
     }
 
     fn compute_thread_roots<T: TraceLocal>(trace: &mut T, tls: *mut c_void) {
@@ -45,8 +45,9 @@ impl Scanning for VMScanning {
         unimplemented!()
     }
 
-    fn compute_bootimage_roots<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-        unimplemented!()
+    fn compute_bootimage_roots<T: TraceLocal>(trace: &mut T, tls: *mut c_void) {
+        // unimplemented!()
+        // Do nothing
     }
 
     fn supports_return_barrier() -> bool {

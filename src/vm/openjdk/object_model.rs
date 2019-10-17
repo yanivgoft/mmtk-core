@@ -2,6 +2,8 @@ use ::vm::object_model::ObjectModel;
 use ::util::{Address, ObjectReference};
 use ::plan::Allocator;
 use ::util::OpaquePointer;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
 use libc::c_void;
 
 pub struct VMObjectModel {}
@@ -64,11 +66,14 @@ impl ObjectModel for VMObjectModel {
     }
 
     fn attempt_available_bits(object: ObjectReference, old: usize, new: usize) -> bool {
-        unimplemented!()
+        let mark_slot: AtomicUsize = unsafe { ::std::mem::transmute(object) };
+        mark_slot.compare_and_swap(old, new, Ordering::SeqCst) == old
     }
 
     fn prepare_available_bits(object: ObjectReference) -> usize {
-        unimplemented!()
+        // println!("Object = {:?}", object);
+        unsafe { object.to_address().load() }
+        // unimplemented!()
     }
 
     fn write_available_byte(object: ObjectReference, val: u8) {
