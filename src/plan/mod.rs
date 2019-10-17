@@ -25,6 +25,11 @@ pub mod nogc;
 #[cfg(feature = "nogc")]
 pub use self::nogc as selected_plan;
 
+pub mod nogczero;
+
+#[cfg(feature = "nogczero")]
+pub use self::nogczero as selected_plan;
+
 pub mod semispace;
 
 #[cfg(feature = "semispace")]
