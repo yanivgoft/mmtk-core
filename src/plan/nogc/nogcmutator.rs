@@ -1,6 +1,7 @@
 use ::policy::immortalspace::ImmortalSpace;
 use ::policy::largeobjectspace::LargeObjectSpace;
-use ::util::alloc::{BumpAllocator, LargeObjectAllocator};
+use ::policy::codespace::CodeSpace;
+use ::util::alloc::{BumpAllocator, LargeObjectAllocator, CodeAllocator};
 use ::plan::mutator_context::MutatorContext;
 use ::plan::Phase;
 use ::util::{Address, ObjectReference};
@@ -15,7 +16,8 @@ use libc::c_void;
 pub struct NoGCMutator {
     // ImmortalLocal
     nogc: BumpAllocator<MonotonePageResource<ImmortalSpace>>,
-    los: LargeObjectAllocator
+    los: LargeObjectAllocator,
+    cos : CodeAllocator
 }
 
 impl MutatorContext for NoGCMutator {
@@ -27,6 +29,7 @@ impl MutatorContext for NoGCMutator {
         trace!("MutatorContext.alloc({}, {}, {}, {:?})", size, align, offset, allocator);
         match allocator {
             AllocationType::Los => self.los.alloc(size, align, offset),
+            AllocationType::Code => self.cos.alloc(size, align, offset),
             _ => self.nogc.alloc(size, align, offset)
         }
     }
@@ -35,6 +38,7 @@ impl MutatorContext for NoGCMutator {
         trace!("MutatorContext.alloc_slow({}, {}, {}, {:?})", size, align, offset, allocator);
         match allocator {
             AllocationType::Los => self.los.alloc(size, align, offset),
+            AllocationType::Code => self.cos.alloc(size, align, offset),
             _ => self.nogc.alloc(size, align, offset)
         }
     }
@@ -57,10 +61,11 @@ impl MutatorContext for NoGCMutator {
 }
 
 impl NoGCMutator {
-    pub fn new(tls: *mut c_void, space: &'static ImmortalSpace, los: &'static LargeObjectSpace) -> Self {
+    pub fn new(tls: *mut c_void, space: &'static ImmortalSpace, los: &'static LargeObjectSpace, cos: &'static CodeSpace) -> Self {
         NoGCMutator {
             nogc: BumpAllocator::new(tls, Some(space)),
-            los: LargeObjectAllocator::new(tls, Some(los))
+            los: LargeObjectAllocator::new(tls, Some(los)),
+            cos: CodeAllocator::new(tls, Some(cos))
         }
     }
 }

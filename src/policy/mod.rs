@@ -4,3 +4,4 @@ pub mod immortalfreelistspace;
 pub mod copyspace;
 pub mod regionspace;
 pub mod largeobjectspace;
+pub mod codespace;

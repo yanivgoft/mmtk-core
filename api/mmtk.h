@@ -17,10 +17,10 @@ typedef void* MMTk_TraceLocal;
 extern MMTk_Mutator bind_mutator(void *tls);
 
 extern void* alloc(MMTk_Mutator mutator, size_t size,
-    size_t align, ssize_t offset, int allocator);
+    size_t align, size_t offset, int allocator);
 
 extern void* alloc_slow(MMTk_Mutator mutator, size_t size,
-    size_t align, ssize_t offset, int allocator);
+    size_t align, size_t offset, int allocator);
 
 extern void post_alloc(MMTk_Mutator mutator, void* refer, void* type_refer,
     int bytes, int allocator);
@@ -70,10 +70,10 @@ extern void jikesrvm_gc_init(void* jtoc, size_t heap_size);
 extern void enable_collection(void *tls);
 
 extern void* jikesrvm_alloc(MMTk_Mutator mutator, size_t size,
-    size_t align, ssize_t offset, int allocator);
+    size_t align, size_t offset, int allocator);
 
 extern void* jikesrvm_alloc_slow(MMTk_Mutator mutator, size_t size,
-    size_t align, ssize_t offset, int allocator);
+    size_t align, size_t offset, int allocator);
 
 extern void jikesrvm_handle_user_collection_request(void *tls);
 
