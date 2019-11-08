@@ -77,6 +77,15 @@ pub trait Space: Sized + Debug + 'static {
         }
     }
 
+    fn address_in_space(&self, start: Address) -> bool {
+        if !space_descriptor::is_contiguous(self.common().descriptor) {
+            VM_MAP.get_descriptor_for_address(start) == self.common().descriptor
+        } else {
+            start.as_usize() >= self.common().start.as_usize()
+                && start.as_usize() < self.common().start.as_usize() + self.common().extent
+        }
+    }
+
     // UNSAFE: potential data race as this mutates 'common'
     unsafe fn grow_discontiguous_space(&self, chunks: usize) -> Address {
         // FIXME

@@ -29,7 +29,13 @@ impl MutatorContext for NoGCMutator {
         trace!("MutatorContext.alloc({}, {}, {}, {:?})", size, align, offset, allocator);
         match allocator {
             AllocationType::Los => self.los.alloc(size, align, offset),
-            AllocationType::Code => self.cos.alloc(size, align, offset),
+            AllocationType::Code => 
+            {
+                let address = self.cos.alloc(size, align, offset);
+                let unsync = unsafe { &mut *PLAN.unsync.get() };
+                unsync.cos.record_object(unsafe{address.to_object_reference()});
+                address
+            }
             _ => self.nogc.alloc(size, align, offset)
         }
     }

@@ -13,6 +13,7 @@ use ::plan::TraceLocal;
 use ::plan::CollectorContext;
 use ::plan::ParallelCollectorGroup;
 use ::plan::plan::CONTROL_COLLECTOR_CONTEXT;
+use ::policy::codespace::CodeSpace;
 
 use ::vm::{Collection, VMCollection};
 
@@ -224,6 +225,13 @@ pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
 #[cfg(feature = "openjdk")]
 pub extern fn used_bytes() -> usize {
     selected_plan::PLAN.get_pages_used() << LOG_BYTES_IN_PAGE
+}
+
+#[no_mangle]
+#[cfg(feature = "openjdk")]
+pub extern fn get_object_head_address(inner_pointer : Address) -> Address {
+    let unsync = unsafe { &mut *selected_plan::PLAN.unsync.get() };
+    unsync.cos.get_object_head_address(inner_pointer)
 }
 
 

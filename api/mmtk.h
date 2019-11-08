@@ -120,6 +120,8 @@ extern void add_phantom_candidate(void* ref, void* referent);
 extern void harness_begin(void *tls);
 extern void harness_end();
 
+extern void* get_object_head_address(void* inner_pointer);
+
 #ifdef __cplusplus
 }
 #endif

@@ -8,18 +8,28 @@ use ::util::header_byte;
 use ::util::heap::{FreeListPageResource, PageResource, VMRequest};
 use ::util::treadmill::TreadMill;
 use ::vm::{ObjectModel, VMObjectModel};
+use util::heap::layout::vm_layout_constants::*;
 
 const PAGE_MASK: usize = !(BYTES_IN_PAGE - 1);
 const MARK_BIT: u8 = 0b01;
 const NURSERY_BIT: u8 = 0b10;
 const LOS_BIT_MASK: u8 = 0b11;
 
-#[derive(Debug)]
+
+const BIT_MAP_LENGTH : usize = (HEAP_END.as_usize() - HEAP_START.as_usize()) / BYTES_IN_PAGE;
+// #[derive(Debug)]
 pub struct CodeSpace {
     common: UnsafeCell<CommonSpace<FreeListPageResource<CodeSpace>>>,
     mark_state: u8,
     in_nursery_GC: bool,
     treadmill: TreadMill,
+    bitmap : Box<[u8; BIT_MAP_LENGTH]>,
+}
+
+impl ::std::fmt::Debug for CodeSpace {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        write!(f, "Codespace")
+    }
 }
 
 impl Space for CodeSpace {
@@ -61,12 +71,32 @@ impl Space for CodeSpace {
 }
 
 impl CodeSpace {
+    pub fn record_object(&mut self, obj : ObjectReference) {
+        debug_assert!(!obj.is_null());
+        let address = obj.to_address();
+        let diff = address - HEAP_START;
+        debug_assert!((diff % BYTES_IN_PAGE) == 0);
+        self.bitmap[diff / BYTES_IN_PAGE] = 1; 
+    } 
+
+    pub fn get_object_head_address(&mut self, inner_pointer : Address) -> Address {
+        debug_assert!(!inner_pointer.is_zero());
+        debug_assert!(self.address_in_space(inner_pointer));
+        let diff = inner_pointer - HEAP_START;
+        let mut index = diff / BYTES_IN_PAGE;
+        while self.bitmap[index] == 0 {
+            index -= 1;
+        }
+        HEAP_START + index * BYTES_IN_PAGE
+    } 
+
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest) -> Self {
         CodeSpace {
             common: UnsafeCell::new(CommonSpace::new(name, false, false, zeroed, vmrequest)),
             mark_state: 0,
             in_nursery_GC: false,
-            treadmill: TreadMill::new()
+            treadmill: TreadMill::new(),
+            bitmap: box [0; BIT_MAP_LENGTH]
         }
     }
 
