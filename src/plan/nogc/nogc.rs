@@ -28,6 +28,7 @@ use plan::plan::create_vm_space;
 pub type SelectedPlan = NoGC;
 
 pub struct NoGC {
+    // FIXME
     pub control_collector_context: ControllerCollectorContext,
     pub unsync: UnsafeCell<NoGCUnsync>,
 }
