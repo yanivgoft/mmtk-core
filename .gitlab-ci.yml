@@ -10,5 +10,5 @@ test:
 alloc_test_all_plans:
   stage: alloc_test_all_plans
   script:
-    - cd example
+    - cd examples
     - ./build.py
