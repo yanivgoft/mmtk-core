@@ -12,7 +12,7 @@ use ::plan::{Allocator, TransitiveClosure};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ::util::constants::LOG_BYTES_IN_MBYTE;
+use ::util::constants::{LOG_BYTES_IN_MBYTE, BYTES_IN_PAGE, BYTES_IN_MBYTE};
 use ::util::conversions;
 use ::util::heap::space_descriptor;
 use ::util::OpaquePointer;
@@ -143,7 +143,7 @@ pub trait Space: Sized + Debug + 'static {
 
     fn print_vm_map(&self) {
         let common = self.common();
-        print!("{} ", common.name);
+        print!("{:4} {:5}MB ", common.name, self.reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
         if common.immortal {
             print!("I");
         } else {

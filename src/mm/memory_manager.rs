@@ -65,6 +65,7 @@ pub struct OpenJDK_Upcalls {
     pub reset_mutator_iterator: extern "C" fn(),
     pub compute_thread_roots: extern "C" fn(trace: *mut c_void, tls: *mut c_void),
     pub scan_object: extern "C" fn(trace: *mut c_void, object: *mut c_void, tls: *mut c_void),
+    pub dump_object: extern "C" fn(object: *mut c_void),
 }
 
 #[no_mangle]
@@ -343,6 +344,13 @@ pub unsafe extern fn trace_get_forwarded_reference(trace_local: *mut c_void, obj
 pub unsafe extern fn trace_is_live(trace_local: *mut c_void, object: ObjectReference) -> bool{
     let local = &mut *(trace_local as *mut <SelectedPlan as Plan>::TraceLocalT);
     local.is_live(object)
+}
+
+
+#[no_mangle]
+pub unsafe extern fn trace_root_object(trace_local: *mut c_void, object: ObjectReference) {
+    let local = &mut *(trace_local as *mut <SelectedPlan as Plan>::TraceLocalT);
+    local.trace_object(object);
 }
 
 #[no_mangle]
