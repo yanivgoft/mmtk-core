@@ -54,6 +54,8 @@ extern void trace_root_object(MMTk_TraceLocal trace_local, void* obj);
 
 extern void process_edge(void* trace, void* obj);
 
+extern void process_edge(void* trace, void* obj);
+
 /**
  * Misc
  */

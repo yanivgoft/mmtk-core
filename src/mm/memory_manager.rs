@@ -338,6 +338,12 @@ pub unsafe extern fn process_edge(trace_local: *mut c_void, object: Address) {
 }
 
 #[no_mangle]
+pub unsafe extern fn process_edge(trace_local: *mut c_void, object: Address) {
+    let local = &mut *(trace_local as *mut <SelectedPlan as Plan>::TraceLocalT);
+    local.process_edge(object);
+}
+
+#[no_mangle]
 pub unsafe extern fn trace_retain_referent(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
     let local = &mut *(trace_local as *mut <SelectedPlan as Plan>::TraceLocalT);
     local.retain_referent(object)
