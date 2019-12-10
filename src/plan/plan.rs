@@ -46,6 +46,7 @@ pub fn create_vm_space() -> ImmortalSpace {
 #[cfg(feature = "openjdk")]
 pub fn create_vm_space() -> ImmortalSpace {
     // FIXME: Does OpenJDK care?
+    println!("create_vm_space {:?}", VMRequest::fixed_size(0));
     ImmortalSpace::new("boot", false, VMRequest::fixed_size(0))
 }
 

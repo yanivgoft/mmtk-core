@@ -13,7 +13,7 @@ use ::plan::{Allocator, TransitiveClosure};
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use ::util::constants::LOG_BYTES_IN_MBYTE;
+use ::util::constants::{LOG_BYTES_IN_MBYTE, BYTES_IN_PAGE, BYTES_IN_MBYTE};
 use ::util::conversions;
 use ::util::heap::space_descriptor;
 use ::util::heap::layout::heap_layout::VM_MAP;
@@ -140,7 +140,7 @@ pub trait Space: Sized + Debug + 'static {
 
     fn print_vm_map(&self) {
         let common = self.common();
-        print!("{} ", common.name);
+        print!("{:4} {:5}MB ", common.name, self.reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
         if common.immortal {
             print!("I");
         } else {
@@ -206,6 +206,7 @@ const DEBUG: bool = false;
 impl<PR: PageResource> CommonSpace<PR> {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
                vmrequest: VMRequest) -> Self {
+                println!("CommonSpace: {:?}", vmrequest);
         let mut rtn = CommonSpace {
             name,
             name_length: name.len(),
@@ -257,6 +258,7 @@ impl<PR: PageResource> CommonSpace<PR> {
         } else {
             unsafe {
                 start = HEAP_CURSOR;
+                println!("HEAP_CURSOR: {:?} -> {:?}", HEAP_CURSOR, HEAP_CURSOR + extent);
                 HEAP_CURSOR += extent;
             }
         }

@@ -2,7 +2,7 @@ use ::vm::object_model::ObjectModel;
 use ::util::{Address, ObjectReference};
 use ::plan::Allocator;
 use std::sync::atomic::{AtomicUsize, Ordering};
-
+use super::UPCALLS;
 use libc::c_void;
 
 pub struct VMObjectModel {}
@@ -100,7 +100,7 @@ impl ObjectModel for VMObjectModel {
     }
 
     fn ref_to_address(object: ObjectReference) -> Address {
-        unimplemented!()
+        object.to_address()
     }
 
     fn is_acyclic(typeref: ObjectReference) -> bool {
@@ -108,7 +108,9 @@ impl ObjectModel for VMObjectModel {
     }
 
     fn dump_object(object: ObjectReference) {
-        unimplemented!()
+        unsafe {
+            ((*UPCALLS).dump_object)(::std::mem::transmute(object));
+        }
     }
 
     fn get_array_base_offset() -> isize {
