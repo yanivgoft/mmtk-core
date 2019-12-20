@@ -155,7 +155,7 @@ fn process_phase_stack(tls: *mut c_void, resume: bool) {
             Schedule::Mutator => {
                 println!("Execute {:?} as Mutator...", phase);
                 while let Some(mutator) = VMActivePlan::get_next_mutator() {
-                    println!("Mutator {:?}", mutator.get_tls());
+                    // println!("Mutator {:?}", mutator.get_tls());
                     mutator.collection_phase(tls, &phase, primary);
                 }
             }
