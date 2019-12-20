@@ -49,6 +49,8 @@ pub struct NoGCUnsync {
     pub collection_attempt: usize,
 }
 
+static mut INSTANT: Option<::std::time::Instant> = None;
+
 impl Plan for NoGC {
     type MutatorT = NoGCMutator;
     type TraceLocalT = NoGCTraceLocal;
@@ -114,6 +116,9 @@ impl Plan for NoGC {
 
         match phase {
             &Phase::SetCollectionKind => {
+                {
+                    INSTANT = Some(::std::time::Instant::now());
+                }
                 let unsync = &mut *self.unsync.get();
                 unsync.collection_attempt = if <SelectedPlan as Plan>::is_user_triggered_collection() {
                     1 } else { determine_collection_attempts() };
@@ -159,6 +164,10 @@ impl Plan for NoGC {
                 debug_assert!(self.trace.root_locations.is_empty());                
                 plan::set_gc_status(plan::GcStatus::NotInGC);
                 // self.print_vm_map();
+                {
+                    println!("GC TIME: {}", INSTANT.as_ref().unwrap().elapsed().as_secs());
+                    INSTANT = None;
+                }
             }
             _ => {
                 panic!("Global phase not handled!")
