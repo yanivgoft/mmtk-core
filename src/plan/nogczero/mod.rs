@@ -12,3 +12,7 @@ pub use self::nogc::PLAN;
 
 pub use self::nogc::SelectedPlan;
 pub use self::nogcconstraints as SelectedConstraints;
+
+// lazy_static! {
+//     pub static ref MUTATORS: ::std::sync::Mutex<Vec<usize>> = ::std::sync::Mutex::new(vec![]);
+// }

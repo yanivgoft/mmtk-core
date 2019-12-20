@@ -177,6 +177,10 @@ pub trait Plan: Sized {
 
     fn is_valid_ref(&self, object: ObjectReference) -> bool;
 
+    fn is_valid_mutator(&self, m: usize) -> bool {
+        true
+    }
+
     fn is_bad_ref(&self, object: ObjectReference) -> bool;
 
     fn handle_user_collection_request(tls: *mut c_void) {

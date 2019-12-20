@@ -153,8 +153,9 @@ fn process_phase_stack(tls: *mut c_void, resume: bool) {
                 collector.collection_phase(tls, &phase, primary)
             }
             Schedule::Mutator => {
-                debug!("Execute {:?} as Mutator...", phase);
+                println!("Execute {:?} as Mutator...", phase);
                 while let Some(mutator) = VMActivePlan::get_next_mutator() {
+                    println!("Mutator {:?}", mutator.get_tls());
                     mutator.collection_phase(tls, &phase, primary);
                 }
             }

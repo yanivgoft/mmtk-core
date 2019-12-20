@@ -68,7 +68,7 @@ impl Plan for NoGC {
     }
 
     unsafe fn gc_init(&self, heap_size: usize) {
-        let heap_size = 10000 * BYTES_IN_MBYTE;
+        // let heap_size = 10000 * BYTES_IN_MBYTE;
         println!("GCInit: Heap Size = {}MB", heap_size / BYTES_IN_MBYTE);
         ::util::heap::layout::heap_layout::VM_MAP.finalize_static_space_map();
         let unsync = &mut *self.unsync.get();
@@ -89,7 +89,19 @@ impl Plan for NoGC {
 
     fn bind_mutator(&self, tls: *mut c_void) -> *mut c_void {
         let unsync = unsafe { &*self.unsync.get() };
-        Box::into_raw(Box::new(NoGCMutator::new(tls, &unsync.space))) as *mut c_void
+        let ptr = Box::into_raw(Box::new(NoGCMutator::new(tls, &unsync.space))) as *mut c_void;
+        // {
+        //     let mut mutators = super::MUTATORS.lock().unwrap();
+        //     mutators.push(ptr as usize);
+        // }
+        // println!("bind_mutator T {:?}, M {:?}", tls, ptr);
+        ptr
+    }
+
+    fn is_valid_mutator(&self, m: usize) -> bool {
+        // let mut mutators = super::MUTATORS.lock().unwrap();
+        // mutators.contains(&m)
+        true
     }
 
     fn will_never_move(&self, object: ObjectReference) -> bool {
@@ -126,7 +138,7 @@ impl Plan for NoGC {
                 unsync.vm_space.prepare();
                 unsync.space.prepare();
                 unsync.versatile_space.prepare();
-                self.print_vm_map();
+                // self.print_vm_map();
             }
             &Phase::StackRoots => {
                 VMScanning::notify_initial_thread_scan_complete(false, tls);
@@ -146,7 +158,7 @@ impl Plan for NoGC {
                 debug_assert!(self.trace.values.is_empty());
                 debug_assert!(self.trace.root_locations.is_empty());                
                 plan::set_gc_status(plan::GcStatus::NotInGC);
-                self.print_vm_map();
+                // self.print_vm_map();
             }
             _ => {
                 panic!("Global phase not handled!")

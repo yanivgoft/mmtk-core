@@ -159,6 +159,11 @@ pub unsafe extern fn is_valid_ref(val: ObjectReference) -> bool {
 }
 
 #[no_mangle]
+pub unsafe extern fn is_valid_mutator(val: *mut c_void) -> bool {
+    selected_plan::PLAN.is_valid_mutator(val as usize)
+}
+
+#[no_mangle]
 pub unsafe extern fn validate_ref(val: ObjectReference) {
     debug_assert!(selected_plan::PLAN.is_valid_ref(val));
 }
@@ -329,12 +334,6 @@ pub unsafe extern fn trace_is_live(trace_local: *mut c_void, object: ObjectRefer
 pub unsafe extern fn trace_root_object(trace_local: *mut c_void, object: ObjectReference) {
     let local = &mut *(trace_local as *mut <SelectedPlan as Plan>::TraceLocalT);
     local.trace_object(object);
-}
-
-#[no_mangle]
-pub unsafe extern fn process_edge(trace_local: *mut c_void, object: Address) {
-    let local = &mut *(trace_local as *mut <SelectedPlan as Plan>::TraceLocalT);
-    local.process_edge(object);
 }
 
 #[no_mangle]
