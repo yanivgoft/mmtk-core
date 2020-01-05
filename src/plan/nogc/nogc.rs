@@ -22,6 +22,7 @@ use super::NoGCCollector;
 use util::conversions::bytes_to_pages;
 use plan::plan::create_vm_space;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
+use util::heap::layout::heap_layout::VMMap;
 
 pub type SelectedPlan = NoGC;
 
@@ -44,28 +45,28 @@ impl Plan for NoGC {
     type TraceLocalT = NoGCTraceLocal;
     type CollectorT = NoGCCollector;
 
-    fn new() -> Self {
+    fn new(vm_map: &'static VMMap) -> Self {
         NoGC {
             control_collector_context: ControllerCollectorContext::new(),
             unsync: UnsafeCell::new(NoGCUnsync {
-                vm_space: create_vm_space(),
+                vm_space: create_vm_space(vm_map),
                 space: ImmortalSpace::new("nogc_space", true,
-                                          VMRequest::discontiguous()),
-                los: LargeObjectSpace::new("los", true, VMRequest::discontiguous()),
+                                          VMRequest::discontiguous(), vm_map),
+                los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map),
                 total_pages: 0,
             }
             ),
         }
     }
 
-    unsafe fn gc_init(&self, heap_size: usize) {
-        ::util::heap::layout::heap_layout::VM_MAP.finalize_static_space_map();
+    unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap) {
+        vm_map.finalize_static_space_map();
         let unsync = &mut *self.unsync.get();
         unsync.total_pages = bytes_to_pages(heap_size);
         // FIXME correctly initialize spaces based on options
-        unsync.vm_space.init();
-        unsync.space.init();
-        unsync.los.init();
+        unsync.vm_space.init(vm_map);
+        unsync.space.init(vm_map);
+        unsync.los.init(vm_map);
 
         // These VMs require that the controller thread is started by the VM itself.
         // (Usually because it calls into VM code that accesses the TLS.)

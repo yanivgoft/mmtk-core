@@ -24,6 +24,7 @@ use util::heap::pageresource::cumulative_committed_pages;
 use util::statistics::stats::{STATS, get_gathering_stats, new_counter};
 use util::statistics::counter::{Counter, LongCounter};
 use util::statistics::counter::MonotoneNanoTime;
+use util::heap::layout::heap_layout::VMMap;
 
 pub static EMERGENCY_COLLECTION: AtomicBool = AtomicBool::new(false);
 pub static USER_TRIGGERED_COLLECTION: AtomicBool = AtomicBool::new(false);
@@ -34,20 +35,20 @@ lazy_static! {
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
-pub fn create_vm_space() -> ImmortalSpace {
+pub fn create_vm_space(vm_map: &'static VMMap) -> ImmortalSpace {
     let boot_segment_bytes = BOOT_IMAGE_END - BOOT_IMAGE_DATA_START;
     debug_assert!(boot_segment_bytes > 0);
 
     let boot_segment_mb = unsafe{Address::from_usize(boot_segment_bytes)}
         .align_up(BYTES_IN_CHUNK).as_usize() >> LOG_BYTES_IN_MBYTE;
 
-    ImmortalSpace::new("boot", false, VMRequest::fixed_size(boot_segment_mb))
+    ImmortalSpace::new("boot", false, VMRequest::fixed_size(boot_segment_mb), vm_map)
 }
 
 #[cfg(feature = "openjdk")]
-pub fn create_vm_space() -> ImmortalSpace {
+pub fn create_vm_space(vm_map: &'static VMMap) -> ImmortalSpace {
     // FIXME: Does OpenJDK care?
-    ImmortalSpace::new("boot", false, VMRequest::fixed_size(0))
+    ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map)
 }
 
 pub trait Plan: Sized {
@@ -55,9 +56,9 @@ pub trait Plan: Sized {
     type TraceLocalT: TraceLocal;
     type CollectorT: ParallelCollector;
 
-    fn new() -> Self;
+    fn new(vm_map: &'static VMMap) -> Self;
     // unsafe because this can only be called once by the init thread
-    unsafe fn gc_init(&self, heap_size: usize);
+    unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
     fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void;
     fn will_never_move(&self, object: ObjectReference) -> bool;
     // unsafe because only the primary collector thread can call this
