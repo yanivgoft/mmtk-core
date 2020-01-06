@@ -16,7 +16,6 @@ use ::util::alloc::embedded_meta_data::*;
 use ::util::OpaquePointer;
 
 use super::layout::Mmapper;
-use super::layout::heap_layout::MMAPPER;
 use ::util::heap::layout::heap_layout;
 
 use super::PageResource;
@@ -24,6 +23,7 @@ use std::sync::atomic::Ordering;
 
 use libc::{c_void, memset};
 use util::heap::layout::heap_layout::VMMap;
+use util::heap::layout::ByteMapMmapper;
 
 const SPACE_ALIGN: usize = 1 << 19;
 
@@ -140,7 +140,7 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
             self.commit_pages(reserved_pages, required_pages, tls);
             self.common().space.unwrap().grow_space(old, bytes, new_chunk);
 
-            MMAPPER.ensure_mapped(old, required_pages);
+            self.common().space.unwrap().common().mmapper.ensure_mapped(old, required_pages);
 
             // FIXME: concurrent zeroing
             if zeroed {

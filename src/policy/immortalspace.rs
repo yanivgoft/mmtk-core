@@ -12,7 +12,7 @@ use ::plan::TransitiveClosure;
 use ::util::header_byte;
 
 use std::cell::UnsafeCell;
-use util::heap::layout::heap_layout::VMMap;
+use util::heap::layout::heap_layout::{VMMap, Mmapper};
 
 #[derive(Debug)]
 pub struct ImmortalSpace {
@@ -66,9 +66,9 @@ impl Space for ImmortalSpace {
 }
 
 impl ImmortalSpace {
-    pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap) -> Self {
+    pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self {
         ImmortalSpace {
-            common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest, vm_map)),
+            common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest, vm_map, mmapper)),
             mark_state: 0,
         }
     }

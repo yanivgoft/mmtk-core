@@ -14,7 +14,7 @@ use util::generic_freelist::GenericFreeList;
 // FIXME: Use `RawMemoryFreeList` for 64-bit machines
 use util::int_array_freelist::IntArrayFreeList as FreeList;
 use util::heap::layout::vm_layout_constants::*;
-use util::heap::layout::heap_layout;
+use util::heap::layout::{heap_layout, ByteMapMmapper};
 use util::conversions;
 use util::constants::*;
 use util::OpaquePointer;
@@ -22,7 +22,6 @@ use policy::space::Space;
 use vm::{VMMemory, Memory};
 use super::vmrequest::HEAP_LAYOUT_64BIT;
 use super::layout::Mmapper;
-use super::layout::heap_layout::MMAPPER;
 use super::PageResource;
 use util::heap::layout::heap_layout::VMMap;
 
@@ -115,7 +114,7 @@ impl<S: Space<PR = FreeListPageResource<S>>> PageResource for FreeListPageResour
         // The meta-data portion of reserved Pages was committed above.
         self.commit_pages(reserved_pages, required_pages, tls);
         self.common().space.unwrap().grow_space(rtn, bytes, new_chunk);
-        MMAPPER.ensure_mapped(rtn, required_pages);
+        self.common().space.unwrap().common().mmapper.ensure_mapped(rtn, required_pages);
         if zeroed {
             VMMemory::zero(rtn, bytes);
         }

@@ -21,6 +21,7 @@ use std::fmt::Debug;
 
 use libc::c_void;
 use util::heap::layout::heap_layout::VMMap;
+use util::heap::layout::heap_layout::Mmapper;
 
 pub trait Space: Sized + Debug + 'static {
     type PR: PageResource<Space = Self>;
@@ -193,6 +194,7 @@ pub struct CommonSpace<PR: PageResource> {
     pub head_discontiguous_region: Address,
 
     pub vm_map: &'static VMMap,
+    pub mmapper: &'static Mmapper
 }
 
 // FIXME replace with atomic ints
@@ -204,7 +206,7 @@ const DEBUG: bool = false;
 
 impl<PR: PageResource> CommonSpace<PR> {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
-               vmrequest: VMRequest, vm_map: &'static VMMap) -> Self {
+               vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self {
         let mut rtn = CommonSpace {
             name,
             name_length: name.len(),
@@ -220,6 +222,7 @@ impl<PR: PageResource> CommonSpace<PR> {
             extent: 0,
             head_discontiguous_region: unsafe{Address::zero()},
             vm_map,
+            mmapper,
         };
 
         if vmrequest.is_discontiguous() {

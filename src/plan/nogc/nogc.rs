@@ -5,7 +5,6 @@ use ::plan::controller_collector_context::ControllerCollectorContext;
 use ::plan::{Plan, Phase};
 use ::util::ObjectReference;
 use ::util::heap::VMRequest;
-use ::util::heap::layout::heap_layout::MMAPPER;
 use ::util::heap::layout::Mmapper;
 use ::util::Address;
 use ::util::OpaquePointer;
@@ -23,6 +22,7 @@ use util::conversions::bytes_to_pages;
 use plan::plan::create_vm_space;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
+use util::heap::layout::ByteMapMmapper;
 
 pub type SelectedPlan = NoGC;
 
@@ -37,6 +37,7 @@ pub struct NoGCUnsync {
     vm_space: ImmortalSpace,
     pub space: ImmortalSpace,
     pub los: LargeObjectSpace,
+    pub mmapper: &'static ByteMapMmapper,
     pub total_pages: usize,
 }
 
@@ -45,14 +46,15 @@ impl Plan for NoGC {
     type TraceLocalT = NoGCTraceLocal;
     type CollectorT = NoGCCollector;
 
-    fn new(vm_map: &'static VMMap) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper) -> Self {
         NoGC {
             control_collector_context: ControllerCollectorContext::new(),
             unsync: UnsafeCell::new(NoGCUnsync {
-                vm_space: create_vm_space(vm_map),
+                vm_space: create_vm_space(vm_map, mmapper),
                 space: ImmortalSpace::new("nogc_space", true,
-                                          VMRequest::discontiguous(), vm_map),
-                los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map),
+                                          VMRequest::discontiguous(), vm_map, mmapper),
+                los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper),
+                mmapper,
                 total_pages: 0,
             }
             ),
@@ -75,6 +77,11 @@ impl Plan for NoGC {
                 ::plan::plan::CONTROL_COLLECTOR_CONTEXT.run(UNINITIALIZED_OPAQUE_POINTER )
             });
         }
+    }
+
+    fn mmapper(&self) -> &'static ByteMapMmapper {
+        let unsync = unsafe { &*self.unsync.get() };
+        unsync.mmapper
     }
 
     fn bind_mutator(&self, tls: OpaquePointer) -> *mut c_void {
@@ -124,7 +131,7 @@ impl Plan for NoGC {
             unsync.vm_space.in_space(address.to_object_reference()) ||
             unsync.los.in_space(address.to_object_reference())
         } {
-            return MMAPPER.address_is_mapped(address);
+            return unsync.mmapper.address_is_mapped(address);
         } else {
             return false;
         }
