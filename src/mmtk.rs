@@ -3,8 +3,13 @@ use crate::plan::SelectedPlan;
 use crate::plan::phase::PhaseManager;
 use crate::util::heap::layout::heap_layout::VMMap;
 use crate::util::heap::layout::heap_layout::Mmapper;
+use crate::util::ReferenceProcessor;
+use crate::util::ObjectReference;
+use crate::util::OpaquePointer;
+use crate::plan::TraceLocal;
 
 use std::sync::Arc;
+use util::reference_processor::{Semantics, ReferenceProcessors};
 
 // TODO: remove this singleton at some point to allow multiple instances of MMTK
 // This helps refactoring.
@@ -22,6 +27,8 @@ pub struct MMTK {
     pub phase_manager: PhaseManager,
     pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
+
+    pub reference_processors: ReferenceProcessors
 }
 
 impl MMTK {
@@ -30,7 +37,8 @@ impl MMTK {
             plan: SelectedPlan::new(vm_map, mmapper),
             phase_manager: PhaseManager::new(),
             vm_map,
-            mmapper
+            mmapper,
+            reference_processors: ReferenceProcessors::new(),
         }
     }
 }

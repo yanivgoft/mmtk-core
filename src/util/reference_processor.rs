@@ -11,6 +11,61 @@ use ::plan::selected_plan::SelectedPlan;
 
 use libc::c_void;
 
+pub struct ReferenceProcessors {
+    soft: ReferenceProcessor,
+    weak: ReferenceProcessor,
+    phantom: ReferenceProcessor,
+}
+
+impl ReferenceProcessors {
+    pub fn new() -> Self {
+        ReferenceProcessors {
+            soft: ReferenceProcessor::new(Semantics::SOFT),
+            weak: ReferenceProcessor::new(Semantics::WEAK),
+            phantom: ReferenceProcessor::new(Semantics::PHANTOM),
+        }
+    }
+
+    pub fn get(&self, semantics: Semantics) -> &ReferenceProcessor {
+        match semantics {
+            Semantics::SOFT => &self.soft,
+            Semantics::WEAK => &self.weak,
+            Semantics::PHANTOM => &self.phantom,
+        }
+    }
+
+    pub fn add_soft_candidate(&self, reff: ObjectReference, referent: ObjectReference) {
+        self.soft.add_candidate(reff, referent);
+    }
+
+    pub fn add_weak_candidate(&self, reff: ObjectReference, referent: ObjectReference) {
+        self.weak.add_candidate(reff, referent);
+    }
+
+    pub fn add_phantom_candidate(&self, reff: ObjectReference, referent: ObjectReference) {
+        self.phantom.add_candidate(reff, referent);
+    }
+
+    pub fn forward_refs<T: TraceLocal>(&self, trace: &mut T) {
+        self.soft.forward(trace, false);
+        self.weak.forward(trace, false);
+        self.phantom.forward(trace, false);
+    }
+
+    pub fn scan_weak_refs<T: TraceLocal>(&self, trace: &mut T, tls: OpaquePointer) {
+        self.soft.scan(trace, false, false, tls);
+        self.weak.scan(trace, false, false, tls);
+    }
+
+    pub fn scan_soft_refs<T: TraceLocal>(&self, trace: &mut T, tls: OpaquePointer) {
+        self.soft.scan(trace, false, false, tls);
+    }
+
+    pub fn scan_phantom_refs<T: TraceLocal>(&self, trace: &mut T, tls: OpaquePointer) {
+        self.phantom.scan(trace, false, false, tls);
+    }
+}
+
 // Debug flags
 pub const TRACE: bool = false;
 pub const TRACE_UNREACHABLE: bool = false;
@@ -47,12 +102,6 @@ pub enum Semantics {
     PHANTOM,
 }
 
-lazy_static! {
-    static ref SOFT_REFERENCE_PROCESSOR: ReferenceProcessor = ReferenceProcessor::new(Semantics::SOFT);
-    static ref WEAK_REFERENCE_PROCESSOR: ReferenceProcessor = ReferenceProcessor::new(Semantics::WEAK);
-    static ref PHANTOM_REFERENCE_PROCESSOR: ReferenceProcessor = ReferenceProcessor::new(Semantics::PHANTOM);
-}
-
 struct ReferenceProcessorSync {
     // XXX: A data race on any of these fields is UB. If
     //      parallelizing this code, change the types to
@@ -77,7 +126,7 @@ struct ReferenceProcessorSync {
 }
 
 impl ReferenceProcessor {
-    fn new(semantics: Semantics) -> Self {
+    pub fn new(semantics: Semantics) -> Self {
         ReferenceProcessor {
             sync: UnsafeCell::new(Mutex::new(ReferenceProcessorSync {
                 references: Vec::with_capacity(INITIAL_SIZE),
@@ -99,21 +148,21 @@ impl ReferenceProcessor {
         (&mut *self.sync.get()).get_mut().unwrap()
     }
 
-    pub fn get(semantics: Semantics) -> &'static Self {
-        match semantics {
-            Semantics::SOFT => &SOFT_REFERENCE_PROCESSOR,
-            Semantics::WEAK => &WEAK_REFERENCE_PROCESSOR,
-            Semantics::PHANTOM => &PHANTOM_REFERENCE_PROCESSOR,
-        }
-    }
+//    pub fn get(semantics: Semantics) -> &'static Self {
+//        match semantics {
+//            Semantics::SOFT => &SOFT_REFERENCE_PROCESSOR,
+//            Semantics::WEAK => &WEAK_REFERENCE_PROCESSOR,
+//            Semantics::PHANTOM => &PHANTOM_REFERENCE_PROCESSOR,
+//        }
+//    }
 
-    fn add_candidate(&self, reff: ObjectReference, referent: ObjectReference) {
+    pub fn add_candidate(&self, reff: ObjectReference, referent: ObjectReference) {
         let mut sync = self.sync().lock().unwrap();
         VMReferenceGlue::set_referent(reff, referent);
         sync.references.push(reff.to_address());
     }
 
-    fn forward<T: TraceLocal>(&self, trace: &mut T, nursery: bool) {
+    pub fn forward<T: TraceLocal>(&self, trace: &mut T, nursery: bool) {
         let mut sync = unsafe { self.sync_mut() };
         let references: &mut Vec<Address> = &mut sync.references;
         // XXX: Copies `unforwarded_references` out. Should be fine since it's not accessed
@@ -138,7 +187,7 @@ impl ReferenceProcessor {
         sync.unforwarded_references = None;
     }
 
-    fn scan<T: TraceLocal>(&self, trace: &mut T, nursery: bool, retain: bool, tls: OpaquePointer) {
+    pub fn scan<T: TraceLocal>(&self, trace: &mut T, nursery: bool, retain: bool, tls: OpaquePointer) {
         let sync = unsafe { self.sync_mut() };
         sync.unforwarded_references = Some(sync.references.clone());
         let references: &mut Vec<Address> = &mut sync.references;
@@ -210,35 +259,4 @@ impl ReferenceProcessor {
         }
         if TRACE_DETAIL { trace!(" ~> {:?} (retained)", referent.to_address()); }
     }
-}
-
-pub fn add_soft_candidate(reff: ObjectReference, referent: ObjectReference) {
-    SOFT_REFERENCE_PROCESSOR.add_candidate(reff, referent);
-}
-
-pub fn add_weak_candidate(reff: ObjectReference, referent: ObjectReference) {
-    WEAK_REFERENCE_PROCESSOR.add_candidate(reff, referent);
-}
-
-pub fn add_phantom_candidate(reff: ObjectReference, referent: ObjectReference) {
-    PHANTOM_REFERENCE_PROCESSOR.add_candidate(reff, referent);
-}
-
-pub fn forward_refs<T: TraceLocal>(trace: &mut T) {
-    SOFT_REFERENCE_PROCESSOR.forward(trace, false);
-    WEAK_REFERENCE_PROCESSOR.forward(trace, false);
-    PHANTOM_REFERENCE_PROCESSOR.forward(trace, false);
-}
-
-pub fn scan_weak_refs<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-    SOFT_REFERENCE_PROCESSOR.scan(trace, false, false, tls);
-    WEAK_REFERENCE_PROCESSOR.scan(trace, false, false, tls);
-}
-
-pub fn scan_soft_refs<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-    SOFT_REFERENCE_PROCESSOR.scan(trace, false, false, tls);
-}
-
-pub fn scan_phantom_refs<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-    PHANTOM_REFERENCE_PROCESSOR.scan(trace, false, false, tls);
 }

@@ -200,7 +200,7 @@ pub unsafe extern fn start_worker(tls: OpaquePointer, worker: *mut c_void) {
 #[no_mangle]
 #[cfg(feature = "jikesrvm")]
 pub unsafe extern fn enable_collection(tls: OpaquePointer) {
-    (&mut *CONTROL_COLLECTOR_CONTEXT.workers.get()).init_group(&SINGLETON.plan, &SINGLETON.phase_manager, tls);
+    (&mut *CONTROL_COLLECTOR_CONTEXT.workers.get()).init_group(&SINGLETON, tls);
     VMCollection::spawn_worker_thread::<<SelectedPlan as Plan>::CollectorT>(tls, null_mut()); // spawn controller thread
     ::plan::plan::INITIALIZED.store(true, Ordering::SeqCst);
 }
@@ -330,21 +330,21 @@ pub extern fn modify_check(object: ObjectReference) {
 
 #[no_mangle]
 pub unsafe extern fn add_weak_candidate(reff: *mut c_void, referent: *mut c_void) {
-    ::util::reference_processor::add_weak_candidate(
+    SINGLETON.reference_processors.add_weak_candidate(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }
 
 #[no_mangle]
 pub unsafe extern fn add_soft_candidate(reff: *mut c_void, referent: *mut c_void) {
-    ::util::reference_processor::add_soft_candidate(
+    SINGLETON.reference_processors.add_soft_candidate(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }
 
 #[no_mangle]
 pub unsafe extern fn add_phantom_candidate(reff: *mut c_void, referent: *mut c_void) {
-    ::util::reference_processor::add_phantom_candidate(
+    SINGLETON.reference_processors.add_phantom_candidate(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }
