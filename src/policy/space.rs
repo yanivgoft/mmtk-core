@@ -284,7 +284,7 @@ impl<PR: PageResource> CommonSpace<PR> {
     }
 
     pub fn vm_map(&self) -> &'static VMMap {
-        self.pr.as_ref().unwrap().vm_map()
+        self.vm_map
     }
 }
 
