@@ -23,7 +23,6 @@ use ::vm::jikesrvm::JTOC_BASE;
 use ::vm::openjdk::UPCALLS;
 
 use ::util::{Address, ObjectReference};
-use ::util::options::OPTION_MAP;
 
 use ::plan::selected_plan;
 use self::selected_plan::SelectedPlan;
@@ -35,6 +34,7 @@ use util::heap::layout::vm_layout_constants::HEAP_END;
 use ::util::sanity::sanity_checker::{INSIDE_SANITY, SanityChecker};
 use util::OpaquePointer;
 use crate::mmtk::SINGLETON;
+use crate::mmtk::OPTIONS_PROCESSOR;
 
 #[no_mangle]
 #[cfg(feature = "jikesrvm")]
@@ -215,7 +215,7 @@ pub extern fn enable_collection(size: usize) {
 pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
     let name_str: &CStr = unsafe { CStr::from_ptr(name) };
     let value_str: &CStr = unsafe { CStr::from_ptr(value) };
-    let option = &OPTION_MAP;
+    let option = &OPTIONS_PROCESSOR;
     unsafe {
         option.process(name_str.to_str().unwrap(), value_str.to_str().unwrap())
     }
@@ -310,7 +310,7 @@ pub unsafe extern fn trace_retain_referent(trace_local: *mut c_void, object: Obj
 
 #[no_mangle]
 pub extern fn handle_user_collection_request(tls: OpaquePointer) {
-    selected_plan::SelectedPlan::handle_user_collection_request(tls);
+    SINGLETON.plan.handle_user_collection_request(tls, false);
 }
 
 #[no_mangle]
@@ -351,10 +351,10 @@ pub unsafe extern fn add_phantom_candidate(reff: *mut c_void, referent: *mut c_v
 
 #[no_mangle]
 pub extern fn harness_begin(tls: OpaquePointer) {
-    ::plan::plan::harness_begin(tls);
+    SINGLETON.harness_begin(tls);
 }
 
 #[no_mangle]
 pub extern fn harness_end() {
-    ::plan::plan::harness_end();
+    SINGLETON.harness_end();
 }

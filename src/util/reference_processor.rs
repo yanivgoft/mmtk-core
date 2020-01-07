@@ -4,7 +4,6 @@ use std::vec::Vec;
 
 use ::util::OpaquePointer;
 use ::util::{Address, ObjectReference};
-use ::util::options::OPTION_MAP;
 use ::vm::{ActivePlan, VMActivePlan, ReferenceGlue, VMReferenceGlue};
 use ::plan::{Plan, TraceLocal, MutatorContext};
 use ::plan::selected_plan::SelectedPlan;
@@ -217,9 +216,7 @@ impl ReferenceProcessor {
                     }
                 }
             }
-            if OPTION_MAP.verbose >= 3 {
-                trace!("{:?} references: {} -> {}", self.semantics, references.len(), to_index);
-            }
+            trace!("{:?} references: {} -> {}", self.semantics, references.len(), to_index);
             sync.nursery_index = to_index;
             references.truncate(to_index);
         }

@@ -7,8 +7,6 @@ use super::ParallelCollector;
 use ::vm::{VMCollection, Collection};
 use plan::selected_plan::SelectedPlan;
 
-use ::util::options::OPTION_MAP;
-
 use libc::c_void;
 use plan::phase::PhaseManager;
 use mmtk::MMTK;
@@ -54,7 +52,7 @@ impl<C: ParallelCollector> ParallelCollectorGroup<C> {
             let inner = self.sync.get_mut().unwrap();
             inner.trigger_count = 1;
         }
-        let size = OPTION_MAP.threads;
+        let size = mmtk.options.threads;
         self.contexts = Vec::<C>::with_capacity(size);
         for i in 0..size {
             self.contexts.push(C::new(mmtk));

@@ -23,6 +23,7 @@ use plan::plan::create_vm_space;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::ByteMapMmapper;
+use util::options::Options;
 
 pub type SelectedPlan = NoGC;
 
@@ -38,6 +39,7 @@ pub struct NoGCUnsync {
     pub space: ImmortalSpace,
     pub los: LargeObjectSpace,
     pub mmapper: &'static ByteMapMmapper,
+    pub options: &'static Options,
     pub total_pages: usize,
 }
 
@@ -46,7 +48,7 @@ impl Plan for NoGC {
     type TraceLocalT = NoGCTraceLocal;
     type CollectorT = NoGCCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
         NoGC {
             control_collector_context: ControllerCollectorContext::new(),
             unsync: UnsafeCell::new(NoGCUnsync {
@@ -55,6 +57,7 @@ impl Plan for NoGC {
                                           VMRequest::discontiguous(), vm_map, mmapper),
                 los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper),
                 mmapper,
+                options,
                 total_pages: 0,
             }
             ),
@@ -82,6 +85,11 @@ impl Plan for NoGC {
     fn mmapper(&self) -> &'static ByteMapMmapper {
         let unsync = unsafe { &*self.unsync.get() };
         unsync.mmapper
+    }
+
+    fn options(&self) -> &'static Options {
+        let unsync = unsafe { &*self.unsync.get() };
+        unsync.options
     }
 
     fn bind_mutator(&self, tls: OpaquePointer) -> *mut c_void {

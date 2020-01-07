@@ -38,6 +38,7 @@ use plan::plan::EMERGENCY_COLLECTION;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::ByteMapMmapper;
+use util::options::Options;
 
 pub type SelectedPlan = SemiSpace;
 
@@ -57,6 +58,7 @@ pub struct SemiSpaceUnsync {
     pub versatile_space: ImmortalSpace,
     pub los: LargeObjectSpace,
     pub mmapper: &'static ByteMapMmapper,
+    pub options: &'static Options,
     // FIXME: This should be inside HeapGrowthManager
     total_pages: usize,
 
@@ -70,7 +72,7 @@ impl Plan for SemiSpace {
     type TraceLocalT = SSTraceLocal;
     type CollectorT = SSCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
         SemiSpace {
             unsync: UnsafeCell::new(SemiSpaceUnsync {
                 hi: false,
@@ -83,6 +85,7 @@ impl Plan for SemiSpace {
                                                     VMRequest::discontiguous(), vm_map, mmapper),
                 los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper),
                 mmapper,
+                options,
                 total_pages: 0,
                 collection_attempt: 0,
             }),
@@ -112,6 +115,11 @@ impl Plan for SemiSpace {
     fn mmapper(&self) -> &'static ByteMapMmapper {
         let unsync = unsafe { &*self.unsync.get() };
         unsync.mmapper
+    }
+
+    fn options(&self) -> &'static Options {
+        let unsync = unsafe { &*self.unsync.get() };
+        unsync.options
     }
 
     fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void {
