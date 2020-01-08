@@ -39,6 +39,8 @@ use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
+use util::heap::HeapMeta;
+use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 
 pub type SelectedPlan = SemiSpace;
 
@@ -60,7 +62,7 @@ pub struct SemiSpaceUnsync {
     pub mmapper: &'static ByteMapMmapper,
     pub options: &'static Options,
     // FIXME: This should be inside HeapGrowthManager
-    total_pages: usize,
+    pub heap: HeapMeta,
 
     collection_attempt: usize,
 }
@@ -73,20 +75,22 @@ impl Plan for SemiSpace {
     type CollectorT = SSCollector;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
+        let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
+
         SemiSpace {
             unsync: UnsafeCell::new(SemiSpaceUnsync {
                 hi: false,
-                vm_space: create_vm_space(vm_map, mmapper),
+                vm_space: create_vm_space(vm_map, mmapper, &mut heap),
                 copyspace0: CopySpace::new("copyspace0", false, true,
-                                           VMRequest::discontiguous(), vm_map, mmapper),
+                                           VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 copyspace1: CopySpace::new("copyspace1", true, true,
-                                           VMRequest::discontiguous(), vm_map, mmapper),
+                                           VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 versatile_space: ImmortalSpace::new("versatile_space", true,
-                                                    VMRequest::discontiguous(), vm_map, mmapper),
-                los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper),
+                                                    VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
+                los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 mmapper,
                 options,
-                total_pages: 0,
+                heap,
                 collection_attempt: 0,
             }),
             ss_trace: Trace::new(),
@@ -94,9 +98,9 @@ impl Plan for SemiSpace {
     }
 
     unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap) {
-        vm_map.finalize_static_space_map();
         let unsync = &mut *self.unsync.get();
-        unsync.total_pages = bytes_to_pages(heap_size);
+        vm_map.finalize_static_space_map(unsync.heap.get_discontig_start(), unsync.heap.get_discontig_end());
+        unsync.heap.total_pages = bytes_to_pages(heap_size);
         unsync.vm_space.init(vm_map);
         unsync.copyspace0.init(vm_map);
         unsync.copyspace1.init(vm_map);
@@ -253,7 +257,7 @@ impl Plan for SemiSpace {
     }
 
     fn get_total_pages(&self) -> usize {
-        unsafe{(&*self.unsync.get()).total_pages}
+        unsafe{(&*self.unsync.get()).heap.total_pages}
     }
 
     fn get_collection_reserve(&self) -> usize {

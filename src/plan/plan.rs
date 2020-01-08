@@ -10,7 +10,7 @@ use ::vm::{Collection, VMCollection, ActivePlan, VMActivePlan};
 use super::controller_collector_context::ControllerCollectorContext;
 use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
 use util::constants::LOG_BYTES_IN_MBYTE;
-use util::heap::VMRequest;
+use util::heap::{VMRequest, HeapMeta};
 use policy::immortalspace::ImmortalSpace;
 #[cfg(feature = "jikesrvm")]
 use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_END;
@@ -36,20 +36,20 @@ lazy_static! {
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
-pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper) -> ImmortalSpace {
+pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace {
     let boot_segment_bytes = BOOT_IMAGE_END - BOOT_IMAGE_DATA_START;
     debug_assert!(boot_segment_bytes > 0);
 
     let boot_segment_mb = unsafe{Address::from_usize(boot_segment_bytes)}
         .align_up(BYTES_IN_CHUNK).as_usize() >> LOG_BYTES_IN_MBYTE;
 
-    ImmortalSpace::new("boot", false, VMRequest::fixed_size(boot_segment_mb), vm_map, mmapper)
+    ImmortalSpace::new("boot", false, VMRequest::fixed_size(boot_segment_mb), vm_map, mmapper, heap)
 }
 
 #[cfg(feature = "openjdk")]
-pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper) -> ImmortalSpace {
+pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace {
     // FIXME: Does OpenJDK care?
-    ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper)
+    ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper, heap)
 }
 
 pub trait Plan: Sized {

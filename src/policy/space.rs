@@ -22,6 +22,7 @@ use std::fmt::Debug;
 use libc::c_void;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
+use util::heap::HeapMeta;
 
 pub trait Space: Sized + Debug + 'static {
     type PR: PageResource<Space = Self>;
@@ -197,21 +198,16 @@ pub struct CommonSpace<PR: PageResource> {
     pub mmapper: &'static Mmapper
 }
 
-// FIXME replace with atomic ints
-static mut SPACE_COUNT: usize = 0;
-static mut HEAP_CURSOR: Address = HEAP_START;
-static mut HEAP_LIMIT: Address = HEAP_END;
-
 const DEBUG: bool = false;
 
 impl<PR: PageResource> CommonSpace<PR> {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
-               vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self {
+               vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         let mut rtn = CommonSpace {
             name,
             name_length: name.len(),
             descriptor: 0,
-            index: unsafe { let tmp = SPACE_COUNT; SPACE_COUNT += 1; tmp },
+            index: heap.new_space_index(),
             vmrequest,
             immortal,
             movable,
@@ -250,25 +246,10 @@ impl<PR: PageResource> CommonSpace<PR> {
             if start.as_usize() != chunk_align(start, false).as_usize() {
                 panic!("{} starting on non-aligned boundary: {} bytes", name, start.as_usize());
             }
-        } else if top {
+        } else {
             // FIXME
             //if (HeapLayout.vmMap.isFinalized()) VM.assertions.fail("heap is narrowed after regionMap is finalized: " + name);
-            unsafe {
-                HEAP_LIMIT -= extent;
-                start = HEAP_LIMIT;
-            }
-        } else {
-            unsafe {
-                start = HEAP_CURSOR;
-                HEAP_CURSOR += extent;
-            }
-        }
-
-        unsafe {
-            if HEAP_CURSOR > HEAP_LIMIT {
-                panic!("Out of virtual address space allocating \"{}\" at {} ({} > {})", name,
-                       HEAP_CURSOR - extent, HEAP_CURSOR, HEAP_LIMIT);
-            }
+            start = heap.reserve(extent, top);
         }
 
         rtn.contiguous = true;
@@ -289,14 +270,6 @@ impl<PR: PageResource> CommonSpace<PR> {
     pub fn vm_map(&self) -> &'static VMMap {
         self.vm_map
     }
-}
-
-pub fn get_discontig_start() -> Address {
-    unsafe { HEAP_CURSOR }
-}
-
-pub fn get_discontig_end() -> Address {
-    unsafe { HEAP_LIMIT - 1 }
 }
 
 fn get_frac_available(frac: f32) -> usize {

@@ -24,6 +24,8 @@ use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
+use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
+use util::heap::HeapMeta;
 
 pub type SelectedPlan = NoGC;
 
@@ -40,7 +42,8 @@ pub struct NoGCUnsync {
     pub los: LargeObjectSpace,
     pub mmapper: &'static ByteMapMmapper,
     pub options: &'static Options,
-    pub total_pages: usize,
+
+    pub heap: HeapMeta,
 }
 
 impl Plan for NoGC {
@@ -49,25 +52,27 @@ impl Plan for NoGC {
     type CollectorT = NoGCCollector;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
+        let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
+
         NoGC {
             control_collector_context: ControllerCollectorContext::new(),
             unsync: UnsafeCell::new(NoGCUnsync {
-                vm_space: create_vm_space(vm_map, mmapper),
+                vm_space: create_vm_space(vm_map, mmapper, &mut heap),
                 space: ImmortalSpace::new("nogc_space", true,
-                                          VMRequest::discontiguous(), vm_map, mmapper),
-                los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper),
+                                          VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
+                los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 mmapper,
                 options,
-                total_pages: 0,
+                heap,
             }
             ),
         }
     }
 
     unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap) {
-        vm_map.finalize_static_space_map();
         let unsync = &mut *self.unsync.get();
-        unsync.total_pages = bytes_to_pages(heap_size);
+        vm_map.finalize_static_space_map(unsync.heap.get_discontig_start(), unsync.heap.get_discontig_end());
+        unsync.heap.total_pages = bytes_to_pages(heap_size);
         // FIXME correctly initialize spaces based on options
         unsync.vm_space.init(vm_map);
         unsync.space.init(vm_map);
@@ -106,7 +111,7 @@ impl Plan for NoGC {
 
     fn get_total_pages(&self) -> usize {
         let unsync = unsafe { &*self.unsync.get() };
-        unsync.total_pages
+        unsync.heap.total_pages
     }
 
     fn get_pages_used(&self) -> usize {

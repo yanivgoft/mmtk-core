@@ -13,6 +13,7 @@ use ::util::header_byte;
 
 use std::cell::UnsafeCell;
 use util::heap::layout::heap_layout::{VMMap, Mmapper};
+use util::heap::HeapMeta;
 
 #[derive(Debug)]
 pub struct ImmortalFreeListSpace {
@@ -67,9 +68,9 @@ impl Space for ImmortalFreeListSpace {
 }
 
 impl ImmortalFreeListSpace {
-    pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self {
+    pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         ImmortalFreeListSpace {
-            common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest, vm_map, mmapper)),
+            common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest, vm_map, mmapper, heap)),
             mark_state: 0,
         }
     }

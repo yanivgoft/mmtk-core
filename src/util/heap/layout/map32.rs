@@ -158,12 +158,12 @@ impl Map32 {
     }
 
     #[allow(mutable_transmutes)]
-    pub fn finalize_static_space_map(&self) {
+    pub fn finalize_static_space_map(&self, from: Address, to: Address) {
         let self_mut: &mut Self = unsafe { mem::transmute(self) };
         /* establish bounds of discontiguous space */
-        let start_address = ::policy::space::get_discontig_start();
+        let start_address = from;
         let first_chunk = self.get_chunk_index(start_address);
-        let last_chunk = self.get_chunk_index(::policy::space::get_discontig_end());
+        let last_chunk = self.get_chunk_index(to);
         let unavail_start_chunk = last_chunk + 1;
         let trailing_chunks = MAX_CHUNKS - unavail_start_chunk;
         let pages = (1 + last_chunk - first_chunk) * PAGES_IN_CHUNK;
