@@ -30,7 +30,7 @@ impl MutatorContext for SSMutator {
     fn collection_phase(&mut self, tls: OpaquePointer, phase: &Phase, primary: bool) {
         match phase {
             &Phase::PrepareStacks => {
-                if !plan::stacks_prepared() {
+                if !self.plan.common.stacks_prepared() {
                     VMCollection::prepare_mutator(self.ss.tls, self);
                 }
                 self.flush_remembered_sets();

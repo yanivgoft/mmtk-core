@@ -60,11 +60,7 @@ impl Plan for NoGC {
                                           VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
             }),
-            common: CommonPlan {
-                mmapper,
-                options,
-                heap,
-            }
+            common: CommonPlan::new(mmapper, options, heap),
         }
     }
 

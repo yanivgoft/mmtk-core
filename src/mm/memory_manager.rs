@@ -97,7 +97,7 @@ pub unsafe extern fn gc_init(heap_size: usize) {
     }
     ::util::logger::init().unwrap();
     SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
-    ::plan::plan::INITIALIZED.store(true, Ordering::SeqCst);
+    SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
 }
 
 #[no_mangle]
@@ -202,7 +202,7 @@ pub unsafe extern fn start_worker(tls: OpaquePointer, worker: *mut c_void) {
 pub unsafe extern fn enable_collection(tls: OpaquePointer) {
     (&mut *CONTROL_COLLECTOR_CONTEXT.workers.get()).init_group(&SINGLETON, tls);
     VMCollection::spawn_worker_thread::<<SelectedPlan as Plan>::CollectorT>(tls, null_mut()); // spawn controller thread
-    ::plan::plan::INITIALIZED.store(true, Ordering::SeqCst);
+    SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
 }
 
 #[no_mangle]

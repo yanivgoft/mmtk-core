@@ -88,11 +88,7 @@ impl Plan for SemiSpace {
                 collection_attempt: 0,
             }),
             ss_trace: Trace::new(),
-            common: CommonPlan {
-                mmapper,
-                options,
-                heap,
-            }
+            common: CommonPlan::new(mmapper, options, heap),
         }
     }
 
@@ -175,10 +171,10 @@ impl Plan for SemiSpace {
                 }
             }
             &Phase::Initiate => {
-                plan::set_gc_status(plan::GcStatus::GcPrepare);
+                self.common.set_gc_status(plan::GcStatus::GcPrepare);
             }
             &Phase::PrepareStacks => {
-                plan::STACKS_PREPARED.store(true, atomic::Ordering::SeqCst);
+                self.common.stacks_prepared.store(true, atomic::Ordering::SeqCst);
             }
             &Phase::Prepare => {
                 if cfg!(feature = "sanity") {
@@ -200,11 +196,11 @@ impl Plan for SemiSpace {
             }
             &Phase::StackRoots => {
                 VMScanning::notify_initial_thread_scan_complete(false, tls);
-                plan::set_gc_status(plan::GcStatus::GcProper);
+                self.common.set_gc_status(plan::GcStatus::GcProper);
             }
             &Phase::Roots => {
                 VMScanning::reset_thread_counter();
-                plan::set_gc_status(plan::GcStatus::GcProper);
+                self.common.set_gc_status(plan::GcStatus::GcProper);
             }
             &Phase::Closure => {}
             &Phase::Release => {
@@ -242,7 +238,7 @@ impl Plan for SemiSpace {
                 if cfg!(feature = "sanity") {
                     self.fromspace().protect();
                 }
-                plan::set_gc_status(plan::GcStatus::NotInGC);
+                self.common.set_gc_status(plan::GcStatus::NotInGC);
             }
             _ => {
                 panic!("Global phase not handled!")

@@ -26,6 +26,7 @@ use util::heap::layout::heap_layout::Mmapper;
 use util::heap::layout::Mmapper as IMmapper;
 use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
+use std::sync::Mutex;
 
 pub static EMERGENCY_COLLECTION: AtomicBool = AtomicBool::new(false);
 pub static USER_TRIGGERED_COLLECTION: AtomicBool = AtomicBool::new(false);
@@ -73,7 +74,7 @@ pub trait Plan: Sized {
     unsafe fn collection_phase(&self, tls: OpaquePointer, phase: &Phase);
 
     fn is_initialized(&self) -> bool {
-        INITIALIZED.load(Ordering::SeqCst)
+        self.common().initialized.load(Ordering::SeqCst)
     }
 
     fn poll<PR: PageResource>(&self, space_full: bool, space: &'static PR::Space) -> bool {
@@ -159,11 +160,11 @@ pub trait Plan: Sized {
         let pages = cumulative_committed_pages();
         trace!("pages={}", pages);
 
-        if INITIALIZED.load(Ordering::Relaxed)
-            && (pages ^ LAST_STRESS_PAGES.load(Ordering::Relaxed)
+        if self.is_initialized()
+            && (pages ^ self.common().last_stress_pages.load(Ordering::Relaxed)
             > self.options().stress_factor) {
 
-            LAST_STRESS_PAGES.store(pages, Ordering::Relaxed);
+            self.common().last_stress_pages.store(pages, Ordering::Relaxed);
             trace!("Doing stress GC");
             true
         } else {
@@ -220,7 +221,7 @@ pub trait Plan: Sized {
     fn is_mapped_address(&self, address: Address) -> bool;
 
     fn modify_check(&self, object: ObjectReference) {
-        if gc_in_progress_proper() {
+        if self.common().gc_in_progress_proper() {
             if self.is_movable(object) {
                 panic!("GC modifying a potentially moving object via Java (i.e. not magic) obj= {}", object);
             }
@@ -241,14 +242,52 @@ pub struct CommonPlan {
     pub mmapper: &'static Mmapper,
     pub options: &'static Options,
     pub heap: HeapMeta,
+
+    pub initialized: AtomicBool,
+    pub gc_status: Mutex<GcStatus>,
+    pub last_stress_pages: AtomicUsize,
+    pub stacks_prepared: AtomicBool,
 }
 
-pub static INITIALIZED: AtomicBool = AtomicBool::new(false);
-// FIXME should probably not use static mut
-static mut GC_STATUS: GcStatus = GcStatus::NotInGC;
-static LAST_STRESS_PAGES: AtomicUsize = AtomicUsize::new(0);
-pub static STACKS_PREPARED: AtomicBool = AtomicBool::new(false);
+impl CommonPlan {
+    pub fn new(mmapper: &'static Mmapper, options: &'static Options, heap: HeapMeta) -> CommonPlan {
+        CommonPlan {
+            mmapper, options, heap,
+            initialized: AtomicBool::new(false),
+            gc_status: Mutex::new(GcStatus::NotInGC),
+            last_stress_pages: AtomicUsize::new(0),
+            stacks_prepared: AtomicBool::new(false)
+        }
+    }
 
+    pub fn set_gc_status(&self, s: GcStatus) {
+        let mut gc_status = self.gc_status.lock().unwrap();
+        if *gc_status == GcStatus::NotInGC {
+            self.stacks_prepared.store(false, Ordering::SeqCst);
+            // FIXME stats
+            STATS.lock().unwrap().start_gc();
+        }
+        *gc_status = s;
+        if *gc_status == GcStatus::NotInGC {
+            // FIXME stats
+            if get_gathering_stats() {
+                STATS.lock().unwrap().end_gc();
+            }
+        }
+    }
+
+    pub fn stacks_prepared(&self) -> bool {
+        self.stacks_prepared.load(Ordering::SeqCst)
+    }
+
+    pub fn gc_in_progress(&self) -> bool {
+        *self.gc_status.lock().unwrap() != GcStatus::NotInGC
+    }
+
+    pub fn gc_in_progress_proper(&self) -> bool {
+        *self.gc_status.lock().unwrap() == GcStatus::GcProper
+    }
+}
 
 lazy_static! {
     pub static ref PREPARE_STACKS: Phase = Phase::Complex(vec![
@@ -357,32 +396,4 @@ pub enum Allocator {
     LargeCode = 8,
     Allocators = 9,
     DefaultSite = -1,
-}
-
-pub fn set_gc_status(s: GcStatus) {
-    if unsafe { GC_STATUS == GcStatus::NotInGC } {
-        STACKS_PREPARED.store(false, Ordering::SeqCst);
-        // FIXME stats
-        STATS.lock().unwrap().start_gc();
-
-    }
-    unsafe { GC_STATUS = s };
-    if unsafe { GC_STATUS == GcStatus::NotInGC } {
-        // FIXME stats
-        if get_gathering_stats() {
-            STATS.lock().unwrap().end_gc();
-        }
-    }
-}
-
-pub fn stacks_prepared() -> bool {
-    STACKS_PREPARED.load(Ordering::SeqCst)
-}
-
-pub fn gc_in_progress() -> bool {
-    unsafe { GC_STATUS != GcStatus::NotInGC }
-}
-
-pub fn gc_in_progress_proper() -> bool {
-    unsafe { GC_STATUS == GcStatus::GcProper }
 }
