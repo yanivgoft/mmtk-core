@@ -33,7 +33,7 @@ use std::sync::atomic::{self, AtomicBool, AtomicUsize, Ordering};
 use ::vm::{Scanning, VMScanning};
 use std::thread;
 use util::conversions::bytes_to_pages;
-use plan::plan::create_vm_space;
+use plan::plan::{create_vm_space, CommonPlan};
 use plan::plan::EMERGENCY_COLLECTION;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
@@ -50,6 +50,7 @@ pub const SCAN_BOOT_IMAGE: bool = true;
 pub struct SemiSpace {
     pub unsync: UnsafeCell<SemiSpaceUnsync>,
     pub ss_trace: Trace,
+    pub common: CommonPlan,
 }
 
 pub struct SemiSpaceUnsync {
@@ -59,10 +60,6 @@ pub struct SemiSpaceUnsync {
     pub copyspace1: CopySpace,
     pub versatile_space: ImmortalSpace,
     pub los: LargeObjectSpace,
-    pub mmapper: &'static ByteMapMmapper,
-    pub options: &'static Options,
-    // FIXME: This should be inside HeapGrowthManager
-    pub heap: HeapMeta,
 
     collection_attempt: usize,
 }
@@ -88,19 +85,22 @@ impl Plan for SemiSpace {
                 versatile_space: ImmortalSpace::new("versatile_space", true,
                                                     VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
-                mmapper,
-                options,
-                heap,
                 collection_attempt: 0,
             }),
             ss_trace: Trace::new(),
+            common: CommonPlan {
+                mmapper,
+                options,
+                heap,
+            }
         }
     }
 
     unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap) {
+        vm_map.finalize_static_space_map(self.common.heap.get_discontig_start(), self.common.heap.get_discontig_end());
+
         let unsync = &mut *self.unsync.get();
-        vm_map.finalize_static_space_map(unsync.heap.get_discontig_start(), unsync.heap.get_discontig_end());
-        unsync.heap.total_pages = bytes_to_pages(heap_size);
+        self.common.heap.total_pages.store(bytes_to_pages(heap_size), Ordering::Relaxed);
         unsync.vm_space.init(vm_map);
         unsync.copyspace0.init(vm_map);
         unsync.copyspace1.init(vm_map);
@@ -116,14 +116,8 @@ impl Plan for SemiSpace {
         }
     }
 
-    fn mmapper(&self) -> &'static ByteMapMmapper {
-        let unsync = unsafe { &*self.unsync.get() };
-        unsync.mmapper
-    }
-
-    fn options(&self) -> &'static Options {
-        let unsync = unsafe { &*self.unsync.get() };
-        unsync.options
+    fn common(&self) -> &CommonPlan {
+        &self.common
     }
 
     fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void {
@@ -256,10 +250,6 @@ impl Plan for SemiSpace {
         }
     }
 
-    fn get_total_pages(&self) -> usize {
-        unsafe{(&*self.unsync.get()).heap.total_pages}
-    }
-
     fn get_collection_reserve(&self) -> usize {
         let unsync = unsafe{&*self.unsync.get()};
         self.tospace().reserved_pages()
@@ -303,7 +293,7 @@ impl Plan for SemiSpace {
             unsync.copyspace1.in_space(address.to_object_reference()) ||
             unsync.los.in_space(address.to_object_reference())
         } {
-            return unsync.mmapper.address_is_mapped(address);
+            return self.common.mmapper.address_is_mapped(address);
         } else {
             return false;
         }

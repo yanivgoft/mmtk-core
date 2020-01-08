@@ -12,12 +12,14 @@ pub use self::vmrequest::VMRequest;
 pub use self::freelistpageresource::FreeListPageResource;
 use util::Address;
 use policy::space::CommonSpace;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 pub struct HeapMeta {
     pub space_count: usize,
     pub heap_cursor: Address,
     pub heap_limit: Address,
-    pub total_pages: usize,
+    pub total_pages: AtomicUsize,
 }
 
 impl HeapMeta {
@@ -26,7 +28,7 @@ impl HeapMeta {
             space_count: 0,
             heap_cursor: start,
             heap_limit: end,
-            total_pages: 0
+            total_pages: AtomicUsize::new(0)
         }
     }
 
@@ -60,5 +62,9 @@ impl HeapMeta {
 
     pub fn get_discontig_end(&self) -> Address {
         self.heap_limit - 1
+    }
+
+    pub fn get_total_pages(&self) -> usize {
+        self.total_pages.load(Ordering::Relaxed)
     }
 }

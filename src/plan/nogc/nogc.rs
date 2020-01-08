@@ -19,19 +19,21 @@ use super::NoGCTraceLocal;
 use super::NoGCMutator;
 use super::NoGCCollector;
 use util::conversions::bytes_to_pages;
-use plan::plan::create_vm_space;
+use plan::plan::{create_vm_space, CommonPlan};
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
 use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 use util::heap::HeapMeta;
+use std::sync::atomic::Ordering;
 
 pub type SelectedPlan = NoGC;
 
 pub struct NoGC {
     pub control_collector_context: ControllerCollectorContext,
     pub unsync: UnsafeCell<NoGCUnsync>,
+    pub common: CommonPlan,
 }
 
 unsafe impl Sync for NoGC {}
@@ -40,10 +42,6 @@ pub struct NoGCUnsync {
     vm_space: ImmortalSpace,
     pub space: ImmortalSpace,
     pub los: LargeObjectSpace,
-    pub mmapper: &'static ByteMapMmapper,
-    pub options: &'static Options,
-
-    pub heap: HeapMeta,
 }
 
 impl Plan for NoGC {
@@ -61,18 +59,20 @@ impl Plan for NoGC {
                 space: ImmortalSpace::new("nogc_space", true,
                                           VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
+            }),
+            common: CommonPlan {
                 mmapper,
                 options,
                 heap,
             }
-            ),
         }
     }
 
     unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap) {
+        vm_map.finalize_static_space_map(self.common.heap.get_discontig_start(), self.common.heap.get_discontig_end());
+
         let unsync = &mut *self.unsync.get();
-        vm_map.finalize_static_space_map(unsync.heap.get_discontig_start(), unsync.heap.get_discontig_end());
-        unsync.heap.total_pages = bytes_to_pages(heap_size);
+        self.common.heap.total_pages.store(bytes_to_pages(heap_size), Ordering::Relaxed);
         // FIXME correctly initialize spaces based on options
         unsync.vm_space.init(vm_map);
         unsync.space.init(vm_map);
@@ -87,14 +87,8 @@ impl Plan for NoGC {
         }
     }
 
-    fn mmapper(&self) -> &'static ByteMapMmapper {
-        let unsync = unsafe { &*self.unsync.get() };
-        unsync.mmapper
-    }
-
-    fn options(&self) -> &'static Options {
-        let unsync = unsafe { &*self.unsync.get() };
-        unsync.options
+    fn common(&self) -> &CommonPlan {
+        &self.common
     }
 
     fn bind_mutator(&self, tls: OpaquePointer) -> *mut c_void {
@@ -108,11 +102,6 @@ impl Plan for NoGC {
     }
 
     unsafe fn collection_phase(&self, tls: OpaquePointer, phase: &Phase) {}
-
-    fn get_total_pages(&self) -> usize {
-        let unsync = unsafe { &*self.unsync.get() };
-        unsync.heap.total_pages
-    }
 
     fn get_pages_used(&self) -> usize {
         let unsync = unsafe { &*self.unsync.get() };
@@ -144,7 +133,7 @@ impl Plan for NoGC {
             unsync.vm_space.in_space(address.to_object_reference()) ||
             unsync.los.in_space(address.to_object_reference())
         } {
-            return unsync.mmapper.address_is_mapped(address);
+            return self.common.mmapper.address_is_mapped(address);
         } else {
             return false;
         }

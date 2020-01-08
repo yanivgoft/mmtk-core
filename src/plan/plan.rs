@@ -58,8 +58,13 @@ pub trait Plan: Sized {
     type CollectorT: ParallelCollector;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self;
-    fn mmapper(&self) -> &'static Mmapper;
-    fn options(&self) -> &'static Options;
+    fn common(&self) -> &CommonPlan;
+    fn mmapper(&self) -> &'static Mmapper {
+        self.common().mmapper
+    }
+    fn options(&self) -> &'static Options {
+        self.common().options
+    }
     // unsafe because this can only be called once by the init thread
     unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
     fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void;
@@ -129,7 +134,9 @@ pub trait Plan: Sized {
         self.get_pages_used() + self.get_collection_reserve()
     }
 
-    fn get_total_pages(&self) -> usize;
+    fn get_total_pages(&self) -> usize {
+        self.common().heap.get_total_pages()
+    }
 
     fn get_pages_avail(&self) -> usize {
         self.get_total_pages() - self.get_pages_reserved()
@@ -228,6 +235,12 @@ pub enum GcStatus {
     NotInGC,
     GcPrepare,
     GcProper,
+}
+
+pub struct CommonPlan {
+    pub mmapper: &'static Mmapper,
+    pub options: &'static Options,
+    pub heap: HeapMeta,
 }
 
 pub static INITIALIZED: AtomicBool = AtomicBool::new(false);
