@@ -31,10 +31,6 @@ use std::sync::Mutex;
 pub static EMERGENCY_COLLECTION: AtomicBool = AtomicBool::new(false);
 pub static USER_TRIGGERED_COLLECTION: AtomicBool = AtomicBool::new(false);
 
-lazy_static! {
-    pub static ref CONTROL_COLLECTOR_CONTEXT: ControllerCollectorContext = ControllerCollectorContext::new();
-}
-
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
 pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace {
@@ -90,7 +86,7 @@ pub trait Plan: Sized {
                 return false;
             }*/
             self.log_poll::<PR>(space, "Triggering collection");
-            CONTROL_COLLECTOR_CONTEXT.request();
+            self.common().control_collector_context.request();
             return true;
         }
 
@@ -192,7 +188,7 @@ pub trait Plan: Sized {
     fn handle_user_collection_request(&self, tls: OpaquePointer, force: bool) {
         if force || !self.options().ignore_system_g_c {
             USER_TRIGGERED_COLLECTION.store(true, Ordering::Relaxed);
-            CONTROL_COLLECTOR_CONTEXT.request();
+            self.common().control_collector_context.request();
             VMCollection::block_for_gc(tls);
         }
     }
@@ -247,6 +243,8 @@ pub struct CommonPlan {
     pub gc_status: Mutex<GcStatus>,
     pub last_stress_pages: AtomicUsize,
     pub stacks_prepared: AtomicBool,
+
+    pub control_collector_context: ControllerCollectorContext,
 }
 
 impl CommonPlan {
@@ -256,7 +254,8 @@ impl CommonPlan {
             initialized: AtomicBool::new(false),
             gc_status: Mutex::new(GcStatus::NotInGC),
             last_stress_pages: AtomicUsize::new(0),
-            stacks_prepared: AtomicBool::new(false)
+            stacks_prepared: AtomicBool::new(false),
+            control_collector_context: ControllerCollectorContext::new(),
         }
     }
 

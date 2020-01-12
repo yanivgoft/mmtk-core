@@ -3,7 +3,7 @@ use libc::c_void;
 use libc::c_char;
 
 use std::ffi::CStr;
-use std::str;
+use std::{str, thread};
 
 use std::sync::atomic::Ordering;
 
@@ -12,7 +12,6 @@ use ::plan::MutatorContext;
 use ::plan::TraceLocal;
 use ::plan::CollectorContext;
 use ::plan::ParallelCollectorGroup;
-use ::plan::plan::CONTROL_COLLECTOR_CONTEXT;
 
 use ::vm::{Collection, VMCollection};
 
@@ -35,6 +34,7 @@ use ::util::sanity::sanity_checker::{INSIDE_SANITY, SanityChecker};
 use util::OpaquePointer;
 use crate::mmtk::SINGLETON;
 use crate::mmtk::OPTIONS_PROCESSOR;
+use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 
 #[no_mangle]
 #[cfg(feature = "jikesrvm")]
@@ -78,7 +78,7 @@ pub unsafe extern fn openjdk_gc_init(calls: *const OpenJDK_Upcalls, heap_size: u
 #[no_mangle]
 #[cfg(any(feature = "jikesrvm", feature = "openjdk"))]
 pub extern fn start_control_collector(tls: OpaquePointer) {
-    CONTROL_COLLECTOR_CONTEXT.run(tls);
+    SINGLETON.plan.common().control_collector_context.run(tls);
 }
 
 #[no_mangle]
@@ -98,6 +98,9 @@ pub unsafe extern fn gc_init(heap_size: usize) {
     ::util::logger::init().unwrap();
     SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
     SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
+    thread::spawn(|| {
+        SINGLETON.plan.common().control_collector_context.run(UNINITIALIZED_OPAQUE_POINTER )
+    });
 }
 
 #[no_mangle]
@@ -200,7 +203,7 @@ pub unsafe extern fn start_worker(tls: OpaquePointer, worker: *mut c_void) {
 #[no_mangle]
 #[cfg(feature = "jikesrvm")]
 pub unsafe extern fn enable_collection(tls: OpaquePointer) {
-    (&mut *CONTROL_COLLECTOR_CONTEXT.workers.get()).init_group(&SINGLETON, tls);
+    (&mut *SINGLETON.plan.common().control_collector_context.workers.get()).init_group(&SINGLETON, tls);
     VMCollection::spawn_worker_thread::<<SelectedPlan as Plan>::CollectorT>(tls, null_mut()); // spawn controller thread
     SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
 }

@@ -31,7 +31,7 @@ use std::sync::atomic::Ordering;
 pub type SelectedPlan = NoGC;
 
 pub struct NoGC {
-    pub control_collector_context: ControllerCollectorContext,
+
     pub unsync: UnsafeCell<NoGCUnsync>,
     pub common: CommonPlan,
 }
@@ -53,7 +53,6 @@ impl Plan for NoGC {
         let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
 
         NoGC {
-            control_collector_context: ControllerCollectorContext::new(),
             unsync: UnsafeCell::new(NoGCUnsync {
                 vm_space: create_vm_space(vm_map, mmapper, &mut heap),
                 space: ImmortalSpace::new("nogc_space", true,
@@ -73,14 +72,6 @@ impl Plan for NoGC {
         unsync.vm_space.init(vm_map);
         unsync.space.init(vm_map);
         unsync.los.init(vm_map);
-
-        // These VMs require that the controller thread is started by the VM itself.
-        // (Usually because it calls into VM code that accesses the TLS.)
-        if !(cfg!(feature = "jikesrvm") || cfg!(feature = "openjdk")) {
-            thread::spawn(|| {
-                ::plan::plan::CONTROL_COLLECTOR_CONTEXT.run(UNINITIALIZED_OPAQUE_POINTER )
-            });
-        }
     }
 
     fn common(&self) -> &CommonPlan {
