@@ -31,7 +31,6 @@ use std::sync::atomic::Ordering;
 pub type SelectedPlan = NoGC;
 
 pub struct NoGC {
-
     pub unsync: UnsafeCell<NoGCUnsync>,
     pub common: CommonPlan,
 }
@@ -78,10 +77,8 @@ impl Plan for NoGC {
         &self.common
     }
 
-    fn bind_mutator(&self, tls: OpaquePointer) -> *mut c_void {
-        let unsync = unsafe { &*self.unsync.get() };
-        Box::into_raw(Box::new(NoGCMutator::new(
-            tls, &unsync.space, &unsync.los))) as *mut c_void
+    fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void {
+        Box::into_raw(Box::new(NoGCMutator::new(tls, self))) as *mut c_void
     }
 
     fn will_never_move(&self, object: ObjectReference) -> bool {
@@ -138,5 +135,17 @@ impl Plan for NoGC {
             return unsync.los.is_movable();
         }
         return true;
+    }
+}
+
+impl NoGC {
+    pub fn get_immortal_space(&self) -> &'static ImmortalSpace {
+        let unsync = unsafe { &*self.unsync.get() };
+        &unsync.space
+    }
+
+    pub fn get_los(&self) -> &'static LargeObjectSpace {
+        let unsync = unsafe { &*self.unsync.get() };
+        &unsync.los
     }
 }

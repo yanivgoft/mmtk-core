@@ -15,7 +15,6 @@ use ::policy::largeobjectspace::LargeObjectSpace;
 use ::plan::Phase;
 use ::plan::trace::Trace;
 use ::util::ObjectReference;
-use ::util::alloc::allocator::determine_collection_attempts;
 use ::util::sanity::sanity_checker::SanityChecker;
 use ::util::sanity::memory_scan;
 use ::util::heap::layout::Mmapper;
@@ -34,7 +33,6 @@ use ::vm::{Scanning, VMScanning};
 use std::thread;
 use util::conversions::bytes_to_pages;
 use plan::plan::{create_vm_space, CommonPlan};
-use plan::plan::EMERGENCY_COLLECTION;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::ByteMapMmapper;
@@ -61,6 +59,7 @@ pub struct SemiSpaceUnsync {
     pub versatile_space: ImmortalSpace,
     pub los: LargeObjectSpace,
 
+    // TODO: Check if we really need this. We have collection_attempt in CommonPlan.
     collection_attempt: usize,
 }
 
@@ -109,7 +108,6 @@ impl Plan for SemiSpace {
     }
 
     fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void {
-        let unsync = unsafe { &*self.unsync.get() };
         Box::into_raw(Box::new(SSMutator::new(tls, self))) as *mut c_void
     }
 
@@ -151,12 +149,15 @@ impl Plan for SemiSpace {
         match phase {
             &Phase::SetCollectionKind => {
                 let unsync = &mut *self.unsync.get();
-                unsync.collection_attempt = if <SelectedPlan as Plan>::is_user_triggered_collection() {
-                    1 } else { determine_collection_attempts() };
+                unsync.collection_attempt = if self.is_user_triggered_collection() {
+                    1
+                } else {
+                    self.determine_collection_attempts()
+                };
 
-                let emergency_collection = !<SelectedPlan as Plan>::is_internal_triggered_collection()
+                let emergency_collection = !self.is_internal_triggered_collection()
                     && self.last_collection_was_exhaustive() && unsync.collection_attempt > 1;
-                EMERGENCY_COLLECTION.store(emergency_collection, Ordering::Relaxed);
+                self.common().emergency_collection.store(emergency_collection, Ordering::Relaxed);
 
                 if emergency_collection {
                     self.force_full_heap_collection();

@@ -99,9 +99,9 @@ impl MutatorContext for SSMutator {
 impl SSMutator {
     pub fn new(tls: OpaquePointer, plan: &'static SemiSpace) -> Self {
         SSMutator {
-            ss: BumpAllocator::new(tls, Some(plan.tospace())),
-            vs: BumpAllocator::new(tls, Some(plan.get_versatile_space())),
-            los: LargeObjectAllocator::new(tls, Some(plan.get_los())),
+            ss: BumpAllocator::new(tls, Some(plan.tospace()), plan),
+            vs: BumpAllocator::new(tls, Some(plan.get_versatile_space()), plan),
+            los: LargeObjectAllocator::new(tls, Some(plan.get_los()), plan),
             plan
         }
     }

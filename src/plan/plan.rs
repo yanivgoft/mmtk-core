@@ -27,9 +27,7 @@ use util::heap::layout::Mmapper as IMmapper;
 use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
 use std::sync::Mutex;
-
-pub static EMERGENCY_COLLECTION: AtomicBool = AtomicBool::new(false);
-pub static USER_TRIGGERED_COLLECTION: AtomicBool = AtomicBool::new(false);
+use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
@@ -145,8 +143,8 @@ pub trait Plan: Sized {
 
     fn get_pages_used(&self) -> usize;
 
-    fn is_emergency_collection() -> bool {
-        EMERGENCY_COLLECTION.load(Ordering::Relaxed)
+    fn is_emergency_collection(&self) -> bool {
+        self.common().emergency_collection.load(Ordering::Relaxed)
     }
 
     fn get_free_pages(&self) -> usize { self.get_total_pages() - self.get_pages_used() }
@@ -168,7 +166,7 @@ pub trait Plan: Sized {
         }
     }
 
-    fn is_internal_triggered_collection() -> bool {
+    fn is_internal_triggered_collection(&self) -> bool {
         // FIXME
         false
     }
@@ -187,18 +185,29 @@ pub trait Plan: Sized {
 
     fn handle_user_collection_request(&self, tls: OpaquePointer, force: bool) {
         if force || !self.options().ignore_system_g_c {
-            USER_TRIGGERED_COLLECTION.store(true, Ordering::Relaxed);
+            self.common().user_triggered_collection.store(true, Ordering::Relaxed);
             self.common().control_collector_context.request();
             VMCollection::block_for_gc(tls);
         }
     }
 
-    fn is_user_triggered_collection() -> bool {
-        return USER_TRIGGERED_COLLECTION.load(Ordering::Relaxed);
+    fn is_user_triggered_collection(&self) -> bool {
+        self.common().user_triggered_collection.load(Ordering::Relaxed)
     }
 
-    fn reset_collection_trigger() {
-        USER_TRIGGERED_COLLECTION.store(false, Ordering::Relaxed)
+    fn reset_collection_trigger(&self) {
+        self.common().user_triggered_collection.store(false, Ordering::Relaxed)
+    }
+
+    fn determine_collection_attempts(&self) -> usize {
+        if !self.common().allocation_success.load(Ordering::Relaxed) {
+            self.common().collection_attempts.fetch_add(1, Ordering::Relaxed);
+        } else {
+            self.common().allocation_success.store(false, Ordering::Relaxed);
+            self.common().collection_attempts.store(1, Ordering::Relaxed);
+        }
+
+        self.common().collection_attempts.load(Ordering::Relaxed)
     }
 
     fn is_mapped_object(&self, object: ObjectReference) -> bool {
@@ -243,6 +252,11 @@ pub struct CommonPlan {
     pub gc_status: Mutex<GcStatus>,
     pub last_stress_pages: AtomicUsize,
     pub stacks_prepared: AtomicBool,
+    pub emergency_collection: AtomicBool,
+    pub user_triggered_collection: AtomicBool,
+    pub allocation_success: AtomicBool,
+    pub collection_attempts: AtomicUsize,
+    pub oom_lock: Mutex<()>,
 
     pub control_collector_context: ControllerCollectorContext,
 }
@@ -255,6 +269,11 @@ impl CommonPlan {
             gc_status: Mutex::new(GcStatus::NotInGC),
             last_stress_pages: AtomicUsize::new(0),
             stacks_prepared: AtomicBool::new(false),
+            emergency_collection: AtomicBool::new(false),
+            user_triggered_collection: AtomicBool::new(false),
+            allocation_success: AtomicBool::new(false),
+            collection_attempts: AtomicUsize::new(0),
+            oom_lock: Mutex::new(()),
             control_collector_context: ControllerCollectorContext::new(),
         }
     }
