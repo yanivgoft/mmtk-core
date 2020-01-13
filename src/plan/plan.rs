@@ -17,7 +17,6 @@ use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_END;
 #[cfg(feature = "jikesrvm")]
 use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_DATA_START;
 use util::Address;
-use util::heap::pageresource::cumulative_committed_pages;
 use util::statistics::stats::{STATS, get_gathering_stats, new_counter};
 use util::statistics::counter::{Counter, LongCounter};
 use util::statistics::counter::MonotoneNanoTime;
@@ -151,7 +150,7 @@ pub trait Plan: Sized {
 
     #[inline]
     fn stress_test_gc_required(&self) -> bool {
-        let pages = cumulative_committed_pages();
+        let pages = self.common().vm_map.get_cumulative_committed_pages();
         trace!("pages={}", pages);
 
         if self.is_initialized()
@@ -244,6 +243,7 @@ pub enum GcStatus {
 }
 
 pub struct CommonPlan {
+    pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
     pub options: &'static Options,
     pub heap: HeapMeta,
@@ -265,9 +265,9 @@ pub struct CommonPlan {
 }
 
 impl CommonPlan {
-    pub fn new(mmapper: &'static Mmapper, options: &'static Options, heap: HeapMeta) -> CommonPlan {
+    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options, heap: HeapMeta) -> CommonPlan {
         CommonPlan {
-            mmapper, options, heap,
+            vm_map, mmapper, options, heap,
             initialized: AtomicBool::new(false),
             gc_status: Mutex::new(GcStatus::NotInGC),
             last_stress_pages: AtomicUsize::new(0),

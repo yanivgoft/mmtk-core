@@ -85,7 +85,7 @@ impl Plan for SemiSpace {
                 collection_attempt: 0,
             }),
             ss_trace: Trace::new(),
-            common: CommonPlan::new(mmapper, options, heap),
+            common: CommonPlan::new(vm_map, mmapper, options, heap),
         }
     }
 

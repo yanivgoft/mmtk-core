@@ -8,7 +8,7 @@ use ::util::heap::PageResource;
 use ::util::heap::FreeListPageResource;
 use ::util::heap::freelistpageresource::CommonFreeListPageResource;
 use std::sync::Mutex;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use ::policy::space::Space;
 use ::util::generic_freelist::GenericFreeList;
 use std::mem;
@@ -31,6 +31,11 @@ pub struct Map32 {
     finalized: bool,
     sync: Mutex<()>,
     descriptor_map: Vec<usize>,
+
+    // TODO: Is this the right place for this field?
+    // This used to be a global variable, now we need to put it somewhere.
+    // This is supposed to be a per-instance data.
+    cumulative_committed_pages: AtomicUsize,
 }
 
 impl Map32 {
@@ -46,6 +51,7 @@ impl Map32 {
             finalized: false,
             sync: Mutex::new(()),
             descriptor_map: vec![0; MAX_CHUNKS],
+            cumulative_committed_pages: AtomicUsize::new(0),
         }
     }
 
@@ -228,5 +234,13 @@ impl Map32 {
 
     fn address_for_chunk_index(&self, chunk: usize) -> Address {
         unsafe { Address::from_usize(chunk << LOG_BYTES_IN_CHUNK) }
+    }
+
+    pub fn add_to_cumulative_committed_pages(&self, pages: usize) {
+        self.cumulative_committed_pages.fetch_add(pages, Ordering::Relaxed);
+    }
+
+    pub fn get_cumulative_committed_pages(&self) -> usize {
+        self.cumulative_committed_pages.load(Ordering::Relaxed)
     }
 }
