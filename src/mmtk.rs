@@ -60,11 +60,11 @@ impl MMTK {
         // FIXME Do a full heap GC if we have generational GC
         self.plan.handle_user_collection_request(tls, true);
         self.inside_harness.store(true, Ordering::SeqCst);
-        STATS.lock().unwrap().start_all();
+        STATS.start_all();
     }
 
     pub fn harness_end(&self) {
-        STATS.lock().unwrap().stop_all();
+        STATS.stop_all();
         self.inside_harness.store(false, Ordering::SeqCst);
     }
 }

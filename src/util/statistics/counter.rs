@@ -1,6 +1,5 @@
 use std::time::{Duration, Instant};
-
-use super::stats::{get_gathering_stats, get_phase};
+use ::util::statistics::stats::STATS;
 
 pub trait Counter {
     fn start(&mut self);
@@ -11,7 +10,7 @@ pub trait Counter {
     fn print_min(&self, mutator: bool);
     fn print_max(&self, mutator: bool);
     fn print_last(&self) {
-        let phase = get_phase();
+        let phase = STATS.get_phase();
         if phase > 0 {
             self.print_count(phase - 1);
         }
@@ -59,7 +58,7 @@ pub struct LongCounter<T: Diffable> {
 
 impl<T: Diffable> Counter for LongCounter<T> {
     fn start(&mut self) {
-        if !get_gathering_stats() {
+        if !STATS.get_gathering_stats() {
             return;
         }
         debug_assert!(!self.running);
@@ -68,13 +67,13 @@ impl<T: Diffable> Counter for LongCounter<T> {
     }
 
     fn stop(&mut self) {
-        if !get_gathering_stats() {
+        if !STATS.get_gathering_stats() {
             return;
         }
         debug_assert!(self.running);
         self.running = false;
         let delta = T::diff(&T::current_value(), self.start_value.as_ref().unwrap());
-        self.count[get_phase()] += delta;
+        self.count[STATS.get_phase()] += delta;
         self.total_count += delta;
     }
 
@@ -103,7 +102,7 @@ impl<T: Diffable> Counter for LongCounter<T> {
             Some(m) => {
                 let mut total = 0;
                 let mut p = if m { 0 } else { 1 };
-                while p <= get_phase() {
+                while p <= STATS.get_phase() {
                     total += self.count[p];
                     p += 2;
                 }
@@ -115,7 +114,7 @@ impl<T: Diffable> Counter for LongCounter<T> {
     fn print_min(&self, mutator: bool) {
         let mut p = if mutator { 0 } else { 1 };
         let mut min = self.count[p];
-        while p < get_phase() {
+        while p < STATS.get_phase() {
             if self.count[p] < min {
                 min = self.count[p];
                 p += 2;
@@ -127,7 +126,7 @@ impl<T: Diffable> Counter for LongCounter<T> {
     fn print_max(&self, mutator: bool) {
         let mut p = if mutator { 0 } else { 1 };
         let mut max = self.count[p];
-        while p < get_phase() {
+        while p < STATS.get_phase() {
             if self.count[p] > max {
                 max = self.count[p];
                 p += 2;

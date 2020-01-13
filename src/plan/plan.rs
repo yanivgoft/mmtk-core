@@ -17,7 +17,7 @@ use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_END;
 #[cfg(feature = "jikesrvm")]
 use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_DATA_START;
 use util::Address;
-use util::statistics::stats::{STATS, get_gathering_stats, new_counter};
+use util::statistics::stats::{STATS, new_counter};
 use util::statistics::counter::{Counter, LongCounter};
 use util::statistics::counter::MonotoneNanoTime;
 use util::heap::layout::heap_layout::VMMap;
@@ -289,13 +289,13 @@ impl CommonPlan {
         if *gc_status == GcStatus::NotInGC {
             self.stacks_prepared.store(false, Ordering::SeqCst);
             // FIXME stats
-            STATS.lock().unwrap().start_gc();
+            STATS.start_gc();
         }
         *gc_status = s;
         if *gc_status == GcStatus::NotInGC {
             // FIXME stats
-            if get_gathering_stats() {
-                STATS.lock().unwrap().end_gc();
+            if STATS.get_gathering_stats() {
+                STATS.end_gc();
             }
         }
     }
