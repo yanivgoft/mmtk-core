@@ -12,6 +12,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ::policy::space::Space;
 use ::util::generic_freelist::GenericFreeList;
 use std::mem;
+use util::heap::space_descriptor::{SpaceDescriptor, UNINITIALIZED_SPACE_DESCRIPTOR};
 
 // use ::util::free::IntArrayFreeList;
 
@@ -30,7 +31,7 @@ pub struct Map32 {
     total_available_discontiguous_chunks: usize,
     finalized: bool,
     sync: Mutex<()>,
-    descriptor_map: Vec<usize>,
+    descriptor_map: Vec<SpaceDescriptor>,
 
     // TODO: Is this the right place for this field?
     // This used to be a global variable, now we need to put it somewhere.
@@ -50,18 +51,18 @@ impl Map32 {
             total_available_discontiguous_chunks: 0,
             finalized: false,
             sync: Mutex::new(()),
-            descriptor_map: vec![0; MAX_CHUNKS],
+            descriptor_map: vec![UNINITIALIZED_SPACE_DESCRIPTOR; MAX_CHUNKS],
             cumulative_committed_pages: AtomicUsize::new(0),
         }
     }
 
     #[allow(mutable_transmutes)]
-    pub fn insert(&self, start: Address, extent: usize, descriptor: usize) {
+    pub fn insert(&self, start: Address, extent: usize, descriptor: SpaceDescriptor) {
         let self_mut: &mut Self = unsafe { mem::transmute(self) };
         let mut e = 0;
         while e < extent {
             let index = self.get_chunk_index(start + e);
-            assert!(self.descriptor_map[index] == 0, "Conflicting virtual address request");
+            assert!(self.descriptor_map[index].is_empty(), "Conflicting virtual address request");
             self_mut.descriptor_map[index] = descriptor;
             //   VM.barriers.objectArrayStoreNoGCBarrier(spaceMap, index, space);
             e += BYTES_IN_CHUNK;
@@ -77,7 +78,7 @@ impl Map32 {
     }
 
     #[allow(mutable_transmutes)]
-    pub fn allocate_contiguous_chunks(&self, descriptor: usize, chunks: usize, head: Address) -> Address {
+    pub fn allocate_contiguous_chunks(&self, descriptor: SpaceDescriptor, chunks: usize, head: Address) -> Address {
         let self_mut: &mut Self = unsafe { mem::transmute(self) };
         let sync = self.sync.lock().unwrap();
         let chunk = self_mut.region_map.alloc(chunks as _);
@@ -157,7 +158,7 @@ impl Map32 {
         self_mut.prev_link[chunk as usize] = 0;
         self_mut.next_link[chunk as usize] = 0;
         for offset in 0..chunks {
-            self_mut.descriptor_map[(chunk + offset) as usize] = 0;
+            self_mut.descriptor_map[(chunk + offset) as usize] = UNINITIALIZED_SPACE_DESCRIPTOR;
             // VM.barriers.objectArrayStoreNoGCBarrier(spaceMap, chunk + offset, null);
         }
         chunks as _
@@ -223,7 +224,7 @@ impl Map32 {
         self.shared_discontig_fl_count
     }
 
-    pub fn get_descriptor_for_address(&self, address: Address) -> usize {
+    pub fn get_descriptor_for_address(&self, address: Address) -> SpaceDescriptor {
         let index = self.get_chunk_index(address);
         self.descriptor_map[index]
     }

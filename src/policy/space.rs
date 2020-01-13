@@ -23,6 +23,7 @@ use libc::c_void;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
 use util::heap::HeapMeta;
+use util::heap::space_descriptor::{SpaceDescriptor, UNINITIALIZED_SPACE_DESCRIPTOR};
 
 pub trait Space: Sized + Debug + 'static {
     type PR: PageResource<Space = Self>;
@@ -70,7 +71,7 @@ pub trait Space: Sized + Debug + 'static {
 
     fn in_space(&self, object: ObjectReference) -> bool {
         let start = VMObjectModel::ref_to_address(object);
-        if !space_descriptor::is_contiguous(self.common().descriptor) {
+        if !self.common().descriptor.is_contiguous() {
             self.common().vm_map().get_descriptor_for_address(start) == self.common().descriptor
         } else {
             start.as_usize() >= self.common().start.as_usize()
@@ -180,7 +181,7 @@ pub trait Space: Sized + Debug + 'static {
 pub struct CommonSpace<PR: PageResource> {
     pub name: &'static str,
     name_length: usize,
-    pub descriptor: usize,
+    pub descriptor: SpaceDescriptor,
     index: usize,
     pub vmrequest: VMRequest,
 
@@ -206,7 +207,7 @@ impl<PR: PageResource> CommonSpace<PR> {
         let mut rtn = CommonSpace {
             name,
             name_length: name.len(),
-            descriptor: 0,
+            descriptor: UNINITIALIZED_SPACE_DESCRIPTOR,
             index: heap.new_space_index(),
             vmrequest,
             immortal,
@@ -224,7 +225,7 @@ impl<PR: PageResource> CommonSpace<PR> {
         if vmrequest.is_discontiguous() {
             rtn.contiguous = false;
             // FIXME
-            rtn.descriptor = space_descriptor::create_descriptor();
+            rtn.descriptor = SpaceDescriptor::create_descriptor();
             // VM.memory.setHeapRange(index, HEAP_START, HEAP_END);
             return rtn;
         }
@@ -256,7 +257,7 @@ impl<PR: PageResource> CommonSpace<PR> {
         rtn.start = start;
         rtn.extent = extent;
         // FIXME
-        rtn.descriptor = space_descriptor::create_descriptor_from_heap_range(start, start + extent);
+        rtn.descriptor = SpaceDescriptor::create_descriptor_from_heap_range(start, start + extent);
         // VM.memory.setHeapRange(index, start, start.plus(extent));
         vm_map.insert(start, extent, rtn.descriptor);
 
