@@ -15,8 +15,6 @@ use ::policy::largeobjectspace::LargeObjectSpace;
 use ::plan::Phase;
 use ::plan::trace::Trace;
 use ::util::ObjectReference;
-use ::util::sanity::sanity_checker::SanityChecker;
-use ::util::sanity::memory_scan;
 use ::util::heap::layout::Mmapper;
 use ::util::Address;
 use ::util::heap::PageResource;
@@ -170,15 +168,19 @@ impl Plan for SemiSpace {
                 self.common.stacks_prepared.store(true, atomic::Ordering::SeqCst);
             }
             &Phase::Prepare => {
-                if cfg!(feature = "sanity") {
+                #[cfg(feature = "sanity")]
+                {
+                    use ::util::sanity::sanity_checker::SanityChecker;
                     println!("Pre GC sanity check");
                     SanityChecker::new(tls, &self).check();
                 }
                 debug_assert!(self.ss_trace.values.is_empty());
                 debug_assert!(self.ss_trace.root_locations.is_empty());
-                if cfg!(feature = "sanity") {
+                #[cfg(feature = "sanity")]
+                {
                     self.fromspace().unprotect();
                 }
+
                 unsync.hi = !unsync.hi; // flip the semi-spaces
                 // prepare each of the collected regions
                 unsync.copyspace0.prepare(unsync.hi);
@@ -197,7 +199,9 @@ impl Plan for SemiSpace {
             }
             &Phase::Closure => {}
             &Phase::Release => {
-                if cfg!(feature = "sanity") {
+                #[cfg(feature = "sanity")]
+                {
+                    use ::util::sanity::sanity_checker::SanityChecker;
                     if self.fromspace().common().contiguous {
                         let fromspace_start = self.fromspace().common().start;
                         let fromspace_commited = self.fromspace().common().pr.as_ref().unwrap().common().committed.load(Ordering::Relaxed);
@@ -219,7 +223,10 @@ impl Plan for SemiSpace {
                 unsync.los.release(true);
             }
             &Phase::Complete => {
-                if cfg!(feature = "sanity") {
+                #[cfg(feature = "sanity")]
+                {
+                    use ::util::sanity::sanity_checker::SanityChecker;
+                    use ::util::sanity::memory_scan;
                     println!("Post GC sanity check");
                     SanityChecker::new(tls, &self).check();
                     println!("Post GC memory scan");
@@ -228,9 +235,11 @@ impl Plan for SemiSpace {
                 }
                 debug_assert!(self.ss_trace.values.is_empty());
                 debug_assert!(self.ss_trace.root_locations.is_empty());
-                if cfg!(feature = "sanity") {
+                #[cfg(feature = "sanity")]
+                {
                     self.fromspace().protect();
                 }
+
                 self.common.set_gc_status(plan::GcStatus::NotInGC);
             }
             _ => {

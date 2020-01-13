@@ -259,6 +259,9 @@ pub struct CommonPlan {
     pub oom_lock: Mutex<()>,
 
     pub control_collector_context: ControllerCollectorContext,
+
+    #[cfg(feature = "sanity")]
+    pub inside_sanity: AtomicBool,
 }
 
 impl CommonPlan {
@@ -275,6 +278,9 @@ impl CommonPlan {
             collection_attempts: AtomicUsize::new(0),
             oom_lock: Mutex::new(()),
             control_collector_context: ControllerCollectorContext::new(),
+
+            #[cfg(feature = "sanity")]
+            inside_sanity: AtomicBool::new(false),
         }
     }
 
@@ -304,6 +310,21 @@ impl CommonPlan {
 
     pub fn gc_in_progress_proper(&self) -> bool {
         *self.gc_status.lock().unwrap() == GcStatus::GcProper
+    }
+
+    #[cfg(feature = "sanity")]
+    pub fn enter_sanity(&self) {
+        self.inside_sanity.store(true, Ordering::Relaxed)
+    }
+
+    #[cfg(feature = "sanity")]
+    pub fn leave_sanity(&self) {
+        self.inside_sanity.store(false, Ordering::Relaxed)
+    }
+
+    #[cfg(feature = "sanity")]
+    pub fn is_in_sanity(&self) -> bool {
+        self.inside_sanity.load(Ordering::Relaxed)
     }
 }
 

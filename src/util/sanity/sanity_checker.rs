@@ -12,7 +12,12 @@ use ::plan::SelectedPlan;
 
 use libc::c_void;
 
-pub static INSIDE_SANITY: AtomicBool = AtomicBool::new(false);
+// TODO:
+// Ideally all code related to sanity should be guarded with #[cfg(feature = "sanity)], including:
+// * this module
+// * the inside sanity field in common plan and related functions
+// * the use of this module (e.g. SemiSpace.collection_phase())
+// and the sanity module. However, as the cfg!() macro does not do conditional compilation
 
 pub struct SanityChecker<'a> {
     roots: Vec<Address>,
@@ -34,7 +39,8 @@ impl<'a> SanityChecker<'a> {
     }
 
     pub fn check(&mut self) {
-        INSIDE_SANITY.store(true, Ordering::Relaxed);
+        self.plan.common().enter_sanity();
+
         println!("Sanity stackroots, collector");
         VMScanning::compute_thread_roots(self, self.tls);
         println!("Sanity stackroots, global");
@@ -53,7 +59,7 @@ impl<'a> SanityChecker<'a> {
         self.values.clear();
         self.refs.clear();
 
-        INSIDE_SANITY.store(false, Ordering::Relaxed);
+        self.plan.common().leave_sanity();
     }
 }
 
