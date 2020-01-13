@@ -7,7 +7,7 @@ pub struct OpaquePointer(*mut c_void);
 unsafe impl Sync for OpaquePointer {}
 unsafe impl Send for OpaquePointer {}
 
-pub static UNINITIALIZED_OPAQUE_POINTER: OpaquePointer = OpaquePointer(0 as *mut c_void);
+pub const UNINITIALIZED_OPAQUE_POINTER: OpaquePointer = OpaquePointer(0 as *mut c_void);
 
 impl OpaquePointer {
     pub fn from_address(addr: Address) -> Self {

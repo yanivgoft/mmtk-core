@@ -75,7 +75,7 @@ impl SpaceDescriptor {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0 != UNINITIALIZED_SPACE_DESCRIPTOR.0
+        self.0 == UNINITIALIZED_SPACE_DESCRIPTOR.0
     }
 
     pub fn is_contiguous(&self) -> bool {
