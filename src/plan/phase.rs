@@ -1,7 +1,7 @@
 use ::plan;
 use ::plan::{CollectorContext, MutatorContext, ParallelCollector, Plan, SelectedPlan};
 use ::vm::{ActivePlan, VMActivePlan};
-use std::sync::atomic;
+use std::sync::{atomic, Arc};
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::AtomicUsize;
 use std::sync::atomic::Ordering;
@@ -9,6 +9,8 @@ use std::sync::Mutex;
 use util::statistics::phase_timer::PhaseTimer;
 use ::util::OpaquePointer;
 use libc::c_void;
+use util::statistics::{Counter, Timer};
+use std::fmt;
 
 #[derive(Clone)]
 #[derive(PartialEq)]
@@ -24,7 +26,7 @@ pub enum Schedule {
 }
 
 #[derive(Clone)]
-#[derive(PartialEq)]
+//#[derive(PartialEq)]
 #[derive(Debug)]
 pub enum Phase {
     // Phases
@@ -63,13 +65,22 @@ pub enum Phase {
     EvacuateClosure,
     EvacuateRelease,
     // Complex phases
-    Complex(Vec<ScheduledPhase>, usize, Option<usize>),
+    Complex(Vec<ScheduledPhase>, usize, Option<Arc<Mutex<Timer>>>),
     // associated cursor
     // No phases are left
     Empty,
 }
 
-#[derive(Clone, PartialEq, Debug)]
+impl Phase {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            &Phase::Empty => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct ScheduledPhase {
     schedule: Schedule,
     phase: Phase,
@@ -96,8 +107,8 @@ pub struct PhaseManager {
     phase_stack: Mutex<Vec<ScheduledPhase>>,
     even_scheduled_phase: Mutex<ScheduledPhase>,
     odd_scheduled_phase: Mutex<ScheduledPhase>,
-    start_complex_timer: Mutex<Option<usize>>,
-    stop_complex_timer: Mutex<Option<usize>>,
+    start_complex_timer: Mutex<Option<Arc<Mutex<Timer>>>>,
+    stop_complex_timer: Mutex<Option<Arc<Mutex<Timer>>>>,
     phase_timer: PhaseTimer,
 }
 
@@ -159,7 +170,7 @@ impl PhaseManager {
             let cp = self.get_current_phase(is_even_phase);
             let schedule = cp.schedule;
             let phase = cp.phase;
-            if phase == Phase::Empty {
+            if phase.is_empty() {
                 break;
             }
             if primary {
@@ -169,8 +180,9 @@ impl PhaseManager {
                 self.phase_timer.start_timer(&phase);
                 {
                     let mut start_complex_timer = self.start_complex_timer.lock().unwrap();
-                    if let Some(id) = *start_complex_timer {
-                        self.phase_timer.start_timer_id(id);
+                    if let Some(ref timer) = *start_complex_timer {
+                        timer.lock().unwrap().start();
+//                        self.phase_timer.start_timer_id(id);
                         *start_complex_timer = None;
                     }
                 }
@@ -202,7 +214,7 @@ impl PhaseManager {
 
             if primary {
                 let next = self.get_next_phase();
-                let needs_reset_rendezvous = next.phase != Phase::Empty && (schedule == Schedule::Mutator && next.schedule == Schedule::Mutator);
+                let needs_reset_rendezvous = !next.phase.is_empty() && (schedule == Schedule::Mutator && next.schedule == Schedule::Mutator);
                 self.set_next_phase(is_even_phase, next, needs_reset_rendezvous);
             }
 
@@ -220,8 +232,9 @@ impl PhaseManager {
                 self.phase_timer.stop_timer(&phase);
                 {
                     let mut stop_complex_timer = self.stop_complex_timer.lock().unwrap();
-                    if let Some(id) = *stop_complex_timer {
-                        self.phase_timer.stop_timer_id(id);
+                    if let Some(ref timer) = *stop_complex_timer {
+                        timer.lock().unwrap().stop();
+//                        self.phase_timer.stop_timer_id(id);
                         *stop_complex_timer = None;
                     }
                 }
@@ -260,28 +273,28 @@ impl PhaseManager {
                 Schedule::Complex => {
                     let mut internal_phase = ScheduledPhase::empty();
                     // FIXME start complex timer
-                    if let Phase::Complex(ref v, ref mut cursor, ref timer_id) = scheduled_phase.phase {
+                    if let Phase::Complex(ref v, ref mut cursor, ref timer_opt) = scheduled_phase.phase {
                         trace!("Complex phase: {:?} with cursor: {:?}", v, cursor);
                         if *cursor == 0 {
-                            if let Some(id) = timer_id {
+                            if let Some(ref t) = timer_opt {
                                 let mut start_complex_timer = self.start_complex_timer.lock().unwrap();
-                                *start_complex_timer = Some(*id);
+                                *start_complex_timer = Some(t.clone());
                             }
                         }
                         if *cursor < v.len() {
                             internal_phase = v[*cursor].clone();
                             *cursor += 1;
                         } else {
-                            if let Some(id) = timer_id {
+                            if let Some(ref t) = timer_opt {
                                 let mut stop_complex_timer = self.stop_complex_timer.lock().unwrap();
-                                *stop_complex_timer = Some(*id);
+                                *stop_complex_timer = Some(t.clone());
                             }
                             trace!("Finished processing phase");
                         }
                     } else {
                         panic!("Complex schedule should be paired with complex phase");
                     }
-                    if internal_phase.phase != Phase::Empty {
+                    if !internal_phase.phase.is_empty() {
                         stack.push(scheduled_phase);
                         stack.push(internal_phase);
                     }

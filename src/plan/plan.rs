@@ -17,7 +17,7 @@ use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_END;
 #[cfg(feature = "jikesrvm")]
 use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_DATA_START;
 use util::Address;
-use util::statistics::stats::{STATS, new_counter};
+use util::statistics::stats::STATS;
 use util::statistics::counter::{Counter, LongCounter};
 use util::statistics::counter::MonotoneNanoTime;
 use util::heap::layout::heap_layout::VMMap;
@@ -354,7 +354,7 @@ lazy_static! {
         ScheduledPhase::new(Schedule::Global, Phase::SetCollectionKind),
         ScheduledPhase::new(Schedule::Global, Phase::Initiate),
         ScheduledPhase::new(Schedule::Placeholder, Phase::PreSanityPlaceholder)
-    ], 0, Some(new_counter(LongCounter::<MonotoneNanoTime>::new("init".to_string(), false, true))));
+    ], 0, Some(STATS.new_timer("init", false, true)));
 
     pub static ref ROOT_CLOSURE_PHASE: Phase = Phase::Complex(vec![
         ScheduledPhase::new(Schedule::Mutator, Phase::Prepare),
@@ -397,7 +397,7 @@ lazy_static! {
         ScheduledPhase::new(Schedule::Placeholder, Phase::PostSanityPlaceholder),
         ScheduledPhase::new(Schedule::Collector, Phase::Complete),
         ScheduledPhase::new(Schedule::Global, Phase::Complete)
-    ], 0, Some(new_counter(LongCounter::<MonotoneNanoTime>::new("finish".to_string(), false, true))));
+    ], 0, Some(STATS.new_timer("finish", false, true)));
 
     pub static ref COLLECTION: Phase = Phase::Complex(vec![
         ScheduledPhase::new(Schedule::Complex, INIT_PHASE.clone()),
