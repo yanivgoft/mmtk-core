@@ -27,6 +27,7 @@ use util::options::Options;
 use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 use util::heap::HeapMeta;
 use std::sync::atomic::Ordering;
+use util::statistics::stats::Stats;
 
 pub type SelectedPlan = NoGC;
 

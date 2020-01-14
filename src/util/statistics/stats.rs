@@ -5,10 +5,6 @@ use util::statistics::counter::{Counter, LongCounter};
 use util::statistics::counter::MonotoneNanoTime;
 use std::sync::Arc;
 
-lazy_static! {
-    pub static ref STATS: Stats = Stats::new();
-}
-
 pub const MAX_PHASES: usize = 1 << 12;
 pub const MAX_COUNTERS: usize = 100;
 

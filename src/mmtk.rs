@@ -14,7 +14,7 @@ use util::reference_processor::{Semantics, ReferenceProcessors};
 use util::options::{UnsafeOptionsWrapper, Options};
 use std::sync::atomic::{Ordering, AtomicBool};
 
-use util::statistics::stats::STATS;
+use util::statistics::stats::Stats;
 
 // TODO: remove this singleton at some point to allow multiple instances of MMTK
 // This helps refactoring.
@@ -45,9 +45,11 @@ pub struct MMTK {
 
 impl MMTK {
     pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options) -> Self {
+        let plan = SelectedPlan::new(vm_map, mmapper, options);
+        let phase_manager = PhaseManager::new(&plan.common().stats);
         MMTK {
-            plan: SelectedPlan::new(vm_map, mmapper, options),
-            phase_manager: PhaseManager::new(),
+            plan,
+            phase_manager,
             vm_map,
             mmapper,
             reference_processors: ReferenceProcessors::new(),
@@ -60,11 +62,11 @@ impl MMTK {
         // FIXME Do a full heap GC if we have generational GC
         self.plan.handle_user_collection_request(tls, true);
         self.inside_harness.store(true, Ordering::SeqCst);
-        STATS.start_all();
+        self.plan.common().stats.start_all();
     }
 
     pub fn harness_end(&self) {
-        STATS.stop_all();
+        self.plan.common().stats.stop_all();
         self.inside_harness.store(false, Ordering::SeqCst);
     }
 }

@@ -1,4 +1,4 @@
-use util::statistics::stats::STATS;
+use util::statistics::stats::Stats;
 use util::statistics::counter::{LongCounter, MonotoneNanoTime};
 use plan::Phase::{self, *};
 use std::sync::{Arc, Mutex};
@@ -16,16 +16,16 @@ pub struct PhaseTimer {
 }
 
 impl PhaseTimer{
-    pub fn new() -> Self {
+    pub fn new(stats: &Stats) -> Self {
         PhaseTimer {
-            ref_type_time: STATS.new_timer("refType", false, true),
-            scan_time:     STATS.new_timer("scan", false, true),
-            finalize_time: STATS.new_timer("finalize", false, true),
-            prepare_time:  STATS.new_timer("prepare", false, true),
-            stacks_time:   STATS.new_timer("stacks", false, true),
-            root_time:     STATS.new_timer("root", false, true),
-            release_time:  STATS.new_timer("release", false, true),
-            forward_time:  STATS.new_timer("forward", false, true),
+            ref_type_time: stats.new_timer("refType", false, true),
+            scan_time:     stats.new_timer("scan", false, true),
+            finalize_time: stats.new_timer("finalize", false, true),
+            prepare_time:  stats.new_timer("prepare", false, true),
+            stacks_time:   stats.new_timer("stacks", false, true),
+            root_time:     stats.new_timer("root", false, true),
+            release_time:  stats.new_timer("release", false, true),
+            forward_time:  stats.new_timer("forward", false, true),
         }
     }
 
