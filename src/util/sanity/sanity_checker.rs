@@ -12,13 +12,6 @@ use ::plan::SelectedPlan;
 
 use libc::c_void;
 
-// TODO:
-// Ideally all code related to sanity should be guarded with #[cfg(feature = "sanity)], including:
-// * this module
-// * the inside sanity field in common plan and related functions
-// * the use of this module (e.g. SemiSpace.collection_phase())
-// and the sanity module. However, as the cfg!() macro does not do conditional compilation
-
 pub struct SanityChecker<'a> {
     roots: Vec<Address>,
     values: LinkedList<ObjectReference>,

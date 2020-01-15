@@ -19,15 +19,16 @@ use util::statistics::stats::Stats;
 // TODO: remove this singleton at some point to allow multiple instances of MMTK
 // This helps refactoring.
 lazy_static!{
-    // possible global
+    // possible global across multiple MMTk instances
     pub static ref VM_MAP: VMMap = VMMap::new();
     pub static ref MMAPPER: Mmapper = Mmapper::new();
 
     // This is a temporary mutable options processor, as the given API requires mutating on options.
-    // However, I would suggest that options should not be mutable - the VM would give us all the options
+    // However, I would suggest that options should not be mutable - the VM would give us all the options in one go
     // (possibly as a string), we parse it and use those to instantiate an MMTK instance.
     // This processor is temporary to store options while receiving process() call from the VM.
     pub static ref OPTIONS_PROCESSOR: UnsafeOptionsWrapper = UnsafeOptionsWrapper::new(Options::default());
+
     // mmtk instance
     pub static ref SINGLETON: MMTK = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
 }
