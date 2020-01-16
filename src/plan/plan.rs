@@ -27,6 +27,7 @@ use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
 use std::sync::Mutex;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
+use vm::{VMObjectModel, ObjectModel};
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
@@ -216,7 +217,7 @@ pub trait Plan: Sized {
         if !self.is_valid_ref(object) {
             return false;
         }
-        if !self.mmapper().object_is_mapped(object) {
+        if !self.mmapper().address_is_mapped(VMObjectModel::ref_to_address(object)) {
             return false;
         }
         true
