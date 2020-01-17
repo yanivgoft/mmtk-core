@@ -60,8 +60,6 @@ impl MutatorContext for NoGCMutator {
     }
 
     fn post_alloc(&mut self, refer: ObjectReference, type_refer: ObjectReference, bytes: usize, allocator: AllocationType) {
-        // println!("Allocated {:?} ", refer);
-        PLAN.space.initialize_header(refer);
     }
 
     fn get_tls(&self) -> *mut c_void {
@@ -72,7 +70,7 @@ impl MutatorContext for NoGCMutator {
 impl NoGCMutator {
     pub fn new(tls: *mut c_void, space: &'static RawPageSpace) -> Self {
         NoGCMutator {
-            rp: RawPageAllocator::new(tls, Some(space)),
+            rp: RawPageAllocator::new(tls, space),
         }
     }
 }

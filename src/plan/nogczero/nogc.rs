@@ -60,7 +60,7 @@ impl Plan for NoGC {
         NoGC {
             unsync: UnsafeCell::new(NoGCUnsync {
                 vm_space: create_vm_space(),
-                space: RawPageSpace::new("rps", true, VMRequest::discontiguous()),
+                space: RawPageSpace::new("rps"),
                 versatile_space: ImmortalSpace::new("vs", true, VMRequest::discontiguous()),
                 total_pages: 0,
                 collection_attempt: 0,
@@ -99,13 +99,7 @@ impl Plan for NoGC {
         // println!("bind_mutator T {:?}, M {:?}", tls, ptr);
         ptr
     }
-
-    fn is_valid_mutator(&self, m: usize) -> bool {
-        // let mut mutators = super::MUTATORS.lock().unwrap();
-        // mutators.contains(&m)
-        true
-    }
-
+    
     fn will_never_move(&self, object: ObjectReference) -> bool {
         true
     }
@@ -199,10 +193,6 @@ impl Plan for NoGC {
     fn is_valid_ref(&self, object: ObjectReference) -> bool {
         let unsync = unsafe { &*self.unsync.get() };
         if unsync.space.in_space(object) {
-            if !unsync.space.cell_is_allocated(object) {
-                VMObjectModel::dump_object(object);
-            }
-            debug_assert!(unsync.space.cell_is_allocated(object));
             return true;
         }
         if unsync.vm_space.in_space(object) {

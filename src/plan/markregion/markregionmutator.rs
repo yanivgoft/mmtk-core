@@ -67,9 +67,6 @@ impl MutatorContext for MarkRegionMutator {
     }
 
     fn post_alloc(&mut self, refer: ObjectReference, type_refer: ObjectReference, bytes: usize, allocator: AllocationType) {
-        if PLAN.versatile_space.in_space(refer) {
-            super::PLAN.versatile_space.initialize_header(refer);
-        }
     }
 
     fn get_tls(&self) -> *mut c_void {
@@ -81,7 +78,7 @@ impl MarkRegionMutator {
     pub fn new(tls: *mut c_void, vs: &'static RawPageSpace, space: &'static MarkRegionSpace) -> Self {
         Self {
             mr: MarkRegionAllocator::new(tls, space),
-            vs: RawPageAllocator::new(tls, Some(vs))
+            vs: RawPageAllocator::new(tls, vs)
         }
     }
 }
