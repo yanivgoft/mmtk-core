@@ -26,4 +26,9 @@ jikesrvm = []
 openjdk = []
 sanity = []
 nogczero = []
+
+gc-metadata-use-side-storage = []
+gc-metadata-use-object-header-word = []
+gc-metadata-use-extra-header-word = [] # Allocate one more word at the start of the object, act as GC header word
+
 markregion = []

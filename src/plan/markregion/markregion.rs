@@ -57,8 +57,8 @@ impl Plan for MarkRegion {
         Self {
             unsync: UnsafeCell::new(MarkRegionUnsync {
                 vm_space: create_vm_space(),
-                space: MarkRegionSpace::new("mr", true, VMRequest::discontiguous()),
-                versatile_space: RawPageSpace::new("vs", true, VMRequest::discontiguous()),
+                space: MarkRegionSpace::new("mr"),
+                versatile_space: RawPageSpace::new("vs"),
                 total_pages: 0,
                 collection_attempt: 0,
             }),
@@ -93,11 +93,7 @@ impl Plan for MarkRegion {
         ptr
     }
 
-    fn is_valid_mutator(&self, m: usize) -> bool {
-        true
-    }
-
-    fn will_never_move(&self, object: ObjectReference) -> bool {
+    fn will_never_move(&self, _object: ObjectReference) -> bool {
         true
     }
 
@@ -201,7 +197,7 @@ impl Plan for MarkRegion {
     }
 
     fn is_bad_ref(&self, object: ObjectReference) -> bool {
-        false
+        !self.is_valid_ref(object)
     }
 
     fn is_mapped_address(&self, address: Address) -> bool {

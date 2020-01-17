@@ -4,19 +4,24 @@ use ::plan::TransitiveClosure;
 use ::policy::space::{CommonSpace, Space};
 use ::util::{Address, ObjectReference};
 use ::util::constants::*;
-use ::util::header_byte;
 use ::util::heap::{FreeListPageResource, PageResource, VMRequest};
-use ::util::treadmill::TreadMill;
-use ::vm::*;
 use std::sync::Mutex;
 use util::conversions;
 use std::collections::HashSet;
+use util::bitmap::BitMap;
+use util::heap::layout::vm_layout_constants::*;
+
+
+const MAX_HEAP_SIZE: usize = HEAP_END.as_usize() - HEAP_START.as_usize();
+const MAX_OBJECTS_IN_HEAP: usize = MAX_HEAP_SIZE / BYTES_IN_PAGE;
+
 
 #[derive(Debug)]
 pub struct RawPageSpace {
     common: UnsafeCell<CommonSpace<FreeListPageResource<RawPageSpace>>>,
     mark_state: usize,
     cells: Mutex<HashSet<Address>>,
+    marktable: BitMap,
 }
 
 impl Space for RawPageSpace {
@@ -47,17 +52,28 @@ impl Space for RawPageSpace {
     }
 
     fn release_multiple_pages(&mut self, start: Address) {
-        unreachable!();
-        // self.common_mut().pr.as_mut().unwrap().release_pages(start);
+        self.common_mut().pr.as_mut().unwrap().release_pages(start);
     }
 }
 
 impl RawPageSpace {
-    pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest) -> Self {
+    pub fn new(name: &'static str) -> Self {
         RawPageSpace {
-            common: UnsafeCell::new(CommonSpace::new(name, false, false, false, vmrequest)),
+            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, VMRequest::discontiguous())),
             mark_state: 0,
             cells: Mutex::new(HashSet::new()),
+            marktable: BitMap::new(MAX_OBJECTS_IN_HEAP),
+        }
+    }
+
+    pub fn alloc(&self, tls: *mut ::libc::c_void, pages: usize) -> Option<Address> {
+        let a = self.acquire(tls, pages);
+        if a.is_zero() {
+            None
+        } else {
+            let mut cells = self.cells.lock().unwrap();
+            cells.insert(a);
+            Some(a)
         }
     }
 
@@ -66,59 +82,50 @@ impl RawPageSpace {
         while self.mark_state == 0 {
             self.mark_state += 1;
         }
+        self.marktable.clear();
     }
 
     pub fn release(&mut self) {
-        let mut dead_cells: Vec<Address> = vec![];
-        {
-            let mut cells = self.cells.lock().unwrap();
-            for cell in cells.iter() {
-                if unsafe { cell.load::<usize>() } != self.mark_state {
-                    dead_cells.push(*cell);
-                }
-            }
-            println!("Released {}/{} cells", dead_cells.len(), cells.len());
-            for cell in &dead_cells {
-                cells.remove(cell);
+        let mut dead_cells = vec![];
+        let mut cells = self.cells.lock().unwrap();
+        for c in cells.iter() {
+            if !self.cell_is_live(*c) {
+                dead_cells.push(*c);
             }
         }
-        let mut freedpages = 0;
-        for cell in dead_cells {
-            // println!("Release {:?}", cell);
-            let pages = unsafe { (cell + BYTES_IN_ADDRESS).load::<usize>() };
-            debug_assert!(pages != 0);
-            // VMMemory::zero(cell, pages << LOG_BYTES_IN_PAGE);
-            // VMMemory::protect(cell, pages << LOG_BYTES_IN_PAGE);
-            let freed = self.common_mut().pr.as_mut().unwrap().release_pages(cell);
-            freedpages += freed;
+        println!("[RawPageSpace] Released {}/{} cells", dead_cells.len(), cells.len());
+        for c in &dead_cells {
+            cells.remove(c);
         }
-        println!("Freed {} pages", freedpages);
+        ::std::mem::drop(cells);
+        for r in dead_cells {
+            self.release_multiple_pages(r);
+        }
     }
     
+    fn get_cell_index(cell: Address) -> usize {
+        (cell - HEAP_START) >> LOG_BYTES_IN_PAGE
+    }
+
+    fn cell_is_live(&self, cell: Address) -> bool {
+        self.marktable.get(Self::get_cell_index(cell))
+    }
+
     fn get_cell(o: ObjectReference) -> Address {
         debug_assert!(!o.is_null());
         conversions::page_align(o.to_address())
     }
 
-    pub fn cell_is_allocated(&self, o: ObjectReference) -> bool {
-        let cell = Self::get_cell(o);
-        let cells = self.cells.lock().unwrap();
-        cells.contains(&cell)
-    }
-
     fn is_marked(&self, o: ObjectReference) -> bool {
-        let mark = unsafe { Self::get_cell(o).load::<usize>() };
-        mark == self.mark_state
+        let cell = Self::get_cell(o);
+        let index = Self::get_cell_index(cell);
+        self.marktable.get(index)
     }
     
     fn test_and_mark(&self, o: ObjectReference) -> bool {
-        let page = Self::get_cell(o);
-        if unsafe { page.load::<usize>() } != self.mark_state {
-            unsafe { page.store(self.mark_state) }
-            true
-        } else {
-            false
-        }
+        let cell = Self::get_cell(o);
+        let index = Self::get_cell_index(cell);
+        self.marktable.atomic_set(index, true)
     }
 
     pub fn trace_object<T: TransitiveClosure>(&self, trace: &mut T, object: ObjectReference) -> ObjectReference {
@@ -126,10 +133,5 @@ impl RawPageSpace {
             trace.process_node(object);
         }
         return object;
-    }
-
-    pub fn initialize_header(&self, object: ObjectReference) {
-        let mut cells = self.cells.lock().unwrap();
-        cells.insert(Self::get_cell(object));
     }
 }

@@ -8,10 +8,10 @@ use ::util::heap::{FreeListPageResource, PageResource, VMRequest};
 use ::vm::*;
 use std::sync::Mutex;
 use std::collections::HashSet;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use util::heap::layout::vm_layout_constants::*;
+use util::bitmap::BitMap;
 
-const MAX_HEAP_SIZE: usize = HEAP_END.as_usize() - HEAP_START.as_usize(); // 4G
+const MAX_HEAP_SIZE: usize = HEAP_END.as_usize() - HEAP_START.as_usize();
 const MAX_OBJECTS_IN_HEAP: usize = MAX_HEAP_SIZE / BYTES_IN_ADDRESS;
 const MAX_REGIONS_IN_HEAP: usize = MAX_HEAP_SIZE / MarkRegionSpace::BYTES_IN_REGION;
 
@@ -52,7 +52,7 @@ impl Space for MarkRegionSpace {
     }
 
     fn release_multiple_pages(&mut self, start: Address) {
-        unreachable!();
+        self.common_mut().pr.as_mut().unwrap().release_pages(start);
     }
 }
 
@@ -65,17 +65,14 @@ impl MarkRegionSpace {
     pub const PAGES_IN_REGION: usize = 1 << Self::LOG_PAGES_IN_REGION;
 
 
-    pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest) -> Self {
-        println!("New MRS");
-        let mrs = Self {
-            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, vmrequest)),
+    pub fn new(name: &'static str) -> Self {
+        Self {
+            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, VMRequest::discontiguous())),
             committed_regions: Mutex::default(),
             mark_state: 0,
             object_mark_table: BitMap::new(MAX_OBJECTS_IN_HEAP),
             region_mark_table: BitMap::new(MAX_REGIONS_IN_HEAP),
-        };
-        println!("New MRS END");
-        mrs
+        }
     }
 
     pub fn get_new_region(&self, tls: *mut ::libc::c_void) -> Option<Address> {
@@ -109,14 +106,13 @@ impl MarkRegionSpace {
                 dead_regions.push(*r);
             }
         }
-        println!("Released {}/{} regions", dead_regions.len(), committed_regions.len());
+        println!("[MarkRegionSpace] Released {}/{} regions", dead_regions.len(), committed_regions.len());
         for r in &dead_regions {
             committed_regions.remove(r);
         }
         ::std::mem::drop(committed_regions);
         for r in dead_regions {
-            self.common_mut().pr.as_mut().unwrap().release_pages(r);
-            assert!(self.reserved_pages() < 1000000);
+            self.release_multiple_pages(r);
         }
     }
 
@@ -163,47 +159,5 @@ impl MarkRegionSpace {
             trace.process_node(object);
         }
         return object;
-    }
-}
-
-#[derive(Debug)]
-struct BitMap {
-    table: Vec<AtomicUsize>,
-}
-
-impl BitMap {
-    pub fn new(length: usize) -> Self {
-        let length = (length + (BITS_IN_WORD - 1)) >> LOG_BITS_IN_WORD;
-        println!("New bitmap {:?}", length);
-        let mut table = vec![];
-        table.resize_with(length, Default::default);
-        let map = Self { table };
-        println!("New bitmap {:?} ebd", length);
-        map
-    }
-
-    pub fn get(&self, index: usize) -> bool {
-        let word_index = index >> LOG_BITS_IN_WORD;
-        let bit_index = index & (BITS_IN_WORD - 1);
-        let v = self.table[word_index].load(Ordering::Relaxed);
-        v & (1 << bit_index) != 0
-    }
-
-    pub fn atomic_set(&self, index: usize, value: bool) -> bool {
-        let word_index = index >> LOG_BITS_IN_WORD;
-        let bit_index = index & (BITS_IN_WORD - 1);
-        if value {
-            let v = self.table[word_index].fetch_or(1 << bit_index, Ordering::Relaxed);
-            v & (1 << bit_index) == 0
-        } else {
-            let v = self.table[word_index].fetch_and(!(1 << bit_index), Ordering::Relaxed);
-            v & (1 << bit_index) != 0
-        }
-    }
-
-    pub fn clear(&self) {
-        for i in 0..self.table.len() {
-            self.table[i].store(0, Ordering::Relaxed);
-        }
     }
 }

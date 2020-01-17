@@ -159,11 +159,6 @@ pub unsafe extern fn is_valid_ref(val: ObjectReference) -> bool {
 }
 
 #[no_mangle]
-pub unsafe extern fn is_valid_mutator(val: *mut c_void) -> bool {
-    selected_plan::PLAN.is_valid_mutator(val as usize)
-}
-
-#[no_mangle]
 pub unsafe extern fn validate_ref(val: ObjectReference) {
     debug_assert!(selected_plan::PLAN.is_valid_ref(val));
 }
