@@ -8,7 +8,7 @@ use libc::{c_void, memset};
 use util::address::Address;
 use util::heap::pageresource::CommonPageResource;
 use util::alloc::embedded_meta_data::*;
-use util::generic_freelist;
+use util::{generic_freelist, memory};
 use util::generic_freelist::GenericFreeList;
 // #[cfg(target_pointer_width = "32")]
 // FIXME: Use `RawMemoryFreeList` for 64-bit machines
@@ -19,7 +19,6 @@ use util::conversions;
 use util::constants::*;
 use util::OpaquePointer;
 use policy::space::Space;
-use vm::{VMMemory, Memory};
 use super::vmrequest::HEAP_LAYOUT_64BIT;
 use super::layout::Mmapper;
 use super::PageResource;
@@ -116,7 +115,7 @@ impl<S: Space<PR = FreeListPageResource<S>>> PageResource for FreeListPageResour
         self.common().space.unwrap().grow_space(rtn, bytes, new_chunk);
         self.common().space.unwrap().common().mmapper.ensure_mapped(rtn, required_pages);
         if zeroed {
-            VMMemory::zero(rtn, bytes);
+            memory::zero(rtn, bytes);
         }
         rtn
     }
