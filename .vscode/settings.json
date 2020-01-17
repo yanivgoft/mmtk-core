@@ -1,9 +1,10 @@
 {
     "rust.no_default_features": true,
     "rust.features": [
-        "nogczero", "openjdk"
+        "markregion", "openjdk"
     ],
     "rust.target": "x86_64-unknown-linux-gnu",
     "rust.unstable_features": true,
-    "rust-client.channel": "nightly"
+    "rust-client.channel": "nightly",
+    "rust.all_targets": false,
 }

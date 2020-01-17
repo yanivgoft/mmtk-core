@@ -49,7 +49,7 @@ impl Allocator<PR> for RawPageAllocator {
 
     fn alloc(&mut self, size: usize, align: usize, offset: isize) -> Address {
         let cell: Address = self.alloc_slow(size, align, offset);
-        allocator::align_allocation(cell, align, offset, allocator::MIN_ALIGNMENT, true)
+        allocator::align_allocation_no_fill(cell, align, offset)
     }
 
     fn alloc_slow(&mut self, size: usize, align: usize, offset: isize) -> Address {

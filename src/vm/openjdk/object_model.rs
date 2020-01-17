@@ -96,7 +96,7 @@ impl ObjectModel for VMObjectModel {
     }
 
     fn object_start_ref(object: ObjectReference) -> Address {
-        unimplemented!()
+        object.to_address()
     }
 
     fn ref_to_address(object: ObjectReference) -> Address {

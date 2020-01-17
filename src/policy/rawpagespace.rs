@@ -24,15 +24,9 @@ impl Space for RawPageSpace {
 
     fn init(&mut self) {
         let me = unsafe { &*(self as *const Self) };
-
         let common_mut = self.common_mut();
-
-        if common_mut.vmrequest.is_discontiguous() {
-            common_mut.pr = Some(FreeListPageResource::new_discontiguous(0));
-        } else {
-            common_mut.pr = Some(FreeListPageResource::new_contiguous(me, common_mut.start, common_mut.extent, 0));
-        }
-
+        assert!(common_mut.vmrequest.is_discontiguous());
+        common_mut.pr = Some(FreeListPageResource::new_discontiguous(0));
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
@@ -83,11 +77,11 @@ impl RawPageSpace {
                     dead_cells.push(*cell);
                 }
             }
+            println!("Released {}/{} cells", dead_cells.len(), cells.len());
             for cell in &dead_cells {
                 cells.remove(cell);
             }
         }
-        println!("Released {} objects", dead_cells.len());
         let mut freedpages = 0;
         for cell in dead_cells {
             // println!("Release {:?}", cell);
@@ -95,7 +89,8 @@ impl RawPageSpace {
             debug_assert!(pages != 0);
             // VMMemory::zero(cell, pages << LOG_BYTES_IN_PAGE);
             // VMMemory::protect(cell, pages << LOG_BYTES_IN_PAGE);
-            freedpages += self.common_mut().pr.as_mut().unwrap().release_pages(cell);
+            let freed = self.common_mut().pr.as_mut().unwrap().release_pages(cell);
+            freedpages += freed;
         }
         println!("Freed {} pages", freedpages);
     }

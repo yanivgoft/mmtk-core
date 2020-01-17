@@ -66,10 +66,8 @@ pub trait PageResource: Sized + 'static + Debug {
     */
     fn commit_pages(&self, reserved_pages: usize, actual_pages: usize, tls: *mut c_void) {
         let delta = actual_pages - reserved_pages;
-        self.common().reserved.store(self.common().reserved.load(Ordering::Relaxed) + delta,
-                                     Ordering::Relaxed);
-        self.common().committed.store(self.common().committed.load(Ordering::Relaxed) + actual_pages,
-                                      Ordering::Relaxed);
+        self.common().reserved.fetch_add(delta, Ordering::Relaxed);
+        self.common().committed.fetch_add(actual_pages, Ordering::Relaxed);
         if unsafe{VMActivePlan::is_mutator(tls)} {
             Self::add_to_committed(actual_pages);
         }
