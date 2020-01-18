@@ -45,5 +45,10 @@ pub mod markregion;
 #[cfg(feature = "markregion")]
 pub use self::markregion as selected_plan;
 
+
+#[cfg(feature = "semispace2")]
+#[path = "semispace2/mod.rs"]
+pub mod selected_plan;
+
 pub use self::selected_plan::SelectedPlan;
 pub use self::selected_plan::SelectedConstraints;

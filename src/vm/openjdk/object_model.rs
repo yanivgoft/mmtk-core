@@ -4,12 +4,24 @@ use ::plan::Allocator;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use super::UPCALLS;
 use libc::c_void;
+use ::vm::*;
+use plan::collector_context::CollectorContext;
 
 pub struct VMObjectModel {}
 
 impl ObjectModel for VMObjectModel {
     fn copy(from: ObjectReference, allocator: Allocator, tls: *mut c_void) -> ObjectReference {
-        unimplemented!()
+        let bytes = unsafe { ((*UPCALLS).get_object_size)(from) };
+        let context = unsafe { VMActivePlan::collector(tls) };
+        let dst = context.alloc_copy(from, bytes, 1, 0, allocator);
+        // Copy
+        let src = from.to_address();
+        for i in 0..bytes {
+            unsafe { (dst + i).store((src + i).load::<u8>()) };
+        }
+        let to_obj = unsafe { dst.to_object_reference() };
+        context.post_copy(to_obj, unsafe { Address::zero() }, bytes, allocator);
+        to_obj
     }
 
     fn copy_to(from: ObjectReference, to: ObjectReference, region: Address) -> Address {

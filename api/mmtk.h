@@ -105,6 +105,7 @@ typedef struct {
     void (*compute_thread_roots) (void* trace, void* tls);
     void (*scan_object) (void* trace, void* object, void* tls);
     void (*dump_object) (void* object);
+    size_t (*get_object_size) (void* object);
 } OpenJDK_Upcalls;
 
 extern void openjdk_gc_init(OpenJDK_Upcalls *calls, size_t heap_size);
