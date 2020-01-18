@@ -10,6 +10,17 @@ pub use self::collection::Collection;
 pub use self::active_plan::ActivePlan;
 pub use self::reference_glue::ReferenceGlue;
 
+pub trait VMBinding
+    where
+        Self: Sized
+{
+    type VMObjectModel: ObjectModel<Self>;
+    type VMScanning: Scanning<Self>;
+    type VMCollection: Collection<Self>;
+    type VMActivePlan: ActivePlan<Self>;
+    type VMReferenceGlue: ReferenceGlue<Self>;
+}
+
 #[cfg(feature = "jikesrvm")]
 pub mod jikesrvm;
 

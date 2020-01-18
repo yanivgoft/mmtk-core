@@ -2,8 +2,9 @@ use ::plan::{MutatorContext, ParallelCollector};
 use ::util::OpaquePointer;
 
 use libc::c_void;
+use vm::VMBinding;
 
-pub trait Collection {
+pub trait Collection<VM: VMBinding> {
     fn stop_all_mutators(tls: OpaquePointer);
     fn resume_mutators(tls: OpaquePointer);
     fn block_for_gc(tls: OpaquePointer);

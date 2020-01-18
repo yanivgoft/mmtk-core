@@ -19,6 +19,7 @@ use ::vm::unboxed_size_constants::BYTES_IN_ADDRESS;
 use ::util::OpaquePointer;
 
 use libc::c_void;
+use vm::{VMBinding, JikesRVM};
 
 static COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 
@@ -26,7 +27,7 @@ pub struct VMScanning {}
 
 const DUMP_REF: bool = false;
 
-impl Scanning for VMScanning {
+impl Scanning<JikesRVM> for VMScanning {
     fn scan_object<T: TransitiveClosure>(trace: &mut T, object: ObjectReference, tls: OpaquePointer) {
         if DUMP_REF {
             let obj_ptr = object.value();
