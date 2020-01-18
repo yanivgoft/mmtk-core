@@ -66,6 +66,7 @@ pub struct OpenJDK_Upcalls {
     pub compute_thread_roots: extern "C" fn(trace: *mut c_void, tls: *mut c_void),
     pub scan_object: extern "C" fn(trace: *mut c_void, object: *mut c_void, tls: *mut c_void),
     pub dump_object: extern "C" fn(object: *mut c_void),
+    pub get_object_size: extern "C" fn(object: ObjectReference) -> usize,
 }
 
 #[no_mangle]

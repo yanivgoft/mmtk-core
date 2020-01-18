@@ -1,7 +1,7 @@
 {
     "rust.no_default_features": true,
     "rust.features": [
-        "markregion", "openjdk"
+        "semispace2", "openjdk"
     ],
     "rust.target": "x86_64-unknown-linux-gnu",
     "rust.unstable_features": true,
