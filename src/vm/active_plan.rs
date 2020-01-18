@@ -1,8 +1,9 @@
 use ::plan::{Plan, SelectedPlan};
 use ::util::OpaquePointer;
 use libc::c_void;
+use vm::VMBinding;
 
-pub trait ActivePlan {
+pub trait ActivePlan<VM: VMBinding> {
     // TODO: I don't know how this can be implemented when we have multiple MMTk instances.
     // This function is used by space and phase to refer to the current plan.
     // Possibly we should remove the use of this function, and remove this function?

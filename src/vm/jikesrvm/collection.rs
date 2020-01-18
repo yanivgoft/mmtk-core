@@ -8,13 +8,14 @@ use super::JTOC_BASE;
 use libc::c_void;
 use util::OpaquePointer;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
+use vm::JikesRVM;
 
 pub static mut BOOT_THREAD: OpaquePointer = UNINITIALIZED_OPAQUE_POINTER;
 
 pub struct VMCollection {}
 
 // FIXME: Shouldn't these all be unsafe because of tls?
-impl Collection for VMCollection {
+impl Collection<JikesRVM> for VMCollection {
     #[inline(always)]
     fn stop_all_mutators(tls: OpaquePointer) {
         unsafe {

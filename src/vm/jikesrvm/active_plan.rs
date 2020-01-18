@@ -9,12 +9,13 @@ use super::JTOC_BASE;
 
 use std::mem;
 use libc::c_void;
+use vm::JikesRVM;
 
 static MUTATOR_COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 
 pub struct VMActivePlan<> {}
 
-impl ActivePlan for VMActivePlan {
+impl ActivePlan<JikesRVM> for VMActivePlan {
     // XXX: Are they actually static
     unsafe fn collector(tls: OpaquePointer) -> &'static mut <SelectedPlan as Plan>::CollectorT {
         let thread: Address = unsafe { mem::transmute(tls) };

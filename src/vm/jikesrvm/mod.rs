@@ -26,10 +26,19 @@ pub mod reference_glue;
 
 use ::util::address::Address;
 use plan::TraceLocal;
+use vm::VMBinding;
 
 pub static mut JTOC_BASE: Address = Address(0);
 
 pub struct JikesRVM {}
+
+impl VMBinding for JikesRVM {
+    type VMObjectModel = object_model::VMObjectModel;
+    type VMScanning = scanning::VMScanning;
+    type VMCollection = collection::VMCollection;
+    type VMActivePlan = active_plan::VMActivePlan;
+    type VMReferenceGlue = reference_glue::VMReferenceGlue;
+}
 
 impl JikesRVM {
     #[inline(always)]
