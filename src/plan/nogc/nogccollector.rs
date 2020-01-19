@@ -12,7 +12,6 @@ use libc::c_void;
 
 use ::util::{Address, ObjectReference};
 use util::OpaquePointer;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 
 pub struct NoGCCollector {
     pub tls: OpaquePointer,
@@ -26,7 +25,7 @@ pub struct NoGCCollector {
 impl<'a> CollectorContext for NoGCCollector {
     fn new(_: &'static SelectedPlan) -> Self {
         NoGCCollector {
-            tls: UNINITIALIZED_OPAQUE_POINTER,
+            tls: OpaquePointer::UNINITIALIZED,
             trace: NoGCTraceLocal::new(),
 
             last_trigger_count: 0,
