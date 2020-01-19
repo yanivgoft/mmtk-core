@@ -46,7 +46,7 @@ pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: 
     ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper, heap)
 }
 
-pub trait Plan: Sized {
+pub trait Plan<VM: VMBinding>: Sized {
     type MutatorT: MutatorContext;
     type TraceLocalT: TraceLocal;
     type CollectorT: ParallelCollector;
