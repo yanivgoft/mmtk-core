@@ -9,15 +9,16 @@ use libc::c_void;
 use super::ss;
 use util::OpaquePointer;
 use plan::semispace::SemiSpace;
+use vm::VMBinding;
 
-pub struct SSTraceLocal {
+pub struct SSTraceLocal<VM: VMBinding> {
     tls: OpaquePointer,
     values: LocalQueue<'static, ObjectReference>,
     root_locations: LocalQueue<'static, Address>,
-    plan: &'static SemiSpace
+    plan: &'static SemiSpace<VM>
 }
 
-impl TransitiveClosure for SSTraceLocal {
+impl<VM> TransitiveClosure for SSTraceLocal<VM> {
     fn process_edge(&mut self, slot: Address) {
         trace!("process_edge({:?})", slot);
         let object: ObjectReference = unsafe { slot.load() };
@@ -33,7 +34,7 @@ impl TransitiveClosure for SSTraceLocal {
     }
 }
 
-impl TraceLocal for SSTraceLocal {
+impl<VM: VMBinding> TraceLocal for SSTraceLocal<VM> {
     fn process_roots(&mut self) {
         loop {
             match self.root_locations.dequeue() {
@@ -168,8 +169,8 @@ impl TraceLocal for SSTraceLocal {
     }
 }
 
-impl SSTraceLocal {
-    pub fn new(ss: &'static SemiSpace) -> Self {
+impl<VM: VMBinding> SSTraceLocal<VM> {
+    pub fn new(ss: &'static SemiSpace<VM>) -> Self {
         let ss_trace = ss.get_sstrace();
         SSTraceLocal {
             tls: OpaquePointer::UNINITIALIZED,

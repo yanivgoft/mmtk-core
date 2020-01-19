@@ -26,24 +26,24 @@ use mmtk::MMTK;
 use vm::VMBinding;
 
 /// per-collector thread behavior and state for the SS plan
-pub struct SSCollector {
+pub struct SSCollector<VM: VMBinding> {
     pub tls: OpaquePointer,
     // CopyLocal
     pub ss: BumpAllocator<MonotonePageResource<CopySpace>>,
     los: LargeObjectAllocator,
-    trace: SSTraceLocal,
+    trace: SSTraceLocal<VM>,
 
     last_trigger_count: usize,
     worker_ordinal: usize,
-    group: Option<&'static ParallelCollectorGroup<SSCollector>>,
+    group: Option<&'static ParallelCollectorGroup<SSCollector<VM>>>,
 
-    plan: &'static SemiSpace,
+    plan: &'static SemiSpace<VM>,
     phase_manager: &'static PhaseManager,
     reference_processors: &'static ReferenceProcessors,
 }
 
-impl CollectorContext for SSCollector {
-    fn new<VM: VMBinding>(mmtk: &'static MMTK<VM>) -> Self {
+impl<VM: VMBinding> CollectorContext for SSCollector<VM> {
+    fn new(mmtk: &'static MMTK<VM>) -> Self {
         SSCollector {
             tls: OpaquePointer::UNINITIALIZED,
             ss: BumpAllocator::new(OpaquePointer::UNINITIALIZED, None, &mmtk.plan),
@@ -170,8 +170,8 @@ impl CollectorContext for SSCollector {
     }
 }
 
-impl ParallelCollector for SSCollector {
-    type T = SSTraceLocal;
+impl<VM: VMBinding> ParallelCollector for SSCollector<VM> {
+    type T = SSTraceLocal<VM>;
 
     fn park(&mut self) {
         self.group.unwrap().park(self);
@@ -182,7 +182,7 @@ impl ParallelCollector for SSCollector {
         self.phase_manager.begin_new_phase_stack(self.tls, ScheduledPhase::new(phase::Schedule::Complex, self.phase_manager.collection_phase.clone()))
     }
 
-    fn get_current_trace(&mut self) -> &mut SSTraceLocal {
+    fn get_current_trace(&mut self) -> &mut SSTraceLocal<VM> {
         &mut self.trace
     }
 

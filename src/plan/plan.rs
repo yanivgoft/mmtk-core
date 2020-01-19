@@ -242,7 +242,7 @@ pub enum GcStatus {
     GcProper,
 }
 
-pub struct CommonPlan {
+pub struct CommonPlan<VM: VMBinding> {
     pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
     pub options: Arc<UnsafeOptionsWrapper>,
@@ -264,14 +264,14 @@ pub struct CommonPlan {
     // Lock used for out of memory handling
     pub oom_lock: Mutex<()>,
 
-    pub control_collector_context: ControllerCollectorContext,
+    pub control_collector_context: ControllerCollectorContext<VM>,
 
     #[cfg(feature = "sanity")]
     pub inside_sanity: AtomicBool,
 }
 
-impl CommonPlan {
-    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>, heap: HeapMeta) -> CommonPlan {
+impl<VM: VMBinding> CommonPlan<VM> {
+    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>, heap: HeapMeta) -> CommonPlan<VM> {
         CommonPlan {
             vm_map, mmapper, options, heap,
             stats: Stats::new(),
