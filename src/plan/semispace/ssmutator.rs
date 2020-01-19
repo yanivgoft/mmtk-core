@@ -15,18 +15,19 @@ use ::util::OpaquePointer;
 
 use libc::c_void;
 use plan::semispace::SemiSpace;
+use vm::VMBinding;
 
 #[repr(C)]
-pub struct SSMutator {
+pub struct SSMutator<VM: VMBinding> {
     // CopyLocal
     ss: BumpAllocator<MonotonePageResource<CopySpace>>,
     vs: BumpAllocator<MonotonePageResource<ImmortalSpace>>,
     los: LargeObjectAllocator,
 
-    plan: &'static SemiSpace
+    plan: &'static SemiSpace<VM>
 }
 
-impl MutatorContext for SSMutator {
+impl<VM: VMBinding> MutatorContext for SSMutator<VM> {
     fn collection_phase(&mut self, tls: OpaquePointer, phase: &Phase, primary: bool) {
         match phase {
             &Phase::PrepareStacks => {
@@ -96,8 +97,8 @@ impl MutatorContext for SSMutator {
     }
 }
 
-impl SSMutator {
-    pub fn new(tls: OpaquePointer, plan: &'static SemiSpace) -> Self {
+impl<VM: VMBinding> SSMutator<VM> {
+    pub fn new(tls: OpaquePointer, plan: &'static SemiSpace<VM>) -> Self {
         SSMutator {
             ss: BumpAllocator::new(tls, Some(plan.tospace()), plan),
             vs: BumpAllocator::new(tls, Some(plan.get_versatile_space()), plan),

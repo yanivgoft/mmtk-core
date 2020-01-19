@@ -45,10 +45,10 @@ pub type SelectedPlan = SemiSpace;
 pub const ALLOC_SS: Allocator = Allocator::Default;
 pub const SCAN_BOOT_IMAGE: bool = true;
 
-pub struct SemiSpace {
+pub struct SemiSpace<VM: VMBinding> {
     pub unsync: UnsafeCell<SemiSpaceUnsync>,
     pub ss_trace: Trace,
-    pub common: CommonPlan,
+    pub common: CommonPlan<VM>,
 }
 
 pub struct SemiSpaceUnsync {
@@ -63,12 +63,12 @@ pub struct SemiSpaceUnsync {
     collection_attempt: usize,
 }
 
-unsafe impl Sync for SemiSpace {}
+unsafe impl<VM: VMBinding> Sync for SemiSpace<VM> {}
 
-impl<VM: VMBinding> Plan<VM> for SemiSpace {
-    type MutatorT = SSMutator;
-    type TraceLocalT = SSTraceLocal;
-    type CollectorT = SSCollector;
+impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
+    type MutatorT = SSMutator<VM>;
+    type TraceLocalT = SSTraceLocal<VM>;
+    type CollectorT = SSCollector<VM>;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
         let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
@@ -103,7 +103,7 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace {
         unsync.los.init(vm_map);
     }
 
-    fn common(&self) -> &CommonPlan {
+    fn common(&self) -> &CommonPlan<VM> {
         &self.common
     }
 
@@ -300,7 +300,7 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace {
     }
 }
 
-impl SemiSpace {
+impl<VM: VMBinding> SemiSpace<VM> {
     pub fn tospace(&self) -> &'static CopySpace {
         let unsync = unsafe { &*self.unsync.get() };
 

@@ -53,7 +53,7 @@ pub trait Plan<VM: VMBinding>: Sized {
     type CollectorT: ParallelCollector;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self;
-    fn common(&self) -> &CommonPlan;
+    fn common(&self) -> &CommonPlan<VM>;
     fn mmapper(&self) -> &'static Mmapper {
         self.common().mmapper
     }
@@ -243,7 +243,7 @@ pub enum GcStatus {
     GcProper,
 }
 
-pub struct CommonPlan {
+pub struct CommonPlan<VM: VMBinding> {
     pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
     pub options: &'static Options,
@@ -260,14 +260,14 @@ pub struct CommonPlan {
     pub collection_attempts: AtomicUsize,
     pub oom_lock: Mutex<()>,
 
-    pub control_collector_context: ControllerCollectorContext,
+    pub control_collector_context: ControllerCollectorContext<VM>,
 
     #[cfg(feature = "sanity")]
     pub inside_sanity: AtomicBool,
 }
 
-impl CommonPlan {
-    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options, heap: HeapMeta) -> CommonPlan {
+impl<VM: VMBinding> CommonPlan<VM> {
+    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options, heap: HeapMeta) -> CommonPlan<VM> {
         CommonPlan {
             vm_map, mmapper, options, heap,
             stats: Stats::new(),

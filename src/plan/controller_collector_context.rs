@@ -12,6 +12,7 @@ use ::plan::selected_plan::SelectedPlan;
 use libc::c_void;
 use util::OpaquePointer;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
+use vm::VMBinding;
 
 struct RequestSync {
     tls: OpaquePointer,
@@ -19,17 +20,17 @@ struct RequestSync {
     last_request_count: isize,
 }
 
-pub struct ControllerCollectorContext {
+pub struct ControllerCollectorContext<VM: VMBinding> {
     request_sync: Mutex<RequestSync>,
     request_condvar: Condvar,
 
-    pub workers: UnsafeCell<ParallelCollectorGroup<<SelectedPlan as Plan>::CollectorT>>,
+    pub workers: UnsafeCell<ParallelCollectorGroup<<SelectedPlan as Plan<VM>>::CollectorT>>,
     request_flag: AtomicBool,
 }
 
-unsafe impl Sync for ControllerCollectorContext {}
+unsafe impl<VM: VMBinding> Sync for ControllerCollectorContext<VM> {}
 
-impl ControllerCollectorContext {
+impl<VM: VMBinding> ControllerCollectorContext<VM> {
     pub fn new() -> Self {
         ControllerCollectorContext {
             request_sync: Mutex::new(RequestSync {
@@ -39,7 +40,7 @@ impl ControllerCollectorContext {
             }),
             request_condvar: Condvar::new(),
 
-            workers: UnsafeCell::new(ParallelCollectorGroup::<<SelectedPlan as Plan>::CollectorT>::new()),
+            workers: UnsafeCell::new(ParallelCollectorGroup::<<SelectedPlan as Plan<VM>>::CollectorT>::new()),
             request_flag: AtomicBool::new(false),
         }
     }
