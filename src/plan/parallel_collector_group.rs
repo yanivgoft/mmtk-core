@@ -10,6 +10,7 @@ use plan::selected_plan::SelectedPlan;
 use libc::c_void;
 use plan::phase::PhaseManager;
 use mmtk::MMTK;
+use vm::VMBinding;
 
 pub struct ParallelCollectorGroup<C: ParallelCollector> {
     //name: String,
@@ -47,7 +48,7 @@ impl<C: ParallelCollector> ParallelCollectorGroup<C> {
         self.contexts.len()
     }
 
-    pub fn init_group(&mut self, mmtk: &'static MMTK, tls: OpaquePointer) {
+    pub fn init_group<VM: VMBinding>(&mut self, mmtk: &'static MMTK<VM>, tls: OpaquePointer) {
         {
             let inner = self.sync.get_mut().unwrap();
             inner.trigger_count = 1;

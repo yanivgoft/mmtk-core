@@ -11,6 +11,8 @@ use std::sync::atomic::{Ordering, AtomicBool};
 
 use util::OpaquePointer;
 use std::sync::Arc;
+use std::marker::PhantomData;
+use vm::VMBinding;
 
 // TODO: remove this singleton at some point to allow multiple instances of MMTK
 // This helps refactoring.
@@ -29,7 +31,7 @@ lazy_static!{
     pub static ref SINGLETON: MMTK = MMTK::new(&VM_MAP, &MMAPPER);
 }
 
-pub struct MMTK {
+pub struct MMTK<VM: VMBinding> {
     pub plan: SelectedPlan,
     pub phase_manager: PhaseManager,
     pub vm_map: &'static VMMap,
@@ -38,9 +40,12 @@ pub struct MMTK {
     pub options: Arc<UnsafeOptionsWrapper>,
 
     inside_harness: AtomicBool,
+
+    // FIXME: Delete this before merging
+    p: PhantomData<VM>
 }
 
-impl MMTK {
+impl<VM: VMBinding> MMTK<VM> {
     pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self {
         let options = Arc::new(UnsafeOptionsWrapper::new(Options::default()));
         let plan = SelectedPlan::new(vm_map, mmapper, options.clone());
@@ -53,6 +58,7 @@ impl MMTK {
             reference_processors: ReferenceProcessors::new(),
             options,
             inside_harness: AtomicBool::new(false),
+            p: PhantomData,
         }
     }
 

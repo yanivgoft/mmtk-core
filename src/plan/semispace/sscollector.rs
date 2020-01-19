@@ -23,6 +23,7 @@ use plan::semispace::SelectedPlan;
 use plan::semispace::SemiSpace;
 use plan::phase::ScheduledPhase;
 use mmtk::MMTK;
+use vm::VMBinding;
 
 /// per-collector thread behavior and state for the SS plan
 pub struct SSCollector {
@@ -42,7 +43,7 @@ pub struct SSCollector {
 }
 
 impl CollectorContext for SSCollector {
-    fn new(mmtk: &'static MMTK) -> Self {
+    fn new<VM: VMBinding>(mmtk: &'static MMTK<VM>) -> Self {
         SSCollector {
             tls: OpaquePointer::UNINITIALIZED,
             ss: BumpAllocator::new(OpaquePointer::UNINITIALIZED, None, &mmtk.plan),
