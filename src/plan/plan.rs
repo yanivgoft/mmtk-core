@@ -27,7 +27,7 @@ use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
 use std::sync::Mutex;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
-use vm::{VMObjectModel, ObjectModel};
+use vm::{VMObjectModel, ObjectModel, VMBinding};
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
@@ -47,7 +47,7 @@ pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: 
     ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper, heap)
 }
 
-pub trait Plan: Sized {
+pub trait Plan<VM: VMBinding>: Sized {
     type MutatorT: MutatorContext;
     type TraceLocalT: TraceLocal;
     type CollectorT: ParallelCollector;

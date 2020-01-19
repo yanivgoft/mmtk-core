@@ -38,6 +38,7 @@ use util::options::Options;
 use util::heap::HeapMeta;
 use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 use util::statistics::stats::Stats;
+use vm::VMBinding;
 
 pub type SelectedPlan = SemiSpace;
 
@@ -64,7 +65,7 @@ pub struct SemiSpaceUnsync {
 
 unsafe impl Sync for SemiSpace {}
 
-impl Plan for SemiSpace {
+impl<VM: VMBinding> Plan<VM> for SemiSpace {
     type MutatorT = SSMutator;
     type TraceLocalT = SSTraceLocal;
     type CollectorT = SSCollector;
