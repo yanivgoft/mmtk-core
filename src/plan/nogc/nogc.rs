@@ -27,15 +27,16 @@ use std::sync::Arc;
 use util::heap::HeapMeta;
 use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 use std::sync::atomic::Ordering;
+use vm::VMBinding;
 
-pub type SelectedPlan = NoGC;
+pub type SelectedPlan<VM> = NoGC<VM>;
 
-pub struct NoGC {
+pub struct NoGC<VM: VMBinding> {
     pub unsync: UnsafeCell<NoGCUnsync>,
-    pub common: CommonPlan,
+    pub common: CommonPlan<VM>,
 }
 
-unsafe impl Sync for NoGC {}
+unsafe impl<VM: VMBinding> Sync for NoGC<VM> {}
 
 pub struct NoGCUnsync {
     vm_space: ImmortalSpace,
@@ -43,10 +44,10 @@ pub struct NoGCUnsync {
     pub los: LargeObjectSpace,
 }
 
-impl Plan for NoGC {
-    type MutatorT = NoGCMutator;
+impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
+    type MutatorT = NoGCMutator<VM>;
     type TraceLocalT = NoGCTraceLocal;
-    type CollectorT = NoGCCollector;
+    type CollectorT = NoGCCollector<VM>;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self {
         let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
@@ -73,7 +74,7 @@ impl Plan for NoGC {
         unsync.los.init(vm_map);
     }
 
-    fn common(&self) -> &CommonPlan {
+    fn common(&self) -> &CommonPlan<VM> {
         &self.common
     }
 
@@ -138,7 +139,7 @@ impl Plan for NoGC {
     }
 }
 
-impl NoGC {
+impl<VM: VMBinding> NoGC<VM> {
     pub fn get_immortal_space(&self) -> &'static ImmortalSpace {
         let unsync = unsafe { &*self.unsync.get() };
         &unsync.space
