@@ -35,8 +35,15 @@ lazy_static!{
 #[cfg(feature = "jikesrvm")]
 use vm::JikesRVM;
 #[cfg(feature = "jikesrvm")]
-lazy_static!{
+lazy_static! {
     pub static ref SINGLETON: MMTK<JikesRVM> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+}
+
+#[cfg(feature = "openjdk")]
+use vm::OpenJDK;
+#[cfg(feature = "openjdk")]
+lazy_static! {
+    pub static ref SINGLETON: MMTK<OpenJDK> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
 }
 
 pub struct MMTK<VM: VMBinding> {

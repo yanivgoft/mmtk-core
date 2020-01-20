@@ -62,4 +62,3 @@ pub use self::openjdk::active_plan::VMActivePlan as VMActivePlan;
 
 #[cfg(feature = "openjdk")]
 pub use self::openjdk::reference_glue::VMReferenceGlue as VMReferenceGlue;
-

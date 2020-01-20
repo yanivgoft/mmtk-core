@@ -3,10 +3,11 @@ use ::util::{Address, ObjectReference};
 use ::plan::Allocator;
 use ::util::OpaquePointer;
 use libc::c_void;
+use vm::OpenJDK;
 
 pub struct VMObjectModel {}
 
-impl ObjectModel for VMObjectModel {
+impl ObjectModel<OpenJDK> for VMObjectModel {
     fn copy(from: ObjectReference, allocator: Allocator, tls: OpaquePointer) -> ObjectReference {
         unimplemented!()
     }

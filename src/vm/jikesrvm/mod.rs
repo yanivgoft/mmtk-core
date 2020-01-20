@@ -30,7 +30,7 @@ use vm::VMBinding;
 
 pub static mut JTOC_BASE: Address = Address(0);
 
-pub struct JikesRVM {}
+pub struct JikesRVM;
 
 impl VMBinding for JikesRVM {
     type VMObjectModel = object_model::VMObjectModel;
