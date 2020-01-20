@@ -18,6 +18,7 @@ use util::conversions::bytes_to_pages;
 use ::util::constants::BYTES_IN_ADDRESS;
 use ::util::OpaquePointer;
 use ::plan::selected_plan::SelectedPlan;
+use vm::VMBinding;
 
 const BYTES_IN_PAGE: usize = 1 << 12;
 const BLOCK_SIZE: usize = 8 * BYTES_IN_PAGE;
@@ -30,16 +31,16 @@ const DATA_END_OFFSET: isize = NEXT_REGION_OFFSET + BYTES_IN_ADDRESS as isize;
 #[repr(C)]
 #[derive(Derivative)]
 #[derivative(Debug)]
-pub struct BumpAllocator<PR: PageResource> {
+pub struct BumpAllocator<VM: VMBinding, PR: PageResource> {
     pub tls: OpaquePointer,
     cursor: Address,
     limit: Address,
     space: Option<&'static PR::Space>,
     #[derivative(Debug="ignore")]
-    plan: &'static SelectedPlan,
+    plan: &'static SelectedPlan<VM>,
 }
 
-impl<PR: PageResource> BumpAllocator<PR> {
+impl<VM: VMBinding, PR: PageResource> BumpAllocator<VM, PR> {
     pub fn set_limit(&mut self, cursor: Address, limit: Address) {
         self.cursor = cursor;
         self.limit = limit;
@@ -97,11 +98,11 @@ impl<PR: PageResource> BumpAllocator<PR> {
     }
 }
 
-impl<PR: PageResource> Allocator<PR> for BumpAllocator<PR> {
+impl<VM: VMBinding, PR: PageResource> Allocator<VM, PR> for BumpAllocator<VM, PR> {
     fn get_space(&self) -> Option<&'static PR::Space> {
         self.space
     }
-    fn get_plan(&self) -> &'static SelectedPlan {
+    fn get_plan(&self) -> &'static SelectedPlan<VM> {
         self.plan
     }
 
@@ -144,8 +145,8 @@ impl<PR: PageResource> Allocator<PR> for BumpAllocator<PR> {
     }
 }
 
-impl<PR: PageResource> BumpAllocator<PR> {
-    pub fn new(tls: OpaquePointer, space: Option<&'static PR::Space>, plan: &'static SelectedPlan) -> Self {
+impl<VM: VMBinding, PR: PageResource> BumpAllocator<VM, PR> {
+    pub fn new(tls: OpaquePointer, space: Option<&'static PR::Space>, plan: &'static SelectedPlan<VM>) -> Self {
         BumpAllocator {
             tls,
             cursor: unsafe { Address::zero() },

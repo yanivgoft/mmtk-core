@@ -13,6 +13,7 @@ use ::plan::MutatorContext;
 use ::plan::selected_plan::SelectedPlan;
 use ::plan::Plan;
 use ::util::OpaquePointer;
+use vm::VMBinding;
 
 // FIXME: Put this somewhere more appropriate
 pub const ALIGNMENT_VALUE: usize = 0xdeadbeef;
@@ -113,11 +114,11 @@ pub fn get_maximum_aligned_size(size: usize, alignment: usize, known_alignment: 
     }
 }
 
-pub trait Allocator<PR: PageResource> {
+pub trait Allocator<VM: VMBinding, PR: PageResource> {
     fn get_tls(&self) -> OpaquePointer;
 
     fn get_space(&self) -> Option<&'static PR::Space>;
-    fn get_plan(&self) -> &'static SelectedPlan;
+    fn get_plan(&self) -> &'static SelectedPlan<VM>;
 
     fn alloc(&mut self, size: usize, align: usize, offset: isize) -> Address;
 

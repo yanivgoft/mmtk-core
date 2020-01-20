@@ -12,7 +12,7 @@ pub use self::reference_glue::ReferenceGlue;
 
 pub trait VMBinding
     where
-        Self: Sized
+        Self: Sized + 'static
 {
     type VMObjectModel: ObjectModel<Self>;
     type VMScanning: Scanning<Self>;

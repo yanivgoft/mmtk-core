@@ -32,7 +32,7 @@ lazy_static!{
 }
 
 pub struct MMTK<VM: VMBinding> {
-    pub plan: SelectedPlan,
+    pub plan: SelectedPlan<VM>,
     pub phase_manager: PhaseManager,
     pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
