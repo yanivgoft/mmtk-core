@@ -15,18 +15,19 @@ use util::OpaquePointer;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use plan::phase::PhaseManager;
 use mmtk::MMTK;
+use vm::VMBinding;
 
-pub struct NoGCCollector {
+pub struct NoGCCollector<VM: VMBinding> {
     pub tls: OpaquePointer,
     trace: NoGCTraceLocal,
 
     last_trigger_count: usize,
     worker_ordinal: usize,
-    group: Option<&'static ParallelCollectorGroup<NoGCCollector>>,
+    group: Option<&'static ParallelCollectorGroup<VM, NoGCCollector<VM>>>,
 }
 
-impl<'a> CollectorContext for NoGCCollector {
-    fn new(_: &'static MMTK) -> Self {
+impl<VM: VMBinding> CollectorContext<VM> for NoGCCollector<VM> {
+    fn new(_: &'static MMTK<VM>) -> Self {
         NoGCCollector {
             tls: UNINITIALIZED_OPAQUE_POINTER,
             trace: NoGCTraceLocal::new(),
@@ -62,7 +63,7 @@ impl<'a> CollectorContext for NoGCCollector {
     }
 }
 
-impl ParallelCollector for NoGCCollector {
+impl<VM: VMBinding> ParallelCollector<VM> for NoGCCollector<VM> {
     type T = NoGCTraceLocal;
 
     fn park(&mut self) {
@@ -102,7 +103,7 @@ impl ParallelCollector for NoGCCollector {
         self.last_trigger_count += 1;
     }
 
-    fn set_group(&mut self, group: *const ParallelCollectorGroup<Self>) {
+    fn set_group(&mut self, group: *const ParallelCollectorGroup<VM, Self>) {
         self.group = Some ( unsafe {&*group} );
     }
 
