@@ -3,12 +3,13 @@ use ::plan::{TransitiveClosure, TraceLocal};
 use ::util::{ObjectReference, SynchronizedCounter};
 use ::util::OpaquePointer;
 use libc::c_void;
+use vm::OpenJDK;
 
 static COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 
 pub struct VMScanning {}
 
-impl Scanning for VMScanning {
+impl Scanning<OpenJDK> for VMScanning {
     fn scan_object<T: TransitiveClosure>(trace: &mut T, object: ObjectReference, tls: OpaquePointer) {
         unimplemented!()
     }

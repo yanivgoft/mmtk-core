@@ -3,10 +3,11 @@ use ::util::ObjectReference;
 use ::plan::TraceLocal;
 use ::util::OpaquePointer;
 use libc::c_void;
+use vm::OpenJDK;
 
 pub struct VMReferenceGlue {}
 
-impl ReferenceGlue for VMReferenceGlue {
+impl ReferenceGlue<OpenJDK> for VMReferenceGlue {
     fn set_referent(reff: ObjectReference, referent: ObjectReference) {
         unimplemented!()
     }

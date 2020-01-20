@@ -31,6 +31,13 @@ lazy_static!{
     pub static ref SINGLETON: MMTK = MMTK::new(&VM_MAP, &MMAPPER);
 }
 
+#[cfg(feature = "openjdk")]
+use vm::OpenJDK;
+#[cfg(feature = "openjdk")]
+lazy_static! {
+    pub static ref SINGLETON: MMTK<OpenJDK> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+}
+
 pub struct MMTK<VM: VMBinding> {
     pub plan: SelectedPlan<VM>,
     pub phase_manager: PhaseManager,

@@ -5,10 +5,11 @@ use ::util::OpaquePointer;
 use super::UPCALLS;
 
 use libc::c_void;
+use vm::OpenJDK;
 
 pub struct VMCollection {}
 
-impl Collection for VMCollection {
+impl Collection<OpenJDK> for VMCollection {
     fn stop_all_mutators(tls: OpaquePointer) {
         unsafe {
             ((*UPCALLS).stop_all_mutators)(tls);
@@ -25,7 +26,7 @@ impl Collection for VMCollection {
         unimplemented!();
     }
 
-    unsafe fn spawn_worker_thread<T: ParallelCollector>(tls: OpaquePointer, ctx: *mut T) {
+    unsafe fn spawn_worker_thread<T: ParallelCollector<OpenJDK>>(tls: OpaquePointer, ctx: *mut T) {
         unimplemented!();
     }
 
