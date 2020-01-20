@@ -30,8 +30,8 @@ use vm::VMBinding;
 pub struct SSCollector<VM: VMBinding> {
     pub tls: OpaquePointer,
     // CopyLocal
-    pub ss: BumpAllocator<MonotonePageResource<CopySpace>>,
-    los: LargeObjectAllocator,
+    pub ss: BumpAllocator<VM, MonotonePageResource<CopySpace>>,
+    los: LargeObjectAllocator<VM>,
     trace: SSTraceLocal<VM>,
 
     last_trigger_count: usize,

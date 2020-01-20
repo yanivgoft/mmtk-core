@@ -9,7 +9,7 @@ use mmtk::MMTK;
 use vm::VMBinding;
 
 pub trait CollectorContext {
-    fn new<VM: VMBinding>(mmtk: &'static MMTK<VM>) -> Self;
+    fn new(mmtk: &'static MMTK<VM>) -> Self;
     /// Notify that the collector context is registered and ready to execute.
     fn init(&mut self, tls: OpaquePointer);
     /// Allocate space for copying an object.

@@ -40,7 +40,7 @@ use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 use util::statistics::stats::Stats;
 use vm::VMBinding;
 
-pub type SelectedPlan = SemiSpace;
+pub type SelectedPlan<VM> = SemiSpace<VM>;
 
 pub const ALLOC_SS: Allocator = Allocator::Default;
 pub const SCAN_BOOT_IMAGE: bool = true;

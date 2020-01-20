@@ -24,7 +24,7 @@ pub struct ControllerCollectorContext<VM: VMBinding> {
     request_sync: Mutex<RequestSync>,
     request_condvar: Condvar,
 
-    pub workers: UnsafeCell<ParallelCollectorGroup<<SelectedPlan as Plan<VM>>::CollectorT>>,
+    pub workers: UnsafeCell<ParallelCollectorGroup<<SelectedPlan<VM> as Plan<VM>>::CollectorT>>,
     request_flag: AtomicBool,
 }
 
@@ -40,7 +40,7 @@ impl<VM: VMBinding> ControllerCollectorContext<VM> {
             }),
             request_condvar: Condvar::new(),
 
-            workers: UnsafeCell::new(ParallelCollectorGroup::<<SelectedPlan as Plan<VM>>::CollectorT>::new()),
+            workers: UnsafeCell::new(ParallelCollectorGroup::<<SelectedPlan<VM> as Plan<VM>>::CollectorT>::new()),
             request_flag: AtomicBool::new(false),
         }
     }

@@ -19,7 +19,7 @@ pub struct SSTraceLocal<VM: VMBinding> {
     plan: &'static SemiSpace<VM>
 }
 
-impl<VM> TransitiveClosure for SSTraceLocal<VM> {
+impl<VM: VMBinding> TransitiveClosure for SSTraceLocal<VM> {
     fn process_edge(&mut self, slot: Address) {
         trace!("process_edge({:?})", slot);
         let object: ObjectReference = unsafe { slot.load() };
