@@ -49,7 +49,7 @@ pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: 
 pub trait Plan<VM: VMBinding>: Sized {
     type MutatorT: MutatorContext;
     type TraceLocalT: TraceLocal;
-    type CollectorT: ParallelCollector;
+    type CollectorT: ParallelCollector<VM>;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self;
     fn common(&self) -> &CommonPlan;

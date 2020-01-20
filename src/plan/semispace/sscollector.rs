@@ -35,14 +35,14 @@ pub struct SSCollector<VM: VMBinding> {
 
     last_trigger_count: usize,
     worker_ordinal: usize,
-    group: Option<&'static ParallelCollectorGroup<SSCollector<VM>>>,
+    group: Option<&'static ParallelCollectorGroup<VM, SSCollector<VM>>>,
 
     plan: &'static SemiSpace<VM>,
     phase_manager: &'static PhaseManager,
     reference_processors: &'static ReferenceProcessors,
 }
 
-impl<VM: VMBinding> CollectorContext for SSCollector<VM> {
+impl<VM: VMBinding> CollectorContext<VM> for SSCollector<VM> {
     fn new(mmtk: &'static MMTK<VM>) -> Self {
         SSCollector {
             tls: OpaquePointer::UNINITIALIZED,
@@ -170,7 +170,7 @@ impl<VM: VMBinding> CollectorContext for SSCollector<VM> {
     }
 }
 
-impl<VM: VMBinding> ParallelCollector for SSCollector<VM> {
+impl<VM: VMBinding> ParallelCollector<VM> for SSCollector<VM> {
     type T = SSTraceLocal<VM>;
 
     fn park(&mut self) {
@@ -210,7 +210,7 @@ impl<VM: VMBinding> ParallelCollector for SSCollector<VM> {
         self.last_trigger_count += 1;
     }
 
-    fn set_group(&mut self, group: *const ParallelCollectorGroup<Self>) {
+    fn set_group(&mut self, group: *const ParallelCollectorGroup<VM, Self>) {
         self.group = Some(unsafe { &*group });
     }
 

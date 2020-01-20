@@ -129,8 +129,8 @@ pub extern fn post_alloc<VM: VMBinding>(mutator: *mut c_void, refer: ObjectRefer
 }
 
 #[no_mangle]
-pub unsafe extern fn mmtk_malloc(size: usize) -> *mut c_void {
-    alloc(null_mut(), size, 1, 0, Allocator::Default)
+pub unsafe extern fn mmtk_malloc<VM: VMBinding>(size: usize) -> *mut c_void {
+    alloc::<VM>(null_mut(), size, 1, 0, Allocator::Default)
 }
 
 #[no_mangle]
@@ -226,7 +226,7 @@ pub unsafe extern fn start_worker<VM: VMBinding>(tls: OpaquePointer, worker: *mu
 #[cfg(feature = "jikesrvm")]
 pub unsafe extern fn enable_collection<VM: VMBinding>(tls: OpaquePointer) {
     (&mut *SINGLETON.plan.common().control_collector_context.workers.get()).init_group(&SINGLETON, tls);
-    VMCollection::spawn_worker_thread::<<SelectedPlan<VM> as Plan<VM>>::CollectorT>(tls, null_mut()); // spawn controller thread
+    VM::VMCollection::spawn_worker_thread::<<SelectedPlan<VM> as Plan<VM>>::CollectorT>(tls, null_mut()); // spawn controller thread
     SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
 }
 
