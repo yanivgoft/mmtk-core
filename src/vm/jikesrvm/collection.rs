@@ -38,7 +38,7 @@ impl Collection<JikesRVM> for VMCollection {
     }
 
     #[inline(always)]
-    unsafe fn spawn_worker_thread<T: ParallelCollector>(tls: OpaquePointer, ctx: *mut T) {
+    unsafe fn spawn_worker_thread<T: ParallelCollector<JikesRVM>>(tls: OpaquePointer, ctx: *mut T) {
         jtoc_call!(SPAWN_COLLECTOR_THREAD_METHOD_OFFSET, tls, ctx);
     }
 
