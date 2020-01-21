@@ -45,18 +45,18 @@ pub const ALLOC_SS: Allocator = Allocator::Default;
 pub const SCAN_BOOT_IMAGE: bool = true;
 
 pub struct SemiSpace<VM: VMBinding> {
-    pub unsync: UnsafeCell<SemiSpaceUnsync>,
+    pub unsync: UnsafeCell<SemiSpaceUnsync<VM>>,
     pub ss_trace: Trace,
     pub common: CommonPlan<VM>,
 }
 
-pub struct SemiSpaceUnsync {
+pub struct SemiSpaceUnsync<VM: VMBinding> {
     pub hi: bool,
-    pub vm_space: ImmortalSpace,
-    pub copyspace0: CopySpace,
-    pub copyspace1: CopySpace,
-    pub versatile_space: ImmortalSpace,
-    pub los: LargeObjectSpace,
+    pub vm_space: ImmortalSpace<VM>,
+    pub copyspace0: CopySpace<VM>,
+    pub copyspace1: CopySpace<VM>,
+    pub versatile_space: ImmortalSpace<VM>,
+    pub los: LargeObjectSpace<VM>,
 }
 
 unsafe impl<VM: VMBinding> Sync for SemiSpace<VM> {}
@@ -295,7 +295,7 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
 }
 
 impl<VM: VMBinding> SemiSpace<VM> {
-    pub fn tospace(&self) -> &'static CopySpace {
+    pub fn tospace(&self) -> &'static CopySpace<VM> {
         let unsync = unsafe { &*self.unsync.get() };
 
         if unsync.hi {
@@ -305,7 +305,7 @@ impl<VM: VMBinding> SemiSpace<VM> {
         }
     }
 
-    pub fn fromspace(&self) -> &'static CopySpace {
+    pub fn fromspace(&self) -> &'static CopySpace<VM> {
         let unsync = unsafe { &*self.unsync.get() };
 
         if unsync.hi {
@@ -319,12 +319,12 @@ impl<VM: VMBinding> SemiSpace<VM> {
         &self.ss_trace
     }
 
-    pub fn get_versatile_space(&self) -> &'static ImmortalSpace {
+    pub fn get_versatile_space(&self) -> &'static ImmortalSpace<VM> {
         let unsync = unsafe { &*self.unsync.get() };
         &unsync.versatile_space
     }
 
-    pub fn get_los(&self) -> &'static LargeObjectSpace {
+    pub fn get_los(&self) -> &'static LargeObjectSpace<VM> {
         let unsync = unsafe { &*self.unsync.get() };
 
         &unsync.los

@@ -114,7 +114,7 @@ pub fn get_maximum_aligned_size(size: usize, alignment: usize, known_alignment: 
     }
 }
 
-pub trait Allocator<VM: VMBinding, PR: PageResource> {
+pub trait Allocator<VM: VMBinding, PR: PageResource<VM>> {
     fn get_tls(&self) -> OpaquePointer;
 
     fn get_space(&self) -> Option<&'static PR::Space>;

@@ -26,9 +26,10 @@ use plan::selected_plan::SelectedPlan;
 use util::heap::HeapMeta;
 use util::heap::space_descriptor::SpaceDescriptor;
 use vm::VMBinding;
+use std::marker::PhantomData;
 
-pub trait Space<VM: VMBinding>: Sized + Debug + 'static {
-    type PR: PageResource<Space = Self>;
+pub trait Space<VM: VMBinding>: Sized + 'static {
+    type PR: PageResource<VM, Space = Self>;
 
     fn init(&mut self, vm_map: &'static VMMap);
 
@@ -47,7 +48,7 @@ pub trait Space<VM: VMBinding>: Sized + Debug + 'static {
 
         trace!("Polling ..");
 
-        if allow_poll && VMActivePlan::global().poll::<Self::PR>(false, me) {
+        if allow_poll && VM::VMActivePlan::global().poll::<Self::PR>(false, me) {
             trace!("Collection required");
             pr.clear_request(pages_reserved);
             VMCollection::block_for_gc(tls);
@@ -60,7 +61,7 @@ pub trait Space<VM: VMBinding>: Sized + Debug + 'static {
                     panic!("Physical allocation failed when polling not allowed!");
                 }
 
-                let gc_performed = VMActivePlan::global().poll::<Self::PR>(true, me);
+                let gc_performed = VM::VMActivePlan::global().poll::<Self::PR>(true, me);
                 debug_assert!(gc_performed, "GC not performed when forced.");
                 pr.clear_request(pages_reserved);
                 VMCollection::block_for_gc(tls);
@@ -112,15 +113,15 @@ pub trait Space<VM: VMBinding>: Sized + Debug + 'static {
         self.common().name
     }
 
-    fn common(&self) -> &CommonSpace<Self::PR>;
-    fn common_mut(&mut self) -> &mut CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace<VM, Self::PR>;
+    fn common_mut(&mut self) -> &mut CommonSpace<VM, Self::PR> {
         // SAFE: Reference is exclusive
         unsafe {self.unsafe_common_mut()}
     }
 
     // UNSAFE: This get's a mutable reference from self
     // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR>;
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<VM, Self::PR>;
 
     fn is_live(&self, object: ObjectReference) -> bool;
     fn is_movable(&self) -> bool;
@@ -179,8 +180,7 @@ pub trait Space<VM: VMBinding>: Sized + Debug + 'static {
     }
 }
 
-#[derive(Debug)]
-pub struct CommonSpace<PR: PageResource> {
+pub struct CommonSpace<VM: VMBinding, PR: PageResource<VM>> {
     pub name: &'static str,
     name_length: usize,
     pub descriptor: SpaceDescriptor,
@@ -198,12 +198,14 @@ pub struct CommonSpace<PR: PageResource> {
     pub head_discontiguous_region: Address,
 
     pub vm_map: &'static VMMap,
-    pub mmapper: &'static Mmapper
+    pub mmapper: &'static Mmapper,
+
+    p: PhantomData<VM>,
 }
 
 const DEBUG: bool = false;
 
-impl<PR: PageResource> CommonSpace<PR> {
+impl<VM: VMBinding, PR: PageResource<VM>> CommonSpace<VM, PR> {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
                vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         let mut rtn = CommonSpace {
@@ -222,6 +224,7 @@ impl<PR: PageResource> CommonSpace<PR> {
             head_discontiguous_region: unsafe{Address::zero()},
             vm_map,
             mmapper,
+            p: PhantomData,
         };
 
         if vmrequest.is_discontiguous() {

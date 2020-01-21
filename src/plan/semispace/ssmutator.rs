@@ -20,8 +20,8 @@ use vm::VMBinding;
 #[repr(C)]
 pub struct SSMutator<VM: VMBinding> {
     // CopyLocal
-    ss: BumpAllocator<VM, MonotonePageResource<CopySpace>>,
-    vs: BumpAllocator<VM, MonotonePageResource<ImmortalSpace>>,
+    ss: BumpAllocator<VM, MonotonePageResource<VM, CopySpace<VM>>>,
+    vs: BumpAllocator<VM, MonotonePageResource<VM, ImmortalSpace<VM>>>,
     los: LargeObjectAllocator<VM>,
 
     plan: &'static SemiSpace<VM>

@@ -17,16 +17,15 @@ const MARK_BIT: u8 = 0b01;
 const NURSERY_BIT: u8 = 0b10;
 const LOS_BIT_MASK: u8 = 0b11;
 
-#[derive(Debug)]
 pub struct LargeObjectSpace<VM: VMBinding> {
-    common: UnsafeCell<CommonSpace<FreeListPageResource<LargeObjectSpace<VM>>>>,
+    common: UnsafeCell<CommonSpace<VM, FreeListPageResource<VM, LargeObjectSpace<VM>>>>,
     mark_state: u8,
     in_nursery_GC: bool,
     treadmill: TreadMill,
 }
 
 impl<VM: VMBinding> Space<VM> for LargeObjectSpace<VM> {
-    type PR = FreeListPageResource<LargeObjectSpace<VM>>;
+    type PR = FreeListPageResource<VM, LargeObjectSpace<VM>>;
 
     fn init(&mut self, vm_map: &'static VMMap) {
         let me = unsafe { &*(self as *const Self) };
@@ -42,11 +41,11 @@ impl<VM: VMBinding> Space<VM> for LargeObjectSpace<VM> {
         common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace<VM, Self::PR> {
         unsafe { &*self.common.get() }
     }
 
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<VM, Self::PR> {
         &mut *self.common.get()
     }
 
