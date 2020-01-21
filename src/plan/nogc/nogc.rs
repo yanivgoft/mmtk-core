@@ -33,16 +33,16 @@ use vm::VMBinding;
 pub type SelectedPlan<VM> = NoGC<VM>;
 
 pub struct NoGC<VM: VMBinding> {
-    pub unsync: UnsafeCell<NoGCUnsync>,
+    pub unsync: UnsafeCell<NoGCUnsync<VM>>,
     pub common: CommonPlan<VM>,
 }
 
 unsafe impl<VM: VMBinding> Sync for NoGC<VM> {}
 
-pub struct NoGCUnsync {
-    vm_space: ImmortalSpace,
-    pub space: ImmortalSpace,
-    pub los: LargeObjectSpace,
+pub struct NoGCUnsync<VM: VMBinding> {
+    vm_space: ImmortalSpace<VM>,
+    pub space: ImmortalSpace<VM>,
+    pub los: LargeObjectSpace<VM>,
 }
 
 impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
@@ -141,12 +141,12 @@ impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
 }
 
 impl<VM: VMBinding> NoGC<VM> {
-    pub fn get_immortal_space(&self) -> &'static ImmortalSpace {
+    pub fn get_immortal_space(&self) -> &'static ImmortalSpace<VM> {
         let unsync = unsafe { &*self.unsync.get() };
         &unsync.space
     }
 
-    pub fn get_los(&self) -> &'static LargeObjectSpace {
+    pub fn get_los(&self) -> &'static LargeObjectSpace<VM> {
         let unsync = unsafe { &*self.unsync.get() };
         &unsync.los
     }

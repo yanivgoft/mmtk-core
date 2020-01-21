@@ -14,20 +14,21 @@ use ::util::header_byte;
 use std::cell::UnsafeCell;
 use util::heap::layout::heap_layout::{VMMap, Mmapper};
 use util::heap::HeapMeta;
+use vm::VMBinding;
 
 #[derive(Debug)]
-pub struct ImmortalSpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<ImmortalSpace>>>,
+pub struct ImmortalSpace<VM: VMBinding> {
+    common: UnsafeCell<CommonSpace<MonotonePageResource<ImmortalSpace<VM>>>>,
     mark_state: u8,
 }
 
-unsafe impl Sync for ImmortalSpace {}
+unsafe impl<VM: VMBinding> Sync for ImmortalSpace<VM> {}
 
 const GC_MARK_BIT_MASK: u8 = 1;
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
-impl Space for ImmortalSpace {
-    type PR = MonotonePageResource<ImmortalSpace>;
+impl<VM: VMBinding> Space<VM> for ImmortalSpace<VM> {
+    type PR = MonotonePageResource<ImmortalSpace<VM>>;
 
     fn common(&self) -> &CommonSpace<Self::PR> {
         unsafe {&*self.common.get()}
@@ -66,7 +67,7 @@ impl Space for ImmortalSpace {
     }
 }
 
-impl ImmortalSpace {
+impl<VM: VMBinding> ImmortalSpace<VM> {
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         ImmortalSpace {
             common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest, vm_map, mmapper, heap)),

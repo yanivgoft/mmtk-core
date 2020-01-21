@@ -14,20 +14,21 @@ use ::util::header_byte;
 use std::cell::UnsafeCell;
 use util::heap::layout::heap_layout::{VMMap, Mmapper};
 use util::heap::HeapMeta;
+use vm::VMBinding;
 
 #[derive(Debug)]
-pub struct ImmortalFreeListSpace {
-    common: UnsafeCell<CommonSpace<FreeListPageResource<ImmortalFreeListSpace>>>,
+pub struct ImmortalFreeListSpace<VM: VMBinding> {
+    common: UnsafeCell<CommonSpace<FreeListPageResource<ImmortalFreeListSpace<VM>>>>,
     mark_state: u8,
 }
 
-unsafe impl Sync for ImmortalFreeListSpace {}
+unsafe impl<VM: VMBinding> Sync for ImmortalFreeListSpace<VM> {}
 
 const GC_MARK_BIT_MASK: u8 = 1;
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
-impl Space for ImmortalFreeListSpace {
-    type PR = FreeListPageResource<ImmortalFreeListSpace>;
+impl<VM: VMBinding> Space<VM> for ImmortalFreeListSpace<VM> {
+    type PR = FreeListPageResource<ImmortalFreeListSpace<VM>>;
 
     fn common(&self) -> &CommonSpace<Self::PR> {
         unsafe {&*self.common.get()}
@@ -67,7 +68,7 @@ impl Space for ImmortalFreeListSpace {
     }
 }
 
-impl ImmortalFreeListSpace {
+impl<VM: VMBinding> ImmortalFreeListSpace<VM> {
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         ImmortalFreeListSpace {
             common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest, vm_map, mmapper, heap)),

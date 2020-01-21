@@ -10,6 +10,7 @@ use ::util::treadmill::TreadMill;
 use ::vm::{ObjectModel, VMObjectModel};
 use util::heap::layout::heap_layout::{VMMap, Mmapper};
 use util::heap::HeapMeta;
+use vm::VMBinding;
 
 const PAGE_MASK: usize = !(BYTES_IN_PAGE - 1);
 const MARK_BIT: u8 = 0b01;
@@ -17,15 +18,15 @@ const NURSERY_BIT: u8 = 0b10;
 const LOS_BIT_MASK: u8 = 0b11;
 
 #[derive(Debug)]
-pub struct LargeObjectSpace {
-    common: UnsafeCell<CommonSpace<FreeListPageResource<LargeObjectSpace>>>,
+pub struct LargeObjectSpace<VM: VMBinding> {
+    common: UnsafeCell<CommonSpace<FreeListPageResource<LargeObjectSpace<VM>>>>,
     mark_state: u8,
     in_nursery_GC: bool,
     treadmill: TreadMill,
 }
 
-impl Space for LargeObjectSpace {
-    type PR = FreeListPageResource<LargeObjectSpace>;
+impl<VM: VMBinding> Space<VM> for LargeObjectSpace<VM> {
+    type PR = FreeListPageResource<LargeObjectSpace<VM>>;
 
     fn init(&mut self, vm_map: &'static VMMap) {
         let me = unsafe { &*(self as *const Self) };
@@ -62,7 +63,7 @@ impl Space for LargeObjectSpace {
     }
 }
 
-impl LargeObjectSpace {
+impl<VM: VMBinding> LargeObjectSpace<VM> {
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         LargeObjectSpace {
             common: UnsafeCell::new(CommonSpace::new(name, false, false, zeroed, vmrequest, vm_map, mmapper, heap)),

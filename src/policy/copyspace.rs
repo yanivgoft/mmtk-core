@@ -17,17 +17,18 @@ use std::cell::UnsafeCell;
 use libc::{c_void, mprotect, PROT_NONE, PROT_EXEC, PROT_WRITE, PROT_READ};
 use util::heap::layout::heap_layout::{VMMap, Mmapper};
 use util::heap::HeapMeta;
+use vm::VMBinding;
 
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
 #[derive(Debug)]
-pub struct CopySpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<CopySpace>>>,
+pub struct CopySpace<VM: VMBinding> {
+    common: UnsafeCell<CommonSpace<MonotonePageResource<CopySpace<VM>>>>,
     from_space: bool,
 }
 
-impl Space for CopySpace {
-    type PR = MonotonePageResource<CopySpace>;
+impl<VM: VMBinding> Space<VM> for CopySpace<VM> {
+    type PR = MonotonePageResource<CopySpace<VM>>;
 
     fn common(&self) -> &CommonSpace<Self::PR> {
         unsafe { &*self.common.get() }
@@ -66,7 +67,7 @@ impl Space for CopySpace {
     }
 }
 
-impl CopySpace {
+impl<VM: VMBinding> CopySpace<VM> {
     pub fn new(name: &'static str, from_space: bool, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         CopySpace {
             common: UnsafeCell::new(CommonSpace::new(name, true, false, zeroed, vmrequest, vm_map, mmapper, heap)),
