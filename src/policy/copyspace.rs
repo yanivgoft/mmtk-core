@@ -21,19 +21,18 @@ use vm::VMBinding;
 
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
-#[derive(Debug)]
 pub struct CopySpace<VM: VMBinding> {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<CopySpace<VM>>>>,
+    common: UnsafeCell<CommonSpace<VM, MonotonePageResource<VM, CopySpace<VM>>>>,
     from_space: bool,
 }
 
 impl<VM: VMBinding> Space<VM> for CopySpace<VM> {
-    type PR = MonotonePageResource<CopySpace<VM>>;
+    type PR = MonotonePageResource<VM, CopySpace<VM>>;
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace<VM, Self::PR> {
         unsafe { &*self.common.get() }
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<VM, Self::PR> {
         &mut *self.common.get()
     }
 

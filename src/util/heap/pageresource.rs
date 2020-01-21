@@ -11,9 +11,10 @@ use std::fmt::Debug;
 use libc::c_void;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::ByteMapMmapper;
+use vm::VMBinding;
 
-pub trait PageResource: Sized + 'static + Debug {
-    type Space: Space<PR = Self>;
+pub trait PageResource<VM: VMBinding>: Sized + 'static {
+    type Space: Space<VM, PR = Self>;
 
     /// Allocate pages from this resource.
     /// Simply bump the cursor, and fail if we hit the sentinel.
@@ -86,15 +87,14 @@ pub trait PageResource: Sized + 'static + Debug {
         self.common_mut().space = Some(space);
     }
 
-    fn common(&self) -> &CommonPageResource<Self>;
-    fn common_mut(&mut self) -> &mut CommonPageResource<Self>;
+    fn common(&self) -> &CommonPageResource<VM, Self>;
+    fn common_mut(&mut self) -> &mut CommonPageResource<VM, Self>;
     fn vm_map(&self) -> &'static VMMap {
         self.common().space.unwrap().common().vm_map()
     }
 }
 
-#[derive(Debug)]
-pub struct CommonPageResource<PR: PageResource> {
+pub struct CommonPageResource<VM: VMBinding, PR: PageResource<VM>> {
     pub reserved: AtomicUsize,
     pub committed: AtomicUsize,
 

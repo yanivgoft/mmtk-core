@@ -16,7 +16,7 @@ use vm::VMBinding;
 #[repr(C)]
 pub struct NoGCMutator<VM: VMBinding> {
     // ImmortalLocal
-    nogc: BumpAllocator<VM, MonotonePageResource<ImmortalSpace<VM>>>,
+    nogc: BumpAllocator<VM, MonotonePageResource<VM, ImmortalSpace<VM>>>,
     los: LargeObjectAllocator<VM>,
 }
 

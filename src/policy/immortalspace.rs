@@ -16,9 +16,8 @@ use util::heap::layout::heap_layout::{VMMap, Mmapper};
 use util::heap::HeapMeta;
 use vm::VMBinding;
 
-#[derive(Debug)]
 pub struct ImmortalSpace<VM: VMBinding> {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<ImmortalSpace<VM>>>>,
+    common: UnsafeCell<CommonSpace<VM, MonotonePageResource<VM, ImmortalSpace<VM>>>>,
     mark_state: u8,
 }
 
@@ -28,12 +27,12 @@ const GC_MARK_BIT_MASK: u8 = 1;
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
 impl<VM: VMBinding> Space<VM> for ImmortalSpace<VM> {
-    type PR = MonotonePageResource<ImmortalSpace<VM>>;
+    type PR = MonotonePageResource<VM, ImmortalSpace<VM>>;
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace<VM, Self::PR> {
         unsafe {&*self.common.get()}
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<VM, Self::PR> {
         &mut *self.common.get()
     }
 
@@ -98,7 +97,7 @@ impl<VM: VMBinding> ImmortalSpace<VM> {
         trace: &mut T,
         object: ObjectReference,
     ) -> ObjectReference {
-        if ImmortalSpace::test_and_mark(object, self.mark_state) {
+        if ImmortalSpace::<VM>::test_and_mark(object, self.mark_state) {
             trace.process_node(object);
         }
         return object;

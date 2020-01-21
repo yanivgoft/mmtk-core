@@ -71,7 +71,7 @@ pub trait Plan<VM: VMBinding>: Sized {
         self.common().initialized.load(Ordering::SeqCst)
     }
 
-    fn poll<PR: PageResource>(&self, space_full: bool, space: &'static PR::Space) -> bool {
+    fn poll<PR: PageResource<VM>>(&self, space_full: bool, space: &'static PR::Space) -> bool {
         if self.collection_required::<PR>(space_full, space) {
             // FIXME
             /*if space == META_DATA_SPACE {
@@ -104,7 +104,7 @@ pub trait Plan<VM: VMBinding>: Sized {
         return false;
     }
 
-    fn log_poll<PR: PageResource>(&self, space: &'static PR::Space, message: &'static str) {
+    fn log_poll<PR: PageResource<VM>>(&self, space: &'static PR::Space, message: &'static str) {
         info!("  [POLL] {}: {}", space.get_name(), message);
     }
 
@@ -116,7 +116,7 @@ pub trait Plan<VM: VMBinding>: Sized {
      * @param space TODO
      * @return <code>true</code> if a collection is requested by the plan.
      */
-    fn collection_required<PR: PageResource>(&self, space_full: bool, space: &'static PR::Space) -> bool where Self: Sized {
+    fn collection_required<PR: PageResource<VM>>(&self, space_full: bool, space: &'static PR::Space) -> bool where Self: Sized {
         let stress_force_gc = self.stress_test_gc_required();
         trace!("self.get_pages_reserved()={}, self.get_total_pages()={}",
                self.get_pages_reserved(), self.get_total_pages());

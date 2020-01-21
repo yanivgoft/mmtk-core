@@ -29,18 +29,15 @@ const NEXT_REGION_OFFSET: isize = REGION_LIMIT_OFFSET + BYTES_IN_ADDRESS as isiz
 const DATA_END_OFFSET: isize = NEXT_REGION_OFFSET + BYTES_IN_ADDRESS as isize;
 
 #[repr(C)]
-#[derive(Derivative)]
-#[derivative(Debug)]
-pub struct BumpAllocator<VM: VMBinding, PR: PageResource> {
+pub struct BumpAllocator<VM: VMBinding, PR: PageResource<VM>> {
     pub tls: OpaquePointer,
     cursor: Address,
     limit: Address,
     space: Option<&'static PR::Space>,
-    #[derivative(Debug="ignore")]
     plan: &'static SelectedPlan<VM>,
 }
 
-impl<VM: VMBinding, PR: PageResource> BumpAllocator<VM, PR> {
+impl<VM: VMBinding, PR: PageResource<VM>> BumpAllocator<VM, PR> {
     pub fn set_limit(&mut self, cursor: Address, limit: Address) {
         self.cursor = cursor;
         self.limit = limit;
@@ -98,7 +95,7 @@ impl<VM: VMBinding, PR: PageResource> BumpAllocator<VM, PR> {
     }
 }
 
-impl<VM: VMBinding, PR: PageResource> Allocator<VM, PR> for BumpAllocator<VM, PR> {
+impl<VM: VMBinding, PR: PageResource<VM>> Allocator<VM, PR> for BumpAllocator<VM, PR> {
     fn get_space(&self) -> Option<&'static PR::Space> {
         self.space
     }
@@ -145,7 +142,7 @@ impl<VM: VMBinding, PR: PageResource> Allocator<VM, PR> for BumpAllocator<VM, PR
     }
 }
 
-impl<VM: VMBinding, PR: PageResource> BumpAllocator<VM, PR> {
+impl<VM: VMBinding, PR: PageResource<VM>> BumpAllocator<VM, PR> {
     pub fn new(tls: OpaquePointer, space: Option<&'static PR::Space>, plan: &'static SelectedPlan<VM>) -> Self {
         BumpAllocator {
             tls,

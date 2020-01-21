@@ -10,16 +10,13 @@ use ::plan::selected_plan::SelectedPlan;
 use vm::VMBinding;
 
 #[repr(C)]
-#[derive(Derivative)]
-#[derivative(Debug)]
 pub struct LargeObjectAllocator<VM: VMBinding> {
     pub tls: OpaquePointer,
     space: Option<&'static LargeObjectSpace<VM>>,
-    #[derivative(Debug="ignore")]
     plan: &'static SelectedPlan<VM>,
 }
 
-impl<VM: VMBinding> Allocator<VM, FreeListPageResource<LargeObjectSpace<VM>>> for LargeObjectAllocator<VM> {
+impl<VM: VMBinding> Allocator<VM, FreeListPageResource<VM, LargeObjectSpace<VM>>> for LargeObjectAllocator<VM> {
     fn get_tls(&self) -> OpaquePointer {
         self.tls
     }
