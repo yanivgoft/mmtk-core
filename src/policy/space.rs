@@ -25,8 +25,9 @@ use util::heap::layout::heap_layout::Mmapper;
 use plan::selected_plan::SelectedPlan;
 use util::heap::HeapMeta;
 use util::heap::space_descriptor::SpaceDescriptor;
+use vm::VMBinding;
 
-pub trait Space: Sized + Debug + 'static {
+pub trait Space<VM: VMBinding>: Sized + Debug + 'static {
     type PR: PageResource<Space = Self>;
 
     fn init(&mut self, vm_map: &'static VMMap);

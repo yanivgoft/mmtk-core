@@ -14,12 +14,12 @@ use vm::VMBinding;
 #[derivative(Debug)]
 pub struct LargeObjectAllocator<VM: VMBinding> {
     pub tls: OpaquePointer,
-    space: Option<&'static LargeObjectSpace>,
+    space: Option<&'static LargeObjectSpace<VM>>,
     #[derivative(Debug="ignore")]
     plan: &'static SelectedPlan<VM>,
 }
 
-impl<VM: VMBinding> Allocator<VM, FreeListPageResource<LargeObjectSpace>> for LargeObjectAllocator<VM> {
+impl<VM: VMBinding> Allocator<VM, FreeListPageResource<LargeObjectSpace<VM>>> for LargeObjectAllocator<VM> {
     fn get_tls(&self) -> OpaquePointer {
         self.tls
     }
@@ -27,7 +27,7 @@ impl<VM: VMBinding> Allocator<VM, FreeListPageResource<LargeObjectSpace>> for La
         self.plan
     }
 
-    fn get_space(&self) -> Option<&'static LargeObjectSpace> {
+    fn get_space(&self) -> Option<&'static LargeObjectSpace<VM>> {
         self.space
     }
 
@@ -54,7 +54,7 @@ impl<VM: VMBinding> Allocator<VM, FreeListPageResource<LargeObjectSpace>> for La
 }
 
 impl<VM: VMBinding> LargeObjectAllocator<VM> {
-    pub fn new(tls: OpaquePointer, space: Option<&'static LargeObjectSpace>, plan: &'static SelectedPlan<VM>) -> Self {
+    pub fn new(tls: OpaquePointer, space: Option<&'static LargeObjectSpace<VM>>, plan: &'static SelectedPlan<VM>) -> Self {
         LargeObjectAllocator {
             tls,
             space, plan,

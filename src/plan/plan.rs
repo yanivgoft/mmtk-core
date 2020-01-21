@@ -30,7 +30,7 @@ use mmtk::MMTK;
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
-pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace {
+pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace<VM> {
     let boot_segment_bytes = BOOT_IMAGE_END - BOOT_IMAGE_DATA_START;
     debug_assert!(boot_segment_bytes > 0);
 
@@ -41,7 +41,7 @@ pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: 
 }
 
 #[cfg(feature = "openjdk")]
-pub fn create_vm_space(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace {
+pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace<VM> {
     // FIXME: Does OpenJDK care?
     ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper, heap)
 }
