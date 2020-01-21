@@ -1,12 +1,20 @@
 use std::ptr::null_mut;
-use ::mm::memory_manager::OpenJDK_Upcalls;
+
 use vm::VMBinding;
+use util::OpaquePointer;
 
 pub mod scanning;
 pub mod collection;
 pub mod object_model;
 pub mod active_plan;
 pub mod reference_glue;
+pub mod api;
+
+#[repr(C)]
+pub struct OpenJDK_Upcalls {
+    pub stop_all_mutators: extern "C" fn(tls: OpaquePointer),
+    pub resume_mutators: extern "C" fn(tls: OpaquePointer),
+}
 
 pub static mut UPCALLS: *const OpenJDK_Upcalls = null_mut();
 

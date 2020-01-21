@@ -35,45 +35,6 @@ use crate::mmtk::SINGLETON;
 use vm::VMBinding;
 
 #[no_mangle]
-#[cfg(feature = "jikesrvm")]
-pub unsafe extern fn jikesrvm_gc_init(jtoc: *mut c_void, heap_size: usize) {
-    ::util::logger::init().unwrap();
-    JTOC_BASE = Address::from_mut_ptr(jtoc);
-    ::vm::jikesrvm::BOOT_THREAD
-        = OpaquePointer::from_address(::vm::jikesrvm::collection::VMCollection::thread_from_id(1));
-    SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
-    debug_assert!(54 == ::vm::JikesRVM::test(44));
-    debug_assert!(112 == ::vm::JikesRVM::test2(45, 67));
-    debug_assert!(731 == ::vm::JikesRVM::test3(21, 34, 9, 8));
-}
-
-#[no_mangle]
-#[cfg(not(feature = "jikesrvm"))]
-pub unsafe extern fn jikesrvm_gc_init(_jtoc: *mut c_void, _heap_size: usize) {
-    panic!("Cannot call jikesrvm_gc_init when not building for JikesRVM");
-}
-
-#[repr(C)]
-pub struct OpenJDK_Upcalls {
-    pub stop_all_mutators: extern "C" fn(tls: OpaquePointer),
-    pub resume_mutators: extern "C" fn(tls: OpaquePointer),
-}
-
-#[no_mangle]
-#[cfg(feature = "openjdk")]
-pub unsafe extern fn openjdk_gc_init(calls: *const OpenJDK_Upcalls, heap_size: usize) {
-    ::util::logger::init().unwrap();
-    UPCALLS = calls;
-    SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
-}
-
-#[no_mangle]
-#[cfg(not(feature = "openjdk"))]
-pub unsafe extern fn openjdk_gc_init(calls: *const OpenJDK_Upcalls, heap_size: usize) {
-    panic!("Cannot call openjdk_gc_init when not building for OpenJDK");
-}
-
-#[no_mangle]
 #[cfg(any(feature = "jikesrvm", feature = "openjdk"))]
 pub extern fn start_control_collector(tls: OpaquePointer) {
     SINGLETON.plan.common().control_collector_context.run(tls);
@@ -85,14 +46,15 @@ pub extern fn start_control_collector(tls: OpaquePointer) {
     panic!("Cannot call start_control_collector when not building for JikesRVM or OpenJDK");
 }
 
+#[cfg(any(feature = "jikesrvm", feature = "openjdk"))]
+pub unsafe fn gc_init(heap_size: usize) {
+    ::util::logger::init().unwrap();
+    SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
+}
+
 #[no_mangle]
+#[cfg(not(any(feature = "jikesrvm", feature = "openjdk")))]
 pub unsafe extern fn gc_init(heap_size: usize) {
-    if cfg!(feature = "jikesrvm") {
-        panic!("Should be calling jikesrvm_gc_init instead");
-    }
-    if cfg!(feature = "openjdk") {
-        panic!("Should be calling openjdk_gc_init instead");
-    }
     ::util::logger::init().unwrap();
     SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
     SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
@@ -106,14 +68,12 @@ pub extern fn bind_mutator(tls: OpaquePointer) -> *mut c_void {
     SelectedPlan::bind_mutator(&SINGLETON.plan, tls)
 }
 
-#[no_mangle]
 pub unsafe fn alloc<VM: VMBinding>(mutator: *mut c_void, size: usize,
              align: usize, offset: isize, allocator: Allocator) -> *mut c_void {
     let local = &mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT);
     local.alloc(size, align, offset, allocator).as_usize() as *mut c_void
 }
 
-#[no_mangle]
 #[inline(never)]
 pub unsafe fn alloc_slow<VM: VMBinding>(mutator: *mut c_void, size: usize,
                   align: usize, offset: isize, allocator: Allocator) -> *mut c_void {
@@ -121,15 +81,13 @@ pub unsafe fn alloc_slow<VM: VMBinding>(mutator: *mut c_void, size: usize,
     local.alloc_slow(size, align, offset, allocator).as_usize() as *mut c_void
 }
 
-#[no_mangle]
-pub extern fn post_alloc<VM: VMBinding>(mutator: *mut c_void, refer: ObjectReference, type_refer: ObjectReference,
+pub fn post_alloc<VM: VMBinding>(mutator: *mut c_void, refer: ObjectReference, type_refer: ObjectReference,
                          bytes: usize, allocator: Allocator) {
     let local = unsafe {&mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT)};
     local.post_alloc(refer, type_refer, bytes, allocator);
 }
 
-#[no_mangle]
-pub unsafe extern fn mmtk_malloc<VM: VMBinding>(size: usize) -> *mut c_void {
+pub unsafe fn mmtk_malloc<VM: VMBinding>(size: usize) -> *mut c_void {
     alloc::<VM>(null_mut(), size, 1, 0, Allocator::Default)
 }
 
@@ -146,9 +104,8 @@ pub unsafe extern fn is_valid_ref(val: ObjectReference) -> bool {
     SINGLETON.plan.is_valid_ref(val)
 }
 
-#[no_mangle]
 #[cfg(feature = "sanity")]
-pub unsafe extern fn report_delayed_root_edge<VM: VMBinding>(trace_local: *mut c_void, addr: *mut c_void) {
+pub unsafe fn report_delayed_root_edge<VM: VMBinding>(trace_local: *mut c_void, addr: *mut c_void) {
     use ::util::sanity::sanity_checker::SanityChecker;
     if SINGLETON.plan.common().is_in_sanity() {
         report_delayed_root_edge_inner::<SanityChecker>(trace_local, addr)
@@ -156,9 +113,8 @@ pub unsafe extern fn report_delayed_root_edge<VM: VMBinding>(trace_local: *mut c
         report_delayed_root_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, addr)
     }
 }
-#[no_mangle]
 #[cfg(not(feature = "sanity"))]
-pub unsafe extern fn report_delayed_root_edge<VM: VMBinding>(trace_local: *mut c_void, addr: *mut c_void) {
+pub unsafe fn report_delayed_root_edge<VM: VMBinding>(trace_local: *mut c_void, addr: *mut c_void) {
     report_delayed_root_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, addr)
 }
 unsafe fn report_delayed_root_edge_inner<T: TraceLocal>(trace_local: *mut c_void, addr: *mut c_void) {
@@ -168,9 +124,8 @@ unsafe fn report_delayed_root_edge_inner<T: TraceLocal>(trace_local: *mut c_void
     trace!("report_delayed_root_edge returned with trace_local={:?}", trace_local);
 }
 
-#[no_mangle]
 #[cfg(feature = "sanity")]
-pub unsafe extern fn will_not_move_in_current_collection<VM: VMBinding>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
+pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
     use ::util::sanity::sanity_checker::SanityChecker;
     if SINGLETON.plan.common().is_in_sanity() {
         will_not_move_in_current_collection_inner::<SanityChecker>(trace_local, obj)
@@ -178,9 +133,8 @@ pub unsafe extern fn will_not_move_in_current_collection<VM: VMBinding>(trace_lo
         will_not_move_in_current_collection_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, obj)
     }
 }
-#[no_mangle]
 #[cfg(not(feature = "sanity"))]
-pub unsafe extern fn will_not_move_in_current_collection<VM: VMBinding>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
+pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
     will_not_move_in_current_collection_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, obj)
 }
 unsafe fn will_not_move_in_current_collection_inner<T: TraceLocal>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
@@ -191,9 +145,8 @@ unsafe fn will_not_move_in_current_collection_inner<T: TraceLocal>(trace_local: 
     ret
 }
 
-#[no_mangle]
 #[cfg(feature = "sanity")]
-pub unsafe extern fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
+pub unsafe fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
     use ::util::sanity::sanity_checker::SanityChecker;
     if SINGLETON.plan.common().is_in_sanity() {
         process_interior_edge_inner::<SanityChecker>(trace_local, target, slot, root)
@@ -202,9 +155,8 @@ pub unsafe extern fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_vo
     }
     trace!("process_interior_root_edge returned with trace_local={:?}", trace_local);
 }
-#[no_mangle]
 #[cfg(not(feature = "sanity"))]
-pub unsafe extern fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
+pub unsafe fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
     process_interior_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, target, slot, root)
 }
 unsafe fn process_interior_edge_inner<T: TraceLocal>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
@@ -215,25 +167,16 @@ unsafe fn process_interior_edge_inner<T: TraceLocal>(trace_local: *mut c_void, t
     trace!("process_interior_root_edge returned with trace_local={:?}", trace_local);
 }
 
-#[no_mangle]
-pub unsafe extern fn start_worker<VM: VMBinding>(tls: OpaquePointer, worker: *mut c_void) {
+pub unsafe fn start_worker<VM: VMBinding>(tls: OpaquePointer, worker: *mut c_void) {
     let worker_instance = &mut *(worker as *mut <SelectedPlan<VM> as Plan<VM>>::CollectorT);
     worker_instance.init(tls);
     worker_instance.run(tls);
 }
 
-#[no_mangle]
-#[cfg(feature = "jikesrvm")]
-pub unsafe extern fn enable_collection<VM: VMBinding>(tls: OpaquePointer) {
+pub unsafe fn enable_collection<VM: VMBinding>(tls: OpaquePointer) {
     (&mut *SINGLETON.plan.common().control_collector_context.workers.get()).init_group(&SINGLETON, tls);
     VM::VMCollection::spawn_worker_thread::<<SelectedPlan<VM> as Plan<VM>>::CollectorT>(tls, null_mut()); // spawn controller thread
     SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
-}
-
-#[no_mangle]
-#[cfg(not(feature = "jikesrvm"))]
-pub extern fn enable_collection(size: usize) {
-    panic!("Cannot call enable_collection when not building for JikesRVM");
 }
 
 #[no_mangle]
@@ -310,32 +253,27 @@ pub unsafe extern fn scan_region(){
     ::util::sanity::memory_scan::scan_region(&SINGLETON.plan);
 }
 
-#[no_mangle]
-pub unsafe extern fn trace_get_forwarded_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
+pub unsafe fn trace_get_forwarded_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
     let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
     local.get_forwarded_reference(object)
 }
 
-#[no_mangle]
-pub unsafe extern fn trace_get_forwarded_reference<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
+pub unsafe fn trace_get_forwarded_reference<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
     let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
     local.get_forwarded_reference(object)
 }
 
-#[no_mangle]
-pub unsafe extern fn trace_is_live<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> bool{
+pub unsafe fn trace_is_live<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> bool{
     let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
     local.is_live(object)
 }
 
-#[no_mangle]
-pub unsafe extern fn trace_retain_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
+pub unsafe fn trace_retain_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
     let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
     local.retain_referent(object)
 }
 
-#[no_mangle]
-pub extern fn handle_user_collection_request<VM: VMBinding>(tls: OpaquePointer) {
+pub fn handle_user_collection_request<VM: VMBinding>(tls: OpaquePointer) {
     SINGLETON.plan.handle_user_collection_request(tls, false);
 }
 
