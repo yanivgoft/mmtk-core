@@ -4,7 +4,7 @@ use ::util::OpaquePointer;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use super::ParallelCollector;
-use ::vm::{VMCollection, Collection};
+use ::vm::Collection;
 use plan::selected_plan::SelectedPlan;
 
 use libc::c_void;

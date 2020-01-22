@@ -2,7 +2,7 @@ use ::util::Address;
 use ::util::ObjectReference;
 use ::util::conversions::*;
 
-use ::vm::{ActivePlan, VMActivePlan, Collection, VMCollection, ObjectModel, VMObjectModel};
+use ::vm::{ActivePlan, Collection, ObjectModel};
 use ::util::heap::{VMRequest, PageResource};
 use ::util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END, AVAILABLE_BYTES, LOG_BYTES_IN_CHUNK};
 use ::util::heap::layout::vm_layout_constants::{AVAILABLE_START, AVAILABLE_END};
@@ -36,7 +36,7 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
     fn acquire(&self, tls: OpaquePointer, pages: usize) -> Address {
         trace!("Space.acquire, tls={:?}", tls);
         // debug_assert!(tls != 0);
-        let allow_poll = unsafe { VMActivePlan::is_mutator(tls) } && VMActivePlan::global().is_initialized();
+        let allow_poll = unsafe { VM::VMActivePlan::is_mutator(tls) } && VM::VMActivePlan::global().is_initialized();
 
         trace!("Reserving pages");
         let pr = self.common().pr.as_ref().unwrap();
@@ -51,7 +51,7 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
         if allow_poll && VM::VMActivePlan::global().poll::<Self::PR>(false, me) {
             trace!("Collection required");
             pr.clear_request(pages_reserved);
-            VMCollection::block_for_gc(tls);
+            VM::VMCollection::block_for_gc(tls);
             unsafe { Address::zero() }
         } else {
             trace!("Collection not required");
@@ -64,7 +64,7 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
                 let gc_performed = VM::VMActivePlan::global().poll::<Self::PR>(true, me);
                 debug_assert!(gc_performed, "GC not performed when forced.");
                 pr.clear_request(pages_reserved);
-                VMCollection::block_for_gc(tls);
+                VM::VMCollection::block_for_gc(tls);
                 unsafe { Address::zero() }
             } else {
                 rtn
@@ -73,7 +73,7 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
     }
 
     fn in_space(&self, object: ObjectReference) -> bool {
-        let start = VMObjectModel::ref_to_address(object);
+        let start = VM::VMObjectModel::ref_to_address(object);
         if !self.common().descriptor.is_contiguous() {
             self.common().vm_map().get_descriptor_for_address(start) == self.common().descriptor
         } else {

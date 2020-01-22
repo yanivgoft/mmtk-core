@@ -27,6 +27,7 @@ use util::options::{Options, UnsafeOptionsWrapper};
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use mmtk::MMTK;
+use vm::VMBinding;
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
@@ -186,7 +187,7 @@ pub trait Plan<VM: VMBinding>: Sized {
         if force || !self.options().ignore_system_g_c {
             self.common().user_triggered_collection.store(true, Ordering::Relaxed);
             self.common().control_collector_context.request();
-            VMCollection::block_for_gc(tls);
+            VM::VMCollection::block_for_gc(tls);
         }
     }
 
@@ -216,7 +217,7 @@ pub trait Plan<VM: VMBinding>: Sized {
         if !self.is_valid_ref(object) {
             return false;
         }
-        if !self.mmapper().address_is_mapped(VMObjectModel::ref_to_address(object)) {
+        if !self.mmapper().address_is_mapped(VM::VMObjectModel::ref_to_address(object)) {
             return false;
         }
         true

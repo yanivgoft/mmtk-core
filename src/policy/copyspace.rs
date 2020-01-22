@@ -10,7 +10,6 @@ use ::util::{Address, ObjectReference};
 use ::plan::TransitiveClosure;
 use ::util::forwarding_word as ForwardingWord;
 use ::vm::ObjectModel;
-use ::vm::VMObjectModel;
 use ::plan::Allocator;
 
 use std::cell::UnsafeCell;
@@ -54,7 +53,7 @@ impl<VM: VMBinding> Space<VM> for CopySpace<VM> {
     }
 
     fn is_live(&self, object: ObjectReference) -> bool {
-        ForwardingWord::is_forwarded(object)
+        ForwardingWord::is_forwarded::<VM>(object)
     }
 
     fn is_movable(&self) -> bool {
@@ -96,20 +95,20 @@ impl<VM: VMBinding> CopySpace<VM> {
             return object;
         }
         trace!("attempting to forward");
-        let mut forwarding_word = ForwardingWord::attempt_to_forward(object);
+        let mut forwarding_word = ForwardingWord::attempt_to_forward::<VM>(object);
         trace!("checking if object is being forwarded");
         if ForwardingWord::state_is_forwarded_or_being_forwarded(forwarding_word) {
             trace!("... yes it is");
             while ForwardingWord::state_is_being_forwarded(forwarding_word) {
-                forwarding_word = VMObjectModel::read_available_bits_word(object);
+                forwarding_word = VM::VMObjectModel::read_available_bits_word(object);
             }
             trace!("Returning");
             return ForwardingWord::extract_forwarding_pointer(forwarding_word);
         } else {
             trace!("... no it isn't. Copying");
-            let new_object = VMObjectModel::copy(object, allocator, tls);
+            let new_object = VM::VMObjectModel::copy(object, allocator, tls);
             trace!("Setting forwarding pointer");
-            ForwardingWord::set_forwarding_pointer(object, new_object);
+            ForwardingWord::set_forwarding_pointer::<VM>(object, new_object);
             trace!("Forwarding pointer");
             trace.process_node(new_object);
             trace!("Copying [{:?} -> {:?}]", object, new_object);

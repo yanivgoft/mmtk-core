@@ -27,7 +27,7 @@ use libc::{c_void, memset};
 use std::cell::UnsafeCell;
 use std::sync::atomic::{self, AtomicBool, AtomicUsize, Ordering};
 
-use ::vm::{Scanning, VMScanning};
+use ::vm::Scanning;
 use std::thread;
 use util::conversions::bytes_to_pages;
 use plan::plan::{create_vm_space, CommonPlan};
@@ -186,11 +186,11 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
                 unsync.los.prepare(true);
             }
             &Phase::StackRoots => {
-                VMScanning::notify_initial_thread_scan_complete(false, tls);
+                VM::VMScanning::notify_initial_thread_scan_complete(false, tls);
                 self.common.set_gc_status(plan::GcStatus::GcProper);
             }
             &Phase::Roots => {
-                VMScanning::reset_thread_counter();
+                VM::VMScanning::reset_thread_counter();
                 self.common.set_gc_status(plan::GcStatus::GcProper);
             }
             &Phase::Closure => {}

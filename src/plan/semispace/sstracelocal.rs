@@ -4,7 +4,6 @@ use ::policy::space::Space;
 use ::util::{Address, ObjectReference};
 use ::util::queue::LocalQueue;
 use ::vm::Scanning;
-use ::vm::VMScanning;
 use libc::c_void;
 use super::ss;
 use util::OpaquePointer;
@@ -99,7 +98,7 @@ impl<VM: VMBinding> TraceLocal for SSTraceLocal<VM> {
         loop {
             match self.values.dequeue() {
                 Some(object) => {
-                    VMScanning::scan_object(self, object, id);
+                    VM::VMScanning::scan_object(self, object, id);
                 }
                 None => {
                     break;

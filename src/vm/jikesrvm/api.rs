@@ -88,3 +88,18 @@ pub unsafe extern fn trace_retain_referent(trace_local: *mut c_void, object: Obj
 pub extern fn handle_user_collection_request(tls: OpaquePointer) {
     memory_manager::handle_user_collection_request::<JikesRVM>(tls);
 }
+
+#[no_mangle]
+pub unsafe extern fn add_weak_candidate(reff: *mut c_void, referent: *mut c_void) {
+    memory_manager::add_weak_candidate::<JikesRVM>(reff, referent)
+}
+
+#[no_mangle]
+pub unsafe extern fn add_soft_candidate(reff: *mut c_void, referent: *mut c_void) {
+    memory_manager::add_soft_candidate::<JikesRVM>(reff, referent)
+}
+
+#[no_mangle]
+pub unsafe extern fn add_phantom_candidate(reff: *mut c_void, referent: *mut c_void) {
+    memory_manager::add_phantom_candidate::<JikesRVM>(reff, referent)
+}
