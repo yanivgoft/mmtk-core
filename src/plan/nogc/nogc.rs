@@ -20,7 +20,6 @@ use super::NoGCMutator;
 use super::NoGCCollector;
 use util::conversions::bytes_to_pages;
 use plan::plan::create_vm_space;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::ByteMapMmapper;
 
@@ -74,7 +73,7 @@ impl Plan for NoGC {
         // (Usually because it calls into VM code that accesses the TLS.)
         if !(cfg!(feature = "jikesrvm") || cfg!(feature = "openjdk")) {
             thread::spawn(|| {
-                ::plan::plan::CONTROL_COLLECTOR_CONTEXT.run(UNINITIALIZED_OPAQUE_POINTER )
+                ::plan::plan::CONTROL_COLLECTOR_CONTEXT.run(OpaquePointer::UNINITIALIZED )
             });
         }
     }

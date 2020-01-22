@@ -22,6 +22,7 @@ use std::fmt::Debug;
 use libc::c_void;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
+use plan::selected_plan::SelectedPlan;
 
 pub trait Space: Sized + Debug + 'static {
     type PR: PageResource<Space = Self>;
@@ -31,7 +32,7 @@ pub trait Space: Sized + Debug + 'static {
     fn acquire(&self, tls: OpaquePointer, pages: usize) -> Address {
         trace!("Space.acquire, tls={:?}", tls);
         // debug_assert!(tls != 0);
-        let allow_poll = unsafe { VMActivePlan::is_mutator(tls) };
+        let allow_poll = unsafe { VMActivePlan::is_mutator(tls) } && SelectedPlan::is_initialized();
 
         trace!("Reserving pages");
         let pr = self.common().pr.as_ref().unwrap();
