@@ -3,7 +3,7 @@ use ::plan::{TransitiveClosure, TraceLocal};
 use ::util::{ObjectReference, SynchronizedCounter};
 use ::util::OpaquePointer;
 use libc::c_void;
-use vm::OpenJDK;
+use vm::openjdk::OpenJDK;
 
 static COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 

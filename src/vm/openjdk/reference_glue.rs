@@ -3,7 +3,7 @@ use ::util::ObjectReference;
 use ::plan::TraceLocal;
 use ::util::OpaquePointer;
 use libc::c_void;
-use vm::OpenJDK;
+use vm::openjdk::OpenJDK;
 
 pub struct VMReferenceGlue {}
 

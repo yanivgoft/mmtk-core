@@ -9,7 +9,7 @@ use super::JTOC_BASE;
 
 use std::mem;
 use libc::c_void;
-use vm::JikesRVM;
+use vm::jikesrvm::JikesRVM;
 
 static MUTATOR_COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 

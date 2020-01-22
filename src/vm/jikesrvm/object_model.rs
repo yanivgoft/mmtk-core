@@ -23,7 +23,7 @@ use ::util::constants::{};
 use ::plan::{Allocator, CollectorContext};
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, AtomicU8, Ordering};
-use vm::JikesRVM;
+use vm::jikesrvm::JikesRVM;
 
 /** Should we gather stats on hash code state transitions for address-based hashing? */
 const HASH_STATS: bool = false;

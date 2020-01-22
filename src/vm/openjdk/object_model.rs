@@ -3,7 +3,7 @@ use ::util::{Address, ObjectReference};
 use ::plan::Allocator;
 use ::util::OpaquePointer;
 use libc::c_void;
-use vm::OpenJDK;
+use vm::openjdk::OpenJDK;
 
 pub struct VMObjectModel {}
 

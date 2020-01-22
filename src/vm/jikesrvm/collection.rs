@@ -7,6 +7,7 @@ use super::entrypoint::*;
 use super::JTOC_BASE;
 use libc::c_void;
 use util::OpaquePointer;
+use vm::jikesrvm::JikesRVM;
 
 pub static mut BOOT_THREAD: OpaquePointer = OpaquePointer::UNINITIALIZED;
 
