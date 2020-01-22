@@ -9,7 +9,7 @@ use ::util::{Address, ObjectReference};
 use ::util::alloc::Allocator;
 use ::plan::Allocator as AllocationType;
 use ::plan::plan;
-use ::vm::{Collection, VMCollection};
+use ::vm::Collection;
 use ::util::heap::{PageResource, MonotonePageResource};
 use ::util::OpaquePointer;
 
@@ -32,7 +32,7 @@ impl<VM: VMBinding> MutatorContext for SSMutator<VM> {
         match phase {
             &Phase::PrepareStacks => {
                 if !self.plan.common.stacks_prepared() {
-                    VMCollection::prepare_mutator(self.ss.tls, self);
+                    VM::VMCollection::prepare_mutator(self.ss.tls, self);
                 }
                 self.flush_remembered_sets();
             }

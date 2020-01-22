@@ -25,40 +25,10 @@ pub trait VMBinding
 pub mod jikesrvm;
 
 #[cfg(feature = "jikesrvm")]
-pub use self::jikesrvm::object_model::VMObjectModel as VMObjectModel;
-
-#[cfg(feature = "jikesrvm")]
-pub use self::jikesrvm::scanning::VMScanning as VMScanning;
-
-#[cfg(feature = "jikesrvm")]
-pub use self::jikesrvm::collection::VMCollection as VMCollection;
-
-#[cfg(feature = "jikesrvm")]
-pub use self::jikesrvm::active_plan::VMActivePlan as VMActivePlan;
-
-#[cfg(feature = "jikesrvm")]
-pub use self::jikesrvm::reference_glue::VMReferenceGlue as VMReferenceGlue;
-
-#[cfg(feature = "jikesrvm")]
 pub use self::jikesrvm::JikesRVM;
 
 #[cfg(feature = "openjdk")]
 pub mod openjdk;
 
 #[cfg(feature = "openjdk")]
-pub use self::openjdk::*;
-
-#[cfg(feature = "openjdk")]
-pub use self::openjdk::object_model::VMObjectModel as VMObjectModel;
-
-#[cfg(feature = "openjdk")]
-pub use self::openjdk::scanning::VMScanning as VMScanning;
-
-#[cfg(feature = "openjdk")]
-pub use self::openjdk::collection::VMCollection as VMCollection;
-
-#[cfg(feature = "openjdk")]
-pub use self::openjdk::active_plan::VMActivePlan as VMActivePlan;
-
-#[cfg(feature = "openjdk")]
-pub use self::openjdk::reference_glue::VMReferenceGlue as VMReferenceGlue;
+pub use self::openjdk::OpenJDK;

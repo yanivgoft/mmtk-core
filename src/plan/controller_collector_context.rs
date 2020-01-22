@@ -4,7 +4,7 @@ use std::cell::UnsafeCell;
 use std::sync::{Mutex, Condvar};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use ::vm::{Collection, VMCollection};
+use ::vm::Collection;
 
 use ::plan::{Plan, ParallelCollector};
 use ::plan::selected_plan::SelectedPlan;
@@ -59,7 +59,7 @@ impl<VM: VMBinding> ControllerCollectorContext<VM> {
             self.wait_for_request();
             debug!("[STWController: Request recieved.]");
             debug!("[STWController: Stopping the world...]");
-            VMCollection::stop_all_mutators(tls);
+            VM::VMCollection::stop_all_mutators(tls);
 
             // For heap growth logic
             // FIXME: This is not used. However, we probably want to set a 'user_triggered' flag
@@ -74,7 +74,7 @@ impl<VM: VMBinding> ControllerCollectorContext<VM> {
             workers.wait_for_cycle();
             debug!("[STWController: Worker threads complete!]");
             debug!("[STWController: Resuming mutators...]");
-            VMCollection::resume_mutators(tls);
+            VM::VMCollection::resume_mutators(tls);
         }
     }
 

@@ -7,7 +7,7 @@ use ::util::address::Address;
 use ::util::ObjectReference;
 use ::util::constants::CARD_META_PAGES_PER_REGION;
 
-use ::vm::{ObjectModel, VMObjectModel};
+use ::vm::ObjectModel;
 use ::plan::TransitiveClosure;
 use ::util::header_byte;
 
@@ -76,15 +76,15 @@ impl<VM: VMBinding> ImmortalFreeListSpace<VM> {
     }
 
     fn test_and_mark(object: ObjectReference, value: u8) -> bool {
-        let mut old_value = VMObjectModel::prepare_available_bits(object);
+        let mut old_value = VM::VMObjectModel::prepare_available_bits(object);
         let mut mark_bit = (old_value as u8) & GC_MARK_BIT_MASK;
         if mark_bit == value {
             return false;
         }
-        while !VMObjectModel::attempt_available_bits(object,
+        while !VM::VMObjectModel::attempt_available_bits(object,
                                                      old_value,
                                                      old_value ^ (GC_MARK_BIT_MASK as usize)) {
-            old_value = VMObjectModel::prepare_available_bits(object);
+            old_value = VM::VMObjectModel::prepare_available_bits(object);
             mark_bit = (old_value as u8) & GC_MARK_BIT_MASK;
             if mark_bit == value {
                 return false;
@@ -105,12 +105,12 @@ impl<VM: VMBinding> ImmortalFreeListSpace<VM> {
     }
 
     pub fn initialize_header(&self, object: ObjectReference) {
-        let old_value = VMObjectModel::read_available_byte(object);
+        let old_value = VM::VMObjectModel::read_available_byte(object);
         let mut new_value = (old_value & GC_MARK_BIT_MASK) | self.mark_state;
         if header_byte::NEEDS_UNLOGGED_BIT {
             new_value = new_value | header_byte::UNLOGGED_BIT;
         }
-        VMObjectModel::write_available_byte(object, new_value);
+        VM::VMObjectModel::write_available_byte(object, new_value);
     }
 
     pub fn prepare(&mut self) {

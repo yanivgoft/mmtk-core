@@ -8,7 +8,7 @@ use libc::c_void;
 
 use ::util::constants::*;
 use ::util::heap::PageResource;
-use ::vm::{ActivePlan, VMActivePlan, Collection, VMCollection};
+use ::vm::{ActivePlan, Collection};
 use ::plan::MutatorContext;
 use ::plan::selected_plan::SelectedPlan;
 use ::plan::Plan;
@@ -140,7 +140,7 @@ pub trait Allocator<VM: VMBinding, PR: PageResource<VM>> {
             // Try to allocate using the slow path
             let result = self.alloc_slow_once(size, align, offset);
 
-            if unsafe { !VMActivePlan::is_mutator(tls) } {
+            if unsafe { !VM::VMActivePlan::is_mutator(tls) } {
                 debug_assert!(!result.is_zero());
                 return result;
             }
@@ -173,7 +173,7 @@ pub trait Allocator<VM: VMBinding, PR: PageResource<VM>> {
                 drop(guard);
                 trace!("fail with oom={}", fail_with_oom);
                 if fail_with_oom {
-                    VMCollection::out_of_memory(tls);
+                    VM::VMCollection::out_of_memory(tls);
                     trace!("Not reached");
                 }
             }

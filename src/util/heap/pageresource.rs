@@ -1,6 +1,6 @@
 use ::util::address::Address;
 use ::policy::space::Space;
-use ::vm::{ActivePlan, VMActivePlan};
+use ::vm::ActivePlan;
 use ::util::OpaquePointer;
 
 use std::marker::PhantomData;
@@ -70,7 +70,7 @@ pub trait PageResource<VM: VMBinding>: Sized + 'static {
         let delta = actual_pages - reserved_pages;
         self.common().reserved.fetch_add(delta, Ordering::Relaxed);
         self.common().committed.fetch_add(actual_pages, Ordering::Relaxed);
-        if unsafe{VMActivePlan::is_mutator(tls)} {
+        if unsafe{VM::VMActivePlan::is_mutator(tls)} {
             self.vm_map().add_to_cumulative_committed_pages(actual_pages);
         }
     }

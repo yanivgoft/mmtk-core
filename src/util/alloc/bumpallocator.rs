@@ -7,7 +7,6 @@ use ::util::alloc::linear_scan::LinearScan;
 use ::util::alloc::dump_linear_scan::DumpLinearScan;
 
 use ::vm::ObjectModel;
-use ::vm::VMObjectModel;
 
 use std::marker::PhantomData;
 
@@ -66,7 +65,7 @@ impl<VM: VMBinding, PR: PageResource<VM>> BumpAllocator<VM, PR> {
         let current_limit = if end.is_zero() { self.cursor } else { end };
 
         let mut current: ObjectReference = unsafe {
-            VMObjectModel::get_object_from_start_address(start)
+            VM::VMObjectModel::get_object_from_start_address(start)
         };
 
         println!("start: {}, first object: {}", start, current);
@@ -74,9 +73,9 @@ impl<VM: VMBinding, PR: PageResource<VM>> BumpAllocator<VM, PR> {
         /* Loop through each object up to the limit */
         loop {
             /* Read end address first, as scan may be destructive */
-            let current_object_end: Address = VMObjectModel::get_object_end_address(current);
+            let current_object_end: Address = VM::VMObjectModel::get_object_end_address(current);
             println!("current object: {} end: {}", current, current_object_end);
-            scanner.scan(current);
+            scanner.scan::<VM>(current);
             if current_object_end > current_limit {
                 /* We have scanned the last object */
                 break;
@@ -84,7 +83,7 @@ impl<VM: VMBinding, PR: PageResource<VM>> BumpAllocator<VM, PR> {
 
             /* Find the next object from the start address (dealing with alignment gaps, etc.) */
             let next: ObjectReference = unsafe {
-                VMObjectModel::get_object_from_start_address(current_object_end)
+                VM::VMObjectModel::get_object_from_start_address(current_object_end)
             };
             println!("next object: {}", next);
             /* Must be monotonically increasing */

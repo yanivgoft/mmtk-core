@@ -14,7 +14,7 @@ use ::util::alloc::{BumpAllocator, LargeObjectAllocator};
 use ::util::forwarding_word::clear_forwarding_bits;
 use ::util::heap::{MonotonePageResource, PageResource};
 use ::util::reference_processor::*;
-use ::vm::{Scanning, VMScanning};
+use ::vm::Scanning;
 use libc::c_void;
 use super::sstracelocal::SSTraceLocal;
 use ::plan::selected_plan::SelectedConstraints;
@@ -89,31 +89,31 @@ impl<VM: VMBinding> CollectorContext<VM> for SSCollector<VM> {
             &Phase::Prepare => { self.ss.rebind(Some(self.plan.tospace())) }
             &Phase::StackRoots => {
                 trace!("Computing thread roots");
-                VMScanning::compute_thread_roots(&mut self.trace, self.tls);
+                VM::VMScanning::compute_thread_roots(&mut self.trace, self.tls);
                 trace!("Thread roots complete");
             }
             &Phase::Roots => {
                 trace!("Computing global roots");
-                VMScanning::compute_global_roots(&mut self.trace, self.tls);
+                VM::VMScanning::compute_global_roots(&mut self.trace, self.tls);
                 trace!("Computing static roots");
-                VMScanning::compute_static_roots(&mut self.trace, self.tls);
+                VM::VMScanning::compute_static_roots(&mut self.trace, self.tls);
                 trace!("Finished static roots");
                 if super::ss::SCAN_BOOT_IMAGE {
                     trace!("Scanning boot image");
-                    VMScanning::compute_bootimage_roots(&mut self.trace, self.tls);
+                    VM::VMScanning::compute_bootimage_roots(&mut self.trace, self.tls);
                     trace!("Finished boot image");
                 }
             }
             &Phase::SoftRefs => {
                 if primary {
                     // FIXME Clear refs if noReferenceTypes is true
-                    self.reference_processors.scan_soft_refs(&mut self.trace, self.tls)
+                    self.reference_processors.scan_soft_refs::<VM, SSTraceLocal<VM>>(&mut self.trace, self.tls)
                 }
             }
             &Phase::WeakRefs => {
                 if primary {
                     // FIXME Clear refs if noReferenceTypes is true
-                    self.reference_processors.scan_weak_refs(&mut self.trace, self.tls)
+                    self.reference_processors.scan_weak_refs::<VM, SSTraceLocal<VM>>(&mut self.trace, self.tls)
                 }
             }
             &Phase::Finalizable => {
@@ -124,12 +124,12 @@ impl<VM: VMBinding> CollectorContext<VM> for SSCollector<VM> {
             &Phase::PhantomRefs => {
                 if primary {
                     // FIXME Clear refs if noReferenceTypes is true
-                    self.reference_processors.scan_phantom_refs(&mut self.trace, self.tls)
+                    self.reference_processors.scan_phantom_refs::<VM, SSTraceLocal<VM>>(&mut self.trace, self.tls)
                 }
             }
             &Phase::ForwardRefs => {
                 if primary && SelectedConstraints::NEEDS_FORWARD_AFTER_LIVENESS {
-                    self.reference_processors.forward_refs(&mut self.trace)
+                    self.reference_processors.forward_refs::<VM, SSTraceLocal<VM>>(&mut self.trace)
                 }
             }
             &Phase::ForwardFinalizable => {
@@ -158,7 +158,7 @@ impl<VM: VMBinding> CollectorContext<VM> for SSCollector<VM> {
     }
 
     fn post_copy(&self, object: ObjectReference, rvm_type: Address, bytes: usize, allocator: ::plan::Allocator) {
-        clear_forwarding_bits(object);
+        clear_forwarding_bits::<VM>(object);
         match allocator {
             ::plan::Allocator::Default => {}
             ::plan::Allocator::Los => {
@@ -180,7 +180,7 @@ impl<VM: VMBinding> ParallelCollector<VM> for SSCollector<VM> {
 
     fn collect(&self) {
         // FIXME use reference instead of cloning everything
-        self.phase_manager.begin_new_phase_stack(self.tls, ScheduledPhase::new(phase::Schedule::Complex, self.phase_manager.collection_phase.clone()))
+        self.phase_manager.begin_new_phase_stack::<VM>(self.tls, ScheduledPhase::new(phase::Schedule::Complex, self.phase_manager.collection_phase.clone()))
     }
 
     fn get_current_trace(&mut self) -> &mut SSTraceLocal<VM> {

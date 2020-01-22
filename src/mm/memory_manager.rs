@@ -13,7 +13,7 @@ use ::plan::TraceLocal;
 use ::plan::CollectorContext;
 use ::plan::ParallelCollectorGroup;
 
-use ::vm::{Collection, VMCollection};
+use ::vm::Collection;
 
 #[cfg(feature = "jikesrvm")]
 use ::vm::jikesrvm::JTOC_BASE;
@@ -294,23 +294,20 @@ pub extern fn modify_check(object: ObjectReference) {
     SINGLETON.plan.modify_check(object);
 }
 
-#[no_mangle]
-pub unsafe extern fn add_weak_candidate(reff: *mut c_void, referent: *mut c_void) {
-    SINGLETON.reference_processors.add_weak_candidate(
+pub unsafe fn add_weak_candidate<VM: VMBinding>(reff: *mut c_void, referent: *mut c_void) {
+    SINGLETON.reference_processors.add_weak_candidate::<VM>(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }
 
-#[no_mangle]
-pub unsafe extern fn add_soft_candidate(reff: *mut c_void, referent: *mut c_void) {
-    SINGLETON.reference_processors.add_soft_candidate(
+pub unsafe fn add_soft_candidate<VM: VMBinding>(reff: *mut c_void, referent: *mut c_void) {
+    SINGLETON.reference_processors.add_soft_candidate::<VM>(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }
 
-#[no_mangle]
-pub unsafe extern fn add_phantom_candidate(reff: *mut c_void, referent: *mut c_void) {
-    SINGLETON.reference_processors.add_phantom_candidate(
+pub unsafe fn add_phantom_candidate<VM: VMBinding>(reff: *mut c_void, referent: *mut c_void) {
+    SINGLETON.reference_processors.add_phantom_candidate::<VM>(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }

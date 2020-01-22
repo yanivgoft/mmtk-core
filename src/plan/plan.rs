@@ -6,7 +6,7 @@ use std::sync::atomic::{self, AtomicUsize, AtomicBool, Ordering};
 use ::util::OpaquePointer;
 use ::policy::space::Space;
 use ::util::heap::PageResource;
-use ::vm::{Collection, VMCollection, ActivePlan, VMActivePlan};
+use ::vm::Collection;
 use super::controller_collector_context::ControllerCollectorContext;
 use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
 use util::constants::LOG_BYTES_IN_MBYTE;
@@ -27,7 +27,7 @@ use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
 use std::sync::Mutex;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
-use vm::{VMObjectModel, ObjectModel, VMBinding};
+use vm::{ObjectModel, VMBinding};
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
@@ -187,7 +187,7 @@ pub trait Plan<VM: VMBinding>: Sized {
         if force || !self.options().ignore_system_g_c {
             self.common().user_triggered_collection.store(true, Ordering::Relaxed);
             self.common().control_collector_context.request();
-            VMCollection::block_for_gc(tls);
+            VM::VMCollection::block_for_gc(tls);
         }
     }
 
@@ -217,7 +217,7 @@ pub trait Plan<VM: VMBinding>: Sized {
         if !self.is_valid_ref(object) {
             return false;
         }
-        if !self.mmapper().address_is_mapped(VMObjectModel::ref_to_address(object)) {
+        if !self.mmapper().address_is_mapped(VM::VMObjectModel::ref_to_address(object)) {
             return false;
         }
         true

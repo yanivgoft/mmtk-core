@@ -7,7 +7,7 @@ use ::util::constants::BYTES_IN_PAGE;
 use ::util::header_byte;
 use ::util::heap::{FreeListPageResource, PageResource, VMRequest};
 use ::util::treadmill::TreadMill;
-use ::vm::{ObjectModel, VMObjectModel};
+use ::vm::ObjectModel;
 use util::heap::layout::heap_layout::{VMMap, Mmapper};
 use util::heap::HeapMeta;
 use vm::VMBinding;
@@ -114,7 +114,7 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
         let nursery_object = self.is_in_nursery(object);
         if !self.in_nursery_GC || nursery_object {
             if self.test_and_mark(object, self.mark_state) {
-                let cell = VMObjectModel::object_start_ref(object);
+                let cell = VM::VMObjectModel::object_start_ref(object);
                 self.treadmill.copy(cell, nursery_object);
                 trace.process_node(object);
             }
@@ -123,7 +123,7 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
     }
 
     pub fn initialize_header(&self, object: ObjectReference, alloc: bool) {
-        let old_value = VMObjectModel::read_available_byte(object);
+        let old_value = VM::VMObjectModel::read_available_byte(object);
         let mut new_value = (old_value & (!LOS_BIT_MASK)) | self.mark_state;
         if alloc {
             new_value = new_value | NURSERY_BIT;
@@ -131,8 +131,8 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
         if header_byte::NEEDS_UNLOGGED_BIT {
             new_value = new_value | header_byte::UNLOGGED_BIT;
         }
-        VMObjectModel::write_available_byte(object, new_value);
-        let cell = VMObjectModel::object_start_ref(object);
+        VM::VMObjectModel::write_available_byte(object, new_value);
+        let cell = VM::VMObjectModel::object_start_ref(object);
         self.treadmill.add_to_treadmill(cell, alloc);
     }
 
@@ -142,16 +142,16 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
         } else {
             MARK_BIT
         };
-        let mut old_value = VMObjectModel::prepare_available_bits(object);
+        let mut old_value = VM::VMObjectModel::prepare_available_bits(object);
         let mut mark_bit = (old_value as u8) & mask;
         if mark_bit == value {
             return false;
         }
-        while !VMObjectModel::attempt_available_bits(
+        while !VM::VMObjectModel::attempt_available_bits(
             object,
             old_value,
             old_value & (!LOS_BIT_MASK as usize) | value as usize) {
-            old_value = VMObjectModel::prepare_available_bits(object);
+            old_value = VM::VMObjectModel::prepare_available_bits(object);
             mark_bit = (old_value as u8) & mask;
             if mark_bit == value {
                 return false;
@@ -161,11 +161,11 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
     }
 
     fn test_mark_bit(&self, object: ObjectReference, value: u8) -> bool {
-        VMObjectModel::read_available_byte(object) & MARK_BIT == value
+        VM::VMObjectModel::read_available_byte(object) & MARK_BIT == value
     }
 
     fn is_in_nursery(&self, object: ObjectReference) -> bool {
-        VMObjectModel::read_available_byte(object) & NURSERY_BIT == NURSERY_BIT
+        VM::VMObjectModel::read_available_byte(object) & NURSERY_BIT == NURSERY_BIT
     }
 }
 
