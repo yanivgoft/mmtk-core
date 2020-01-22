@@ -24,11 +24,6 @@ pub trait VMBinding
 #[cfg(feature = "jikesrvm")]
 pub mod jikesrvm;
 
-#[cfg(feature = "jikesrvm")]
-pub use self::jikesrvm::JikesRVM;
-
 #[cfg(feature = "openjdk")]
 pub mod openjdk;
 
-#[cfg(feature = "openjdk")]
-pub use self::openjdk::OpenJDK;

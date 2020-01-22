@@ -8,7 +8,7 @@ use super::JTOC_BASE;
 use libc::c_void;
 use util::OpaquePointer;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
-use vm::JikesRVM;
+use vm::jikesrvm::JikesRVM;
 
 pub static mut BOOT_THREAD: OpaquePointer = UNINITIALIZED_OPAQUE_POINTER;
 

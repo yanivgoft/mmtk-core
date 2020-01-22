@@ -7,7 +7,7 @@ use ::util::reference_processor::*;
 use ::util::OpaquePointer;
 
 use libc::c_void;
-use vm::JikesRVM;
+use vm::jikesrvm::JikesRVM;
 
 pub struct VMReferenceGlue {}
 

@@ -5,7 +5,7 @@ use ::util::OpaquePointer;
 use super::UPCALLS;
 
 use libc::c_void;
-use vm::OpenJDK;
+use vm::openjdk::OpenJDK;
 
 pub struct VMCollection {}
 

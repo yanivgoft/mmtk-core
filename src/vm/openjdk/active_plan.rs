@@ -2,7 +2,7 @@ use ::plan::{Plan, SelectedPlan};
 use super::super::ActivePlan;
 use ::util::OpaquePointer;
 use libc::c_void;
-use vm::OpenJDK;
+use vm::openjdk::OpenJDK;
 
 pub struct VMActivePlan<> {}
 

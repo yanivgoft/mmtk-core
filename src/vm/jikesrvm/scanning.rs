@@ -22,7 +22,7 @@ use ::vm::unboxed_size_constants::BYTES_IN_ADDRESS;
 use ::util::OpaquePointer;
 
 use libc::c_void;
-use vm::{VMBinding, JikesRVM};
+use vm::jikesrvm::JikesRVM;
 
 static COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 
