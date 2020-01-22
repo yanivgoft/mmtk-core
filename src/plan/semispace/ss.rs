@@ -18,7 +18,7 @@ use ::util::ObjectReference;
 use ::util::alloc::allocator::determine_collection_attempts;
 use ::util::sanity::sanity_checker::SanityChecker;
 use ::util::sanity::memory_scan;
-use ::util::heap::layout::Mmapper;
+use ::util::heap::layout::Mmapper as IMmapper;
 use ::util::Address;
 use ::util::heap::PageResource;
 use ::util::heap::VMRequest;
@@ -36,7 +36,7 @@ use util::conversions::bytes_to_pages;
 use plan::plan::create_vm_space;
 use plan::plan::EMERGENCY_COLLECTION;
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
+use util::heap::layout::heap_layout::Mmapper;
 
 pub type SelectedPlan = SemiSpace;
 
@@ -55,7 +55,7 @@ pub struct SemiSpaceUnsync {
     pub copyspace1: CopySpace,
     pub versatile_space: ImmortalSpace,
     pub los: LargeObjectSpace,
-    pub mmapper: &'static ByteMapMmapper,
+    pub mmapper: &'static Mmapper,
     // FIXME: This should be inside HeapGrowthManager
     total_pages: usize,
 
@@ -69,7 +69,7 @@ impl Plan for SemiSpace {
     type TraceLocalT = SSTraceLocal;
     type CollectorT = SSCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self {
         SemiSpace {
             unsync: UnsafeCell::new(SemiSpaceUnsync {
                 hi: false,
@@ -108,7 +108,7 @@ impl Plan for SemiSpace {
         }
     }
 
-    fn mmapper(&self) -> &'static ByteMapMmapper {
+    fn mmapper(&self) -> &'static Mmapper {
         let unsync = unsafe { &*self.unsync.get() };
         unsync.mmapper
     }

@@ -23,7 +23,6 @@ use std::sync::atomic::Ordering;
 
 use libc::{c_void, memset};
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
 
 const SPACE_ALIGN: usize = 1 << 19;
 

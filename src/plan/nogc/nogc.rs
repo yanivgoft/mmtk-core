@@ -5,7 +5,7 @@ use ::plan::controller_collector_context::ControllerCollectorContext;
 use ::plan::{Plan, Phase};
 use ::util::ObjectReference;
 use ::util::heap::VMRequest;
-use ::util::heap::layout::Mmapper;
+use ::util::heap::layout::Mmapper as IMmapper;
 use ::util::Address;
 use ::util::OpaquePointer;
 
@@ -21,7 +21,7 @@ use super::NoGCCollector;
 use util::conversions::bytes_to_pages;
 use plan::plan::create_vm_space;
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
+use util::heap::layout::heap_layout::Mmapper;
 
 pub type SelectedPlan = NoGC;
 
@@ -36,7 +36,7 @@ pub struct NoGCUnsync {
     vm_space: ImmortalSpace,
     pub space: ImmortalSpace,
     pub los: LargeObjectSpace,
-    pub mmapper: &'static ByteMapMmapper,
+    pub mmapper: &'static Mmapper,
     pub total_pages: usize,
 }
 
@@ -45,7 +45,7 @@ impl Plan for NoGC {
     type TraceLocalT = NoGCTraceLocal;
     type CollectorT = NoGCCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self {
         NoGC {
             control_collector_context: ControllerCollectorContext::new(),
             unsync: UnsafeCell::new(NoGCUnsync {
@@ -78,7 +78,7 @@ impl Plan for NoGC {
         }
     }
 
-    fn mmapper(&self) -> &'static ByteMapMmapper {
+    fn mmapper(&self) -> &'static Mmapper {
         let unsync = unsafe { &*self.unsync.get() };
         unsync.mmapper
     }

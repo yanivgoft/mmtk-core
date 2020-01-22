@@ -10,8 +10,3 @@ pub type VMMap = Map32;
 pub type VMMap = Map32;
 
 pub type Mmapper = ByteMapMmapper;
-
-lazy_static! {
-//    pub static ref MMAPPER: ByteMapMmapper = ByteMapMmapper::new();
-//    pub static ref VM_MAP: Map32 = Map32::new();
-}

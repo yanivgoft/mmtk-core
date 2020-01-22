@@ -25,7 +25,6 @@ use util::statistics::counter::MonotoneNanoTime;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
 use util::heap::layout::Mmapper as IMmapper;
-use util::heap::layout::ByteMapMmapper;
 
 pub static EMERGENCY_COLLECTION: AtomicBool = AtomicBool::new(false);
 pub static USER_TRIGGERED_COLLECTION: AtomicBool = AtomicBool::new(false);
@@ -57,7 +56,7 @@ pub trait Plan: Sized {
     type TraceLocalT: TraceLocal;
     type CollectorT: ParallelCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper) -> Self;
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self;
     fn mmapper(&self) -> &'static Mmapper;
     // unsafe because this can only be called once by the init thread
     unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
