@@ -45,6 +45,13 @@ lazy_static! {
     pub static ref SINGLETON: MMTK<OpenJDK> = MMTK::new(&VM_MAP, &MMAPPER);
 }
 
+#[cfg(feature = "dummyvm")]
+use vm::dummyvm::DummyVM;
+#[cfg(feature = "dummyvm")]
+lazy_static! {
+    pub static ref SINGLETON: MMTK<DummyVM> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+}
+
 pub struct MMTK<VM: VMBinding> {
     pub plan: SelectedPlan<VM>,
     pub phase_manager: PhaseManager,
