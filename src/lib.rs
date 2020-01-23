@@ -30,4 +30,3 @@ mod mm;
 mod mmtk;
 
 pub use mm::memory_manager::*;
-pub use mm::test::*;

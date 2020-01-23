@@ -94,3 +94,16 @@ pub unsafe extern fn add_phantom_candidate(reff: *mut c_void, referent: *mut c_v
     memory_manager::add_phantom_candidate::<OpenJDK>(reff, referent)
 }
 
+use ::mmtk::SINGLETON;
+use plan::Plan;
+use util::constants::LOG_BYTES_IN_PAGE;
+
+#[no_mangle]
+pub extern fn openjdk_max_capacity() -> usize {
+    SINGLETON.plan.get_total_pages() << LOG_BYTES_IN_PAGE
+}
+
+#[no_mangle]
+pub extern fn executable() -> bool {
+    true
+}

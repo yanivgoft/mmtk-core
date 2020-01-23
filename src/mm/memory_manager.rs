@@ -15,12 +15,6 @@ use ::plan::ParallelCollectorGroup;
 
 use ::vm::Collection;
 
-#[cfg(feature = "jikesrvm")]
-use ::vm::jikesrvm::JTOC_BASE;
-
-#[cfg(feature = "openjdk")]
-use ::vm::openjdk::UPCALLS;
-
 use ::util::{Address, ObjectReference};
 
 use ::plan::selected_plan;
@@ -35,25 +29,11 @@ use crate::mmtk::SINGLETON;
 use vm::VMBinding;
 
 #[no_mangle]
-#[cfg(any(feature = "jikesrvm", feature = "openjdk"))]
 pub extern fn start_control_collector(tls: OpaquePointer) {
     SINGLETON.plan.common().control_collector_context.run(tls);
 }
 
 #[no_mangle]
-#[cfg(not(any(feature = "jikesrvm", feature = "openjdk")))]
-pub extern fn start_control_collector(tls: OpaquePointer) {
-    panic!("Cannot call start_control_collector when not building for JikesRVM or OpenJDK");
-}
-
-#[cfg(any(feature = "jikesrvm", feature = "openjdk"))]
-pub unsafe fn gc_init(heap_size: usize) {
-    ::util::logger::init().unwrap();
-    SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
-}
-
-#[no_mangle]
-#[cfg(not(any(feature = "jikesrvm", feature = "openjdk")))]
 pub unsafe extern fn gc_init(heap_size: usize) {
     ::util::logger::init().unwrap();
     SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
@@ -190,22 +170,13 @@ pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
 }
 
 #[no_mangle]
-#[cfg(feature = "openjdk")]
 pub extern fn used_bytes() -> usize {
     SINGLETON.plan.get_pages_used() << LOG_BYTES_IN_PAGE
 }
 
-
 #[no_mangle]
 pub extern fn free_bytes() -> usize {
     SINGLETON.plan.get_free_pages() << LOG_BYTES_IN_PAGE
-}
-
-
-#[no_mangle]
-#[cfg(not(feature = "openjdk"))]
-pub extern fn used_bytes() -> usize {
-    panic!("Cannot call used_bytes when not building for OpenJDK");
 }
 
 #[no_mangle]
@@ -221,30 +192,6 @@ pub extern fn last_heap_address() -> *mut c_void {
 #[no_mangle]
 pub extern fn total_bytes() -> usize {
     SINGLETON.plan.get_total_pages() << LOG_BYTES_IN_PAGE
-}
-
-#[no_mangle]
-#[cfg(feature = "openjdk")]
-pub extern fn openjdk_max_capacity() -> usize {
-    SINGLETON.plan.get_total_pages() << LOG_BYTES_IN_PAGE
-}
-
-#[no_mangle]
-#[cfg(not(feature = "openjdk"))]
-pub extern fn openjdk_max_capacity() -> usize {
-    panic!("Cannot call max_capacity when not building for OpenJDK");
-}
-
-#[no_mangle]
-#[cfg(feature = "openjdk")]
-pub extern fn executable() -> bool {
-    true
-}
-
-#[no_mangle]
-#[cfg(not(feature = "openjdk"))]
-pub extern fn executable() -> bool {
-    panic!("Cannot call executable when not building for OpenJDK")
 }
 
 #[no_mangle]
