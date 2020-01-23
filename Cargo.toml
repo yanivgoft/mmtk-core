@@ -19,7 +19,7 @@ num_cpus = "1.8"
 derivative = "1.0.3"
 
 [features]
-default = []
+default = ["nogc", "dummyvm"]
 nogc = []
 semispace = []
 jikesrvm = []
