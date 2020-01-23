@@ -47,6 +47,11 @@ pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static 
     ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper, heap)
 }
 
+#[cfg(feature = "dummyvm")]
+pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace<VM> {
+    ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper, heap)
+}
+
 pub trait Plan<VM: VMBinding>: Sized {
     type MutatorT: MutatorContext;
     type TraceLocalT: TraceLocal;

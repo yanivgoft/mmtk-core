@@ -27,3 +27,5 @@ pub mod jikesrvm;
 #[cfg(feature = "openjdk")]
 pub mod openjdk;
 
+#[cfg(feature = "dummyvm")]
+pub mod dummyvm;
