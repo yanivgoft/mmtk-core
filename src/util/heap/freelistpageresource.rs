@@ -14,7 +14,7 @@ use util::generic_freelist::GenericFreeList;
 // FIXME: Use `RawMemoryFreeList` for 64-bit machines
 use util::int_array_freelist::IntArrayFreeList as FreeList;
 use util::heap::layout::vm_layout_constants::*;
-use util::heap::layout::{heap_layout, ByteMapMmapper};
+use util::heap::layout::heap_layout;
 use util::conversions;
 use util::constants::*;
 use util::OpaquePointer;

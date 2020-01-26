@@ -24,7 +24,6 @@ use util::statistics::counter::MonotoneNanoTime;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
 use util::heap::layout::Mmapper as IMmapper;
-use util::heap::layout::ByteMapMmapper;
 use util::options::Options;
 
 pub static EMERGENCY_COLLECTION: AtomicBool = AtomicBool::new(false);
@@ -57,7 +56,7 @@ pub trait Plan: Sized {
     type TraceLocalT: TraceLocal;
     type CollectorT: ParallelCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self;
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options) -> Self;
     fn mmapper(&self) -> &'static Mmapper;
     fn options(&self) -> &'static Options;
     // unsafe because this can only be called once by the init thread
@@ -67,7 +66,7 @@ pub trait Plan: Sized {
     // unsafe because only the primary collector thread can call this
     unsafe fn collection_phase(&self, tls: OpaquePointer, phase: &Phase);
 
-    fn is_initialized(&self) -> bool {
+    fn is_initialized() -> bool {
         INITIALIZED.load(Ordering::SeqCst)
     }
 

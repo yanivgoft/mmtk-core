@@ -5,7 +5,7 @@ use ::plan::controller_collector_context::ControllerCollectorContext;
 use ::plan::{Plan, Phase};
 use ::util::ObjectReference;
 use ::util::heap::VMRequest;
-use ::util::heap::layout::Mmapper;
+use ::util::heap::layout::Mmapper as IMmapper;
 use ::util::Address;
 use ::util::OpaquePointer;
 
@@ -20,9 +20,8 @@ use super::NoGCMutator;
 use super::NoGCCollector;
 use util::conversions::bytes_to_pages;
 use plan::plan::create_vm_space;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
+use util::heap::layout::heap_layout::Mmapper;
 use util::options::Options;
 
 pub type SelectedPlan = NoGC;
@@ -38,7 +37,7 @@ pub struct NoGCUnsync {
     vm_space: ImmortalSpace,
     pub space: ImmortalSpace,
     pub los: LargeObjectSpace,
-    pub mmapper: &'static ByteMapMmapper,
+    pub mmapper: &'static Mmapper,
     pub options: &'static Options,
     pub total_pages: usize,
 }
@@ -77,12 +76,12 @@ impl Plan for NoGC {
         // (Usually because it calls into VM code that accesses the TLS.)
         if !(cfg!(feature = "jikesrvm") || cfg!(feature = "openjdk")) {
             thread::spawn(|| {
-                ::plan::plan::CONTROL_COLLECTOR_CONTEXT.run(UNINITIALIZED_OPAQUE_POINTER )
+                ::plan::plan::CONTROL_COLLECTOR_CONTEXT.run(OpaquePointer::UNINITIALIZED )
             });
         }
     }
 
-    fn mmapper(&self) -> &'static ByteMapMmapper {
+    fn mmapper(&self) -> &'static Mmapper {
         let unsync = unsafe { &*self.unsync.get() };
         unsync.mmapper
     }

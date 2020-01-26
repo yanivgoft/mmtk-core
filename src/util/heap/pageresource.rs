@@ -10,7 +10,6 @@ use std::fmt::Debug;
 
 use libc::c_void;
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
 
 static CUMULATIVE_COMMITTED: AtomicUsize = AtomicUsize::new(0);
 

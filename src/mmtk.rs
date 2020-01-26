@@ -3,28 +3,31 @@ use crate::plan::SelectedPlan;
 use crate::plan::phase::PhaseManager;
 use crate::util::heap::layout::heap_layout::VMMap;
 use crate::util::heap::layout::heap_layout::Mmapper;
-use crate::util::ReferenceProcessor;
-use crate::util::ObjectReference;
-use crate::util::OpaquePointer;
-use crate::plan::TraceLocal;
 
-use std::sync::Arc;
 use std::default::Default;
 use util::reference_processor::{Semantics, ReferenceProcessors};
 use util::options::{UnsafeOptionsWrapper, Options};
 use std::sync::atomic::{Ordering, AtomicBool};
 
 use util::statistics::stats::STATS;
+use util::OpaquePointer;
 
 // TODO: remove this singleton at some point to allow multiple instances of MMTK
 // This helps refactoring.
 lazy_static!{
-    // possible global
+    // I am not sure if we should include these mmappers as part of MMTk struct.
+    // The considerations are:
+    // 1. We need VMMap and Mmapper to create spaces. It is natural that the mappers are not
+    //    part of MMTK, as creating MMTK requires these mappers. We could use Rc/Arc for these mappers though.
+    // 2. These mmappers are possibly global across multiple MMTk instances, as they manage the
+    //    entire address space.
+    // TODO: We should refactor this when we know more about how multiple MMTK instances work.
     pub static ref VM_MAP: VMMap = VMMap::new();
     pub static ref MMAPPER: Mmapper = Mmapper::new();
 
-    // This is a temporary mutable options processor, as the given API requires mutating on options.
-    // However, I would suggest that options should not be mutable - the VM would give us all the options
+    // TODO: We should change how the VM instantiates MMTK instance and passes options.
+    // This is a temporary mutable options processor, as the current API requires mutation on options.
+    // However, I would suggest that options should not be mutable - the VM would give us all the options together
     // (possibly as a string), we parse it and use those to instantiate an MMTK instance.
     // This processor is temporary to store options while receiving process() call from the VM.
     pub static ref OPTIONS_PROCESSOR: UnsafeOptionsWrapper = UnsafeOptionsWrapper::new(Options::default());
