@@ -47,7 +47,7 @@ impl Plan for NoGC {
     type TraceLocalT = NoGCTraceLocal;
     type CollectorT = NoGCCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options) -> Self {
         NoGC {
             control_collector_context: ControllerCollectorContext::new(),
             unsync: UnsafeCell::new(NoGCUnsync {
