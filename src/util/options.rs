@@ -86,8 +86,10 @@ options!{
     verbose:               usize                [always_valid] = 0,
     stress_factor:         usize                [always_valid] = usize::max_value() >> LOG_BYTES_IN_PAGE,
     // vmspace
-    vm_space:              bool                 [always_valid] = false,
-    vm_space_size:         usize                [|v| v > 0]    = 0,
+    // FIXME: These options are set for JikesRVM. We need a proper way to set options.
+    //   We need to set these values programmatically in VM specific code.
+    vm_space:              bool                 [always_valid] = true,
+    vm_space_size:         usize                [|v| v > 0]    = 130862284,
 }
 
 impl Options {
