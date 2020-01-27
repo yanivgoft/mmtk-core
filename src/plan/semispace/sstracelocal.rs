@@ -79,9 +79,9 @@ impl<VM: VMBinding> TraceLocal for SSTraceLocal<VM> {
             trace!("trace_object: object in versatile_space");
             return plan_unsync.versatile_space.trace_object(self, object);
         }
-        if plan_unsync.vm_space.in_space(object) {
+        if plan_unsync.vm_space.is_some() && plan_unsync.vm_space.as_ref().unwrap().in_space(object) {
             trace!("trace_object: object in boot space");
-            return plan_unsync.vm_space.trace_object(self, object);
+            return plan_unsync.vm_space.as_ref().unwrap().trace_object(self, object);
         }
         if plan_unsync.los.in_space(object) {
             trace!("trace_object: object in los");
@@ -159,7 +159,7 @@ impl<VM: VMBinding> TraceLocal for SSTraceLocal<VM> {
         if unsync.versatile_space.in_space(object) {
             return true;
         }
-        if unsync.vm_space.in_space(object) {
+        if unsync.vm_space.is_some() && unsync.vm_space.as_ref().unwrap().in_space(object) {
             return true;
         }
         if unsync.los.in_space(object) {
