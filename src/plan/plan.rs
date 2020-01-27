@@ -12,10 +12,6 @@ use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
 use util::constants::LOG_BYTES_IN_MBYTE;
 use util::heap::{VMRequest, HeapMeta};
 use policy::immortalspace::ImmortalSpace;
-#[cfg(feature = "jikesrvm")]
-use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_END;
-#[cfg(feature = "jikesrvm")]
-use vm::jikesrvm::heap_layout_constants::BOOT_IMAGE_DATA_START;
 use util::Address;
 use util::statistics::stats::Stats;
 use util::statistics::counter::{Counter, LongCounter};
