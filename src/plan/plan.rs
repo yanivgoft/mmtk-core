@@ -30,26 +30,14 @@ use mmtk::MMTK;
 use vm::VMBinding;
 
 // FIXME: Move somewhere more appropriate
-#[cfg(feature = "jikesrvm")]
-pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace<VM> {
-    let boot_segment_bytes = BOOT_IMAGE_END - BOOT_IMAGE_DATA_START;
+pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta, boot_segment_bytes: usize) -> ImmortalSpace<VM> {
+//    let boot_segment_bytes = BOOT_IMAGE_END - BOOT_IMAGE_DATA_START;
     debug_assert!(boot_segment_bytes > 0);
 
     let boot_segment_mb = unsafe{Address::from_usize(boot_segment_bytes)}
         .align_up(BYTES_IN_CHUNK).as_usize() >> LOG_BYTES_IN_MBYTE;
 
     ImmortalSpace::new("boot", false, VMRequest::fixed_size(boot_segment_mb), vm_map, mmapper, heap)
-}
-
-#[cfg(feature = "openjdk")]
-pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace<VM> {
-    // FIXME: Does OpenJDK care?
-    ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper, heap)
-}
-
-#[cfg(feature = "dummyvm")]
-pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> ImmortalSpace<VM> {
-    ImmortalSpace::new("boot", false, VMRequest::fixed_size(0), vm_map, mmapper, heap)
 }
 
 pub trait Plan<VM: VMBinding>: Sized {

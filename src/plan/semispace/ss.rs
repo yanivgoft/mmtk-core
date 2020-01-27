@@ -52,7 +52,7 @@ pub struct SemiSpace<VM: VMBinding> {
 
 pub struct SemiSpaceUnsync<VM: VMBinding> {
     pub hi: bool,
-    pub vm_space: ImmortalSpace<VM>,
+    pub vm_space: Option<ImmortalSpace<VM>>,
     pub copyspace0: CopySpace<VM>,
     pub copyspace1: CopySpace<VM>,
     pub versatile_space: ImmortalSpace<VM>,
@@ -72,7 +72,11 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
         SemiSpace {
             unsync: UnsafeCell::new(SemiSpaceUnsync {
                 hi: false,
-                vm_space: create_vm_space(vm_map, mmapper, &mut heap),
+                vm_space: if options.vm_space {
+                    Some(create_vm_space(vm_map, mmapper, &mut heap, options.vm_space_size))
+                } else {
+                    None
+                },
                 copyspace0: CopySpace::new("copyspace0", false, true,
                                            VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 copyspace1: CopySpace::new("copyspace1", true, true,
@@ -91,7 +95,9 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
 
         let unsync = &mut *self.unsync.get();
         self.common.heap.total_pages.store(bytes_to_pages(heap_size), Ordering::Relaxed);
-        unsync.vm_space.init(vm_map);
+        if unsync.vm_space.is_some() {
+            unsync.vm_space.as_mut().unwrap().init(vm_map);
+        }
         unsync.copyspace0.init(vm_map);
         unsync.copyspace1.init(vm_map);
         unsync.versatile_space.init(vm_map);
@@ -126,7 +132,7 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
         if unsync.versatile_space.in_space(object) {
             return true;
         }
-        if unsync.vm_space.in_space(object) {
+        if unsync.vm_space.is_some() && unsync.vm_space.as_ref().unwrap().in_space(object) {
             return true;
         }
         if self.tospace().in_space(object) {
@@ -182,7 +188,9 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
                 unsync.copyspace0.prepare(unsync.hi);
                 unsync.copyspace1.prepare(!unsync.hi);
                 unsync.versatile_space.prepare();
-                unsync.vm_space.prepare();
+                if unsync.vm_space.is_some() {
+                    unsync.vm_space.as_mut().unwrap().prepare();
+                }
                 unsync.los.prepare(true);
             }
             &Phase::StackRoots => {
@@ -215,7 +223,9 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
                     unsafe { unsync.copyspace1.release() };
                 }
                 unsync.versatile_space.release();
-                unsync.vm_space.release();
+                if unsync.vm_space.is_some() {
+                    unsync.vm_space.as_mut().unwrap().release();
+                }
                 unsync.los.release(true);
             }
             &Phase::Complete => {
@@ -260,8 +270,8 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
 
     fn is_movable(&self, object: ObjectReference) -> bool {
         let unsync = unsafe { &*self.unsync.get() };
-        if unsync.vm_space.in_space(object) {
-            return unsync.vm_space.is_movable();
+        if unsync.vm_space.is_some() && unsync.vm_space.as_ref().unwrap().in_space(object) {
+            return unsync.vm_space.as_ref().unwrap().is_movable();
         }
         if unsync.copyspace0.in_space(object) {
             return unsync.copyspace0.is_movable();
@@ -281,7 +291,7 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
     fn is_mapped_address(&self, address: Address) -> bool {
         let unsync = unsafe { &*self.unsync.get() };
         if unsafe{
-            unsync.vm_space.in_space(address.to_object_reference())  ||
+            (unsync.vm_space.is_some() && unsync.vm_space.as_ref().unwrap().in_space(address.to_object_reference()))  ||
             unsync.versatile_space.in_space(address.to_object_reference()) ||
             unsync.copyspace0.in_space(address.to_object_reference()) ||
             unsync.copyspace1.in_space(address.to_object_reference()) ||

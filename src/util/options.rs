@@ -85,6 +85,9 @@ options!{
     // TODO: Delete this option.
     verbose:               usize                [always_valid] = 0,
     stress_factor:         usize                [always_valid] = usize::max_value() >> LOG_BYTES_IN_PAGE,
+    // vmspace
+    vm_space:              bool                 [always_valid] = false,
+    vm_space_size:         usize                [|v| v > 0]    = 0,
 }
 
 impl Options {

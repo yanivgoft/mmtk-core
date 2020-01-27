@@ -39,7 +39,7 @@ pub struct NoGC<VM: VMBinding> {
 unsafe impl<VM: VMBinding> Sync for NoGC<VM> {}
 
 pub struct NoGCUnsync<VM: VMBinding> {
-    vm_space: ImmortalSpace<VM>,
+    vm_space: Option<ImmortalSpace<VM>>,
     pub space: ImmortalSpace<VM>,
     pub los: LargeObjectSpace<VM>,
 }
@@ -54,7 +54,11 @@ impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
 
         NoGC {
             unsync: UnsafeCell::new(NoGCUnsync {
-                vm_space: create_vm_space(vm_map, mmapper, &mut heap),
+                vm_space: if options.vm_space {
+                    Some(create_vm_space(vm_map, mmapper, &mut heap, options.vm_space_size))
+                } else {
+                    None
+                },
                 space: ImmortalSpace::new("nogc_space", true,
                                           VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
@@ -69,7 +73,9 @@ impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
         let unsync = &mut *self.unsync.get();
         self.common.heap.total_pages.store(bytes_to_pages(heap_size), Ordering::Relaxed);
         // FIXME correctly initialize spaces based on options
-        unsync.vm_space.init(vm_map);
+        if unsync.vm_space.is_some() {
+            unsync.vm_space.as_mut().unwrap().init(vm_map);
+        }
         unsync.space.init(vm_map);
         unsync.los.init(vm_map);
     }
@@ -98,7 +104,7 @@ impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
         if unsync.space.in_space(object) {
             return true;
         }
-        if unsync.vm_space.in_space(object) {
+        if unsync.vm_space.is_some() && unsync.vm_space.as_ref().unwrap().in_space(object) {
             return true;
         }
         if unsync.los.in_space(object) {
@@ -115,7 +121,7 @@ impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
         let unsync = unsafe { &*self.unsync.get() };
         if unsafe {
             unsync.space.in_space(address.to_object_reference()) ||
-            unsync.vm_space.in_space(address.to_object_reference()) ||
+            (unsync.vm_space.is_some() && unsync.vm_space.as_ref().unwrap().in_space(address.to_object_reference())) ||
             unsync.los.in_space(address.to_object_reference())
         } {
             return self.common.mmapper.address_is_mapped(address);
@@ -129,8 +135,8 @@ impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
         if unsync.space.in_space(object) {
             return unsync.space.is_movable();
         }
-        if unsync.vm_space.in_space(object) {
-            return unsync.vm_space.is_movable();
+        if unsync.vm_space.is_some() && unsync.vm_space.as_ref().unwrap().in_space(object) {
+            return unsync.vm_space.as_ref().unwrap().is_movable();
         }
         if unsync.los.in_space(object) {
             return unsync.los.is_movable();
