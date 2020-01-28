@@ -92,7 +92,7 @@ pub unsafe extern fn is_valid_ref(val: ObjectReference) -> bool {
 pub unsafe fn report_delayed_root_edge<VM: VMBinding>(trace_local: *mut c_void, addr: *mut c_void) {
     use ::util::sanity::sanity_checker::SanityChecker;
     if SINGLETON.plan.common().is_in_sanity() {
-        report_delayed_root_edge_inner::<SanityChecker>(trace_local, addr)
+        report_delayed_root_edge_inner::<SanityChecker<VM>>(trace_local, addr)
     } else {
         report_delayed_root_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, addr)
     }
@@ -112,7 +112,7 @@ unsafe fn report_delayed_root_edge_inner<T: TraceLocal>(trace_local: *mut c_void
 pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
     use ::util::sanity::sanity_checker::SanityChecker;
     if SINGLETON.plan.common().is_in_sanity() {
-        will_not_move_in_current_collection_inner::<SanityChecker>(trace_local, obj)
+        will_not_move_in_current_collection_inner::<SanityChecker<VM>>(trace_local, obj)
     } else {
         will_not_move_in_current_collection_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, obj)
     }
@@ -133,7 +133,7 @@ unsafe fn will_not_move_in_current_collection_inner<T: TraceLocal>(trace_local: 
 pub unsafe fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
     use ::util::sanity::sanity_checker::SanityChecker;
     if SINGLETON.plan.common().is_in_sanity() {
-        process_interior_edge_inner::<SanityChecker>(trace_local, target, slot, root)
+        process_interior_edge_inner::<SanityChecker<VM>>(trace_local, target, slot, root)
     } else {
         process_interior_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, target, slot, root)
     }
