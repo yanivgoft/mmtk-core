@@ -34,7 +34,6 @@ use util::heap::layout::vm_layout_constants::HEAP_END;
 use ::util::sanity::sanity_checker::{INSIDE_SANITY, SanityChecker};
 use util::OpaquePointer;
 use crate::mmtk::SINGLETON;
-use crate::mmtk::OPTIONS_PROCESSOR;
 
 #[no_mangle]
 #[cfg(feature = "jikesrvm")]
@@ -215,7 +214,7 @@ pub extern fn enable_collection(size: usize) {
 pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
     let name_str: &CStr = unsafe { CStr::from_ptr(name) };
     let value_str: &CStr = unsafe { CStr::from_ptr(value) };
-    let option = &OPTIONS_PROCESSOR;
+    let option = &SINGLETON.options;
     unsafe {
         option.process(name_str.to_str().unwrap(), value_str.to_str().unwrap())
     }

@@ -11,6 +11,7 @@ use std::sync::atomic::{Ordering, AtomicBool};
 
 use util::statistics::stats::STATS;
 use util::OpaquePointer;
+use std::sync::Arc;
 
 // TODO: remove this singleton at some point to allow multiple instances of MMTK
 // This helps refactoring.
@@ -25,14 +26,8 @@ lazy_static!{
     pub static ref VM_MAP: VMMap = VMMap::new();
     pub static ref MMAPPER: Mmapper = Mmapper::new();
 
-    // TODO: We should change how the VM instantiates MMTK instance and passes options.
-    // This is a temporary mutable options processor, as the current API requires mutation on options.
-    // However, I would suggest that options should not be mutable - the VM would give us all the options together
-    // (possibly as a string), we parse it and use those to instantiate an MMTK instance.
-    // This processor is temporary to store options while receiving process() call from the VM.
-    pub static ref OPTIONS_PROCESSOR: UnsafeOptionsWrapper = UnsafeOptionsWrapper::new(Options::default());
     // mmtk instance
-    pub static ref SINGLETON: MMTK = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+    pub static ref SINGLETON: MMTK = MMTK::new(&VM_MAP, &MMAPPER);
 }
 
 pub struct MMTK {
@@ -41,15 +36,16 @@ pub struct MMTK {
     pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
     pub reference_processors: ReferenceProcessors,
-    pub options: &'static Options,
+    pub options: Arc<UnsafeOptionsWrapper>,
 
     inside_harness: AtomicBool,
 }
 
 impl MMTK {
-    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options) -> Self {
+    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper) -> Self {
+        let options = Arc::new(UnsafeOptionsWrapper::new(Options::default()));
         MMTK {
-            plan: SelectedPlan::new(vm_map, mmapper, options),
+            plan: SelectedPlan::new(vm_map, mmapper, options.clone()),
             phase_manager: PhaseManager::new(),
             vm_map,
             mmapper,
