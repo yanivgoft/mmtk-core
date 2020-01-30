@@ -147,14 +147,6 @@ impl ReferenceProcessor {
         (&mut *self.sync.get()).get_mut().unwrap()
     }
 
-//    pub fn get(semantics: Semantics) -> &'static Self {
-//        match semantics {
-//            Semantics::SOFT => &SOFT_REFERENCE_PROCESSOR,
-//            Semantics::WEAK => &WEAK_REFERENCE_PROCESSOR,
-//            Semantics::PHANTOM => &PHANTOM_REFERENCE_PROCESSOR,
-//        }
-//    }
-
     pub fn add_candidate(&self, reff: ObjectReference, referent: ObjectReference) {
         let mut sync = self.sync().lock().unwrap();
         VMReferenceGlue::set_referent(reff, referent);

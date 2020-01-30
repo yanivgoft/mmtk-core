@@ -15,7 +15,7 @@ use ::policy::largeobjectspace::LargeObjectSpace;
 use ::plan::Phase;
 use ::plan::trace::Trace;
 use ::util::ObjectReference;
-use ::util::heap::layout::Mmapper;
+use ::util::heap::layout::Mmapper as IMmapper;
 use ::util::Address;
 use ::util::heap::PageResource;
 use ::util::heap::VMRequest;
@@ -31,10 +31,10 @@ use ::vm::{Scanning, VMScanning};
 use std::thread;
 use util::conversions::bytes_to_pages;
 use plan::plan::{create_vm_space, CommonPlan};
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
-use util::options::Options;
+use util::heap::layout::heap_layout::Mmapper;
+use util::options::{Options, UnsafeOptionsWrapper};
+use std::sync::Arc;
 use util::heap::HeapMeta;
 use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 
@@ -68,7 +68,7 @@ impl Plan for SemiSpace {
     type TraceLocalT = SSTraceLocal;
     type CollectorT = SSCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self {
         let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
 
         SemiSpace {

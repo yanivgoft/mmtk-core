@@ -23,10 +23,10 @@ use util::statistics::counter::MonotoneNanoTime;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
 use util::heap::layout::Mmapper as IMmapper;
-use util::heap::layout::ByteMapMmapper;
-use util::options::Options;
-use std::sync::Mutex;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
+use util::options::{Options, UnsafeOptionsWrapper};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use mmtk::MMTK;
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
@@ -51,13 +51,13 @@ pub trait Plan: Sized {
     type TraceLocalT: TraceLocal;
     type CollectorT: ParallelCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self;
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self;
     fn common(&self) -> &CommonPlan;
     fn mmapper(&self) -> &'static Mmapper {
         self.common().mmapper
     }
-    fn options(&self) -> &'static Options {
-        self.common().options
+    fn options(&self) -> &Options {
+        &self.common().options
     }
     // unsafe because this can only be called once by the init thread
     unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
@@ -245,7 +245,7 @@ pub enum GcStatus {
 pub struct CommonPlan {
     pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
-    pub options: &'static Options,
+    pub options: Arc<UnsafeOptionsWrapper>,
     pub heap: HeapMeta,
 
     pub initialized: AtomicBool,
@@ -265,7 +265,7 @@ pub struct CommonPlan {
 }
 
 impl CommonPlan {
-    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options, heap: HeapMeta) -> CommonPlan {
+    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>, heap: HeapMeta) -> CommonPlan {
         CommonPlan {
             vm_map, mmapper, options, heap,
             initialized: AtomicBool::new(false),
