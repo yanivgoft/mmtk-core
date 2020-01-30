@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ::policy::space::Space;
 use ::util::generic_freelist::GenericFreeList;
 use std::mem;
-use util::heap::space_descriptor::{SpaceDescriptor, UNINITIALIZED_SPACE_DESCRIPTOR};
+use util::heap::space_descriptor::SpaceDescriptor;
 
 // use ::util::free::IntArrayFreeList;
 
@@ -51,7 +51,7 @@ impl Map32 {
             total_available_discontiguous_chunks: 0,
             finalized: false,
             sync: Mutex::new(()),
-            descriptor_map: vec![UNINITIALIZED_SPACE_DESCRIPTOR; MAX_CHUNKS],
+            descriptor_map: vec![SpaceDescriptor::UNINITIALIZED; MAX_CHUNKS],
             cumulative_committed_pages: AtomicUsize::new(0),
         }
     }
@@ -158,7 +158,7 @@ impl Map32 {
         self_mut.prev_link[chunk as usize] = 0;
         self_mut.next_link[chunk as usize] = 0;
         for offset in 0..chunks {
-            self_mut.descriptor_map[(chunk + offset) as usize] = UNINITIALIZED_SPACE_DESCRIPTOR;
+            self_mut.descriptor_map[(chunk + offset) as usize] = SpaceDescriptor::UNINITIALIZED;
             // VM.barriers.objectArrayStoreNoGCBarrier(spaceMap, chunk + offset, null);
         }
         chunks as _

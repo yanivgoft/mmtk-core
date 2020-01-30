@@ -24,7 +24,7 @@ use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
 use plan::selected_plan::SelectedPlan;
 use util::heap::HeapMeta;
-use util::heap::space_descriptor::{SpaceDescriptor, UNINITIALIZED_SPACE_DESCRIPTOR};
+use util::heap::space_descriptor::SpaceDescriptor;
 
 pub trait Space: Sized + Debug + 'static {
     type PR: PageResource<Space = Self>;
@@ -208,7 +208,7 @@ impl<PR: PageResource> CommonSpace<PR> {
         let mut rtn = CommonSpace {
             name,
             name_length: name.len(),
-            descriptor: UNINITIALIZED_SPACE_DESCRIPTOR,
+            descriptor: SpaceDescriptor::UNINITIALIZED,
             index: heap.new_space_index(),
             vmrequest,
             immortal,

@@ -28,12 +28,12 @@ const INDEX_SHIFT: usize = TYPE_BITS;
 static DISCONTIGUOUS_SPACE_INDEX: AtomicUsize = AtomicUsize::new(0);
 const DISCONTIG_INDEX_INCREMENT: usize = 1 << TYPE_BITS;
 
-pub const UNINITIALIZED_SPACE_DESCRIPTOR: SpaceDescriptor = SpaceDescriptor(0);
-
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct SpaceDescriptor(usize);
 
 impl SpaceDescriptor {
+    pub const UNINITIALIZED: Self = SpaceDescriptor(0);
+
     pub fn create_descriptor_from_heap_range(start: Address, end: Address) -> SpaceDescriptor {
         let top = end == vm_layout_constants::HEAP_END;
         if HEAP_LAYOUT_64BIT {
@@ -75,7 +75,7 @@ impl SpaceDescriptor {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0 == UNINITIALIZED_SPACE_DESCRIPTOR.0
+        self.0 == SpaceDescriptor::UNINITIALIZED.0
     }
 
     pub fn is_contiguous(&self) -> bool {
