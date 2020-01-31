@@ -8,7 +8,7 @@ use ::policy::copyspace2::CopySpace;
 use ::util::{Address, ObjectReference};
 use ::util::alloc::Allocator;
 use ::util::alloc::{BumpAllocator, RawPageAllocator};
-use ::util::heap::{MonotonePageResource};
+// use ::util::heap::{MonotonePageResource};
 // use ::util::reference_processor::*;
 use ::vm::{Scanning, VMScanning};
 use libc::c_void;
@@ -19,7 +19,7 @@ use super::PLAN;
 /// per-collector thread behavior and state for the SS plan
 pub struct SSCollector {
     pub tls: *mut c_void,
-    pub ss: BumpAllocator<MonotonePageResource<CopySpace>>,
+    pub ss: BumpAllocator<CopySpace>,
     _vs: RawPageAllocator,
     trace: SSTraceLocal,
     last_trigger_count: usize,

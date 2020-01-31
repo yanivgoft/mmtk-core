@@ -4,7 +4,6 @@ use policy::rawpagespace::RawPageSpace;
 use policy::markregionspace::MarkRegionSpace;
 use plan::{plan, Plan, Phase};
 use util::{ObjectReference, Address};
-use util::heap::{VMRequest, PageResource};
 use util::heap::layout::heap_layout::MMAPPER;
 use util::heap::layout::Mmapper;
 use util::alloc::allocator::determine_collection_attempts;
@@ -39,7 +38,7 @@ pub struct MarkRegion {
 unsafe impl Sync for MarkRegion {}
 
 pub struct MarkRegionUnsync {
-    pub vm_space: ImmortalSpace,
+    pub vm_space: RawPageSpace,
     pub space: MarkRegionSpace,
     pub versatile_space: RawPageSpace,
     pub total_pages: usize,
@@ -56,7 +55,7 @@ impl Plan for MarkRegion {
     fn new() -> Self {
         Self {
             unsync: UnsafeCell::new(MarkRegionUnsync {
-                vm_space: create_vm_space(),
+                vm_space: RawPageSpace::new("vsx"),//ImmortalSpace::new(name: &'static str, zeroed: bool, vmrequest: VMRequest) (),
                 space: MarkRegionSpace::new("mr"),
                 versatile_space: RawPageSpace::new("vs"),
                 total_pages: 0,
@@ -70,7 +69,7 @@ impl Plan for MarkRegion {
         // let heap_size = 10000 * BYTES_IN_MBYTE;
         let heap_size = 1 * 1024 * 1024 * 1024;
         println!("GCInit: Heap Size = {}MB", heap_size / BYTES_IN_MBYTE);
-        ::util::heap::layout::heap_layout::VM_MAP.finalize_static_space_map();
+        // ::util::heap::layout::heap_layout::VM_MAP.finalize_static_space_map();
         let unsync = &mut *self.unsync.get();
         unsync.total_pages = bytes_to_pages(heap_size);
         // FIXME correctly initialize spaces based on options
@@ -162,7 +161,7 @@ impl Plan for MarkRegion {
         }
     }
 
-    fn collection_required<PR: PageResource>(&self, space_full: bool, space: &'static PR::Space) -> bool where Self: Sized {
+    fn collection_required(&self, space_full: bool, space: &'static impl Space) -> bool where Self: Sized {
         let heap_full = self.get_pages_reserved() > self.get_total_pages();
         if heap_full {
             println!("GC Reason: Heap Full")
@@ -233,9 +232,9 @@ impl MarkRegion {
         println!("Heap Size = {}MB", self.total_pages * BYTES_IN_PAGE / BYTES_IN_MBYTE);
         println!("Max Heap Size = {}MB", AVAILABLE_BYTES / BYTES_IN_MBYTE);
         // if super::VERBOSE {
-            self.vm_space.print_vm_map();
-            self.versatile_space.print_vm_map();
-            self.space.print_vm_map();
+            // self.vm_space.print_vm_map();
+            // self.versatile_space.print_vm_map();
+            // self.space.print_vm_map();
         // }
     }
 }

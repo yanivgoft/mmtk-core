@@ -4,20 +4,20 @@ use ::plan::TransitiveClosure;
 use ::policy::space::{CommonSpace, Space};
 use ::util::{Address, ObjectReference};
 use ::util::constants::*;
-use ::util::heap::{FreeListPageResource, PageResource, VMRequest};
+use ::util::heap::{PageResource, VMRequest};
 use ::vm::*;
 use std::sync::Mutex;
 use std::collections::HashSet;
-use util::heap::layout::vm_layout_constants::*;
+use util::heap::layout::vm_layout_constants::{MAX_CHUNKS, LOG_BYTES_IN_CHUNK};
 use util::bitmap::BitMap;
 
-const MAX_HEAP_SIZE: usize = HEAP_END.as_usize() - HEAP_START.as_usize();
+const MAX_HEAP_SIZE: usize = MAX_CHUNKS << LOG_BYTES_IN_CHUNK;
 const MAX_OBJECTS_IN_HEAP: usize = MAX_HEAP_SIZE / BYTES_IN_ADDRESS;
 const MAX_REGIONS_IN_HEAP: usize = MAX_HEAP_SIZE / MarkRegionSpace::BYTES_IN_REGION;
 
 #[derive(Debug)]
 pub struct MarkRegionSpace {
-    common: UnsafeCell<CommonSpace<FreeListPageResource<MarkRegionSpace>>>,
+    common: UnsafeCell<CommonSpace>,
     committed_regions: Mutex<HashSet<Address>>,
     mark_state: usize,
     object_mark_table: BitMap,
@@ -25,21 +25,21 @@ pub struct MarkRegionSpace {
 }
 
 impl Space for MarkRegionSpace {
-    type PR = FreeListPageResource<Self>;
+    // type PR = FreeListPageResource<Self>;
 
     fn init(&mut self) {
         let me = unsafe { &*(self as *const Self) };
         let common_mut = self.common_mut();
         assert!(common_mut.vmrequest.is_discontiguous());
-        common_mut.pr = Some(FreeListPageResource::new_discontiguous(0));
-        common_mut.pr.as_mut().unwrap().bind_space(me);
+        common_mut.pr = Some(PageResource::new_discontiguous(0, me.common().descriptor));
+        // common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace {
         unsafe { &*self.common.get() }
     }
 
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace {
         &mut *self.common.get()
     }
 
@@ -81,7 +81,7 @@ impl MarkRegionSpace {
             None
         } else {
             assert!(a.as_usize() & Self::REGION_MASK == 0);
-            assert!(a < ::util::heap::layout::vm_layout_constants::HEAP_END);
+            // assert!(a < ::util::heap::layout::vm_layout_constants::HEAP_END);
             let mut regions = self.committed_regions.lock().unwrap();
             assert!(!regions.contains(&a));
             regions.insert(a);
@@ -123,11 +123,11 @@ impl MarkRegionSpace {
     }
     
     fn get_object_index(o: ObjectReference) -> usize {
-        (VMObjectModel::object_start_ref(o) - HEAP_START) >> LOG_BYTES_IN_WORD
+        VMObjectModel::object_start_ref(o).as_usize() >> LOG_BYTES_IN_WORD
     }
 
     fn get_region_index(a: Address) -> usize {
-        (a - HEAP_START) >> Self::LOG_BYTES_IN_REGION
+        a.as_usize() >> Self::LOG_BYTES_IN_REGION
     }
 
     pub fn object_is_marked(&self, o: ObjectReference) -> bool {

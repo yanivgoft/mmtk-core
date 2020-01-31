@@ -28,10 +28,10 @@ const SPACE_ALIGN: usize = 1 << 19;
 #[derive(Debug)]
 pub struct MonotonePageResource<S: Space<PR = MonotonePageResource<S>>> {
     common: CommonPageResource<MonotonePageResource<S>>,
-
     /** Number of pages to reserve at the start of every allocation */
     meta_data_pages_per_region: usize,
     sync: Mutex<MonotonePageResourceSync>,
+    chunks: Mutex<Vec<(usize, usize)>>,
 }
 
 #[derive(Debug)]
@@ -73,25 +73,6 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
         let mut sync = self.sync.lock().unwrap();
         let mut rtn = sync.cursor;
 
-        if cfg!(debug = "true") {
-            /*
-             * Cursor should always be zero, or somewhere in the current chunk.  If we have just
-             * allocated exactly enough pages to exhaust the current chunk, then cursor can point
-             * to the next chunk.
-             */
-            if sync.current_chunk > sync.cursor
-                || (chunk_align(sync.cursor, true).as_usize() != sync.current_chunk.as_usize()
-                    && chunk_align(sync.cursor, true).as_usize() != sync.current_chunk.as_usize()
-                        + BYTES_IN_CHUNK) {
-                self.log_chunk_fields("MonotonePageResource.alloc_pages:fail");
-            }
-            assert!(sync.current_chunk <= sync.cursor);
-            assert!(sync.cursor.is_zero() ||
-                chunk_align(sync.cursor, true).as_usize() == sync.current_chunk.as_usize() ||
-                chunk_align(sync.cursor, true).as_usize() == (sync.current_chunk + BYTES_IN_CHUNK)
-                    .as_usize());
-        }
-
         if self.meta_data_pages_per_region != 0 {
             /* adjust allocation for metadata */
             let region_start = Self::get_region_start(sync.cursor + pages_to_bytes(required_pages));
@@ -103,9 +84,7 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
             }
         }
         let bytes = pages_to_bytes(required_pages);
-        trace!("bytes={}", bytes);
         let mut tmp = sync.cursor + bytes;
-        trace!("tmp={:?}", tmp);
 
         if !self.common().contiguous && tmp > sync.sentinel {
             /* we're out of virtual memory within our discontiguous region, so ask for more */
@@ -113,10 +92,10 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
             sync.current_chunk = unsafe {
                 self.common().space.unwrap().grow_discontiguous_space(required_chunks)
             }; // Returns zero on failure
+            self.chunks.lock().unwrap().push((sync.current_chunk.as_usize(), required_chunks));
             sync.cursor = sync.current_chunk;
             sync.sentinel = sync.cursor + if sync.current_chunk.is_zero() { 0 } else {
                 required_chunks << LOG_BYTES_IN_CHUNK };
-            //println!("{} {}->{}", self.common.space.unwrap().get_name(), sync.cursor, sync.sentinel);
             rtn = sync.cursor;
             tmp = sync.cursor + bytes;
             new_chunk = true;
@@ -124,10 +103,8 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
 
         debug_assert!(rtn >= sync.cursor && rtn < sync.cursor + bytes);
         if tmp > sync.sentinel {
-            //debug!("tmp={:?} > sync.sentinel={:?}", tmp, sync.sentinel);
             return unsafe{Address::zero()};
         } else {
-            //debug!("tmp={:?} <= sync.sentinel={:?}", tmp, sync.sentinel);
             let old = sync.cursor;
             sync.cursor = tmp;
 
@@ -137,23 +114,11 @@ impl<S: Space<PR = MonotonePageResource<S>>> PageResource for MonotonePageResour
             }
             self.commit_pages(reserved_pages, required_pages, tls);
             self.common().space.unwrap().grow_space(old, bytes, new_chunk);
-
             MMAPPER.ensure_mapped(old, required_pages);
-
             // FIXME: concurrent zeroing
             if zeroed {
-                unsafe {memset(old.to_ptr_mut() as *mut c_void, 0, bytes);}
+                unsafe { memset(old.to_ptr_mut() as *mut c_void, 0, bytes); }
             }
-            /*
-            if zeroed {
-                if !self.zero_concurrent {
-                    VM.memory.zero(zeroNT, old, bytes);
-                } else {
-                    while (cursor.GT(zeroingCursor));
-                }
-            }
-            VM.events.tracePageAcquired(space, rtn, requiredPages);
-            */
             rtn
         }
     }
@@ -201,7 +166,6 @@ impl<S: Space<PR = MonotonePageResource<S>>> MonotonePageResource<S> {
                 growable: true,
                 space: None,
             },
-
             meta_data_pages_per_region,
             sync: Mutex::new(MonotonePageResourceSync {
                 cursor: unsafe { Address::zero() },
@@ -230,51 +194,17 @@ impl<S: Space<PR = MonotonePageResource<S>>> MonotonePageResource<S> {
         self.common().reserved.store(0, Ordering::Relaxed);
         self.common().committed.store(0, Ordering::Relaxed);
         self.release_pages(&mut guard);
-        drop(guard);
     }
-
-    /*/**
-   * Release all pages associated with this page resource, optionally
-   * zeroing on release and optionally memory protecting on release.
-   */
-    @Inline
-    private void releasePages() {
-    if (contiguous) {
-    // TODO: We will perform unnecessary zeroing if the nursery size has decreased.
-    if (zeroConcurrent) {
-    // Wait for current zeroing to finish.
-    while (zeroingCursor.LT(zeroingSentinel)) { }
-    }
-    // Reset zeroing region.
-    if (cursor.GT(zeroingSentinel)) {
-    zeroingSentinel = cursor;
-    }
-    zeroingCursor = start;
-    cursor = start;
-    currentChunk = Conversions.chunkAlign(start, true);
-    } else { /* Not contiguous */
-    if (!cursor.isZero()) {
-    do {
-    Extent bytes = cursor.diff(currentChunk).toWord().toExtent();
-    releasePages(currentChunk, bytes);
-    } while (moveToNextChunk());
-
-    currentChunk = Address.zero();
-    sentinel = Address.zero();
-    cursor = Address.zero();
-    space.releaseAllChunks();
-    }
-    }
-    }*/
 
     #[inline]
     unsafe fn release_pages(&self, guard: &mut MutexGuard<MonotonePageResourceSync>) {
         // TODO: concurrent zeroing
         if self.common().contiguous {
-            guard.cursor = match guard.conditional {
-                MonotonePageResourceConditional::Contiguous { start: _start, zeroing_cursor: _, zeroing_sentinel: _ } => _start,
-                _ => unreachable!(),
-            };
+            unreachable!();
+            // guard.cursor = match guard.conditional {
+            //     MonotonePageResourceConditional::Contiguous { start: _start, zeroing_cursor: _, zeroing_sentinel: _ } => _start,
+            //     _ => unreachable!(),
+            // };
         } else {
             if !guard.cursor.is_zero() {
                 let mut bytes = guard.cursor - guard.current_chunk;

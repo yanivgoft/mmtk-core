@@ -2,9 +2,6 @@ use ::util::Address;
 use ::util::alloc::{allocator, Allocator};
 use libc::c_void;
 use policy::rawpagespace::RawPageSpace;
-use util::heap::FreeListPageResource;
-
-type PR = FreeListPageResource<RawPageSpace>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -13,7 +10,7 @@ pub struct RawPageAllocator {
     space: &'static RawPageSpace,
 }
 
-impl Allocator<PR> for RawPageAllocator {
+impl Allocator<RawPageSpace> for RawPageAllocator {
     fn get_space(&self) -> Option<&'static RawPageSpace> {
         Some(self.space)
     }

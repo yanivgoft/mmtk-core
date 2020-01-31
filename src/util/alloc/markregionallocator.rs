@@ -1,11 +1,10 @@
 use util::Address;
 use super::allocator::{align_allocation_no_fill, fill_alignment_gap};
 use ::util::alloc::Allocator;
-use ::util::heap::FreeListPageResource;
 use policy::markregionspace::*;
 use libc::c_void;
 
-type PR = FreeListPageResource<MarkRegionSpace>;
+// type PR = FreeListPageResource<MarkRegionSpace>;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -23,7 +22,7 @@ impl MarkRegionAllocator {
     }
 }
 
-impl Allocator<PR> for MarkRegionAllocator {
+impl Allocator<MarkRegionSpace> for MarkRegionAllocator {
     fn get_space(&self) -> Option<&'static MarkRegionSpace> {
         Some(self.space)
     }

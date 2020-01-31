@@ -6,9 +6,6 @@ use ::plan::Phase;
 use ::util::{Address, ObjectReference};
 use ::util::alloc::Allocator;
 use ::plan::Allocator as AllocationType;
-use util::heap::MonotonePageResource;
-use super::PLAN;
-use policy::space::Space;
 
 use libc::c_void;
 

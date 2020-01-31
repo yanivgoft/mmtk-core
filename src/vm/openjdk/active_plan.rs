@@ -2,6 +2,12 @@ use ::plan::{Plan, SelectedPlan};
 use super::super::ActivePlan;
 use super::UPCALLS;
 use libc::c_void;
+use std::sync::Mutex;
+use std::collections::HashSet;
+
+lazy_static! {
+    static ref COLLECTORS: Mutex<HashSet<usize>> = Mutex::default();
+}
 
 pub struct VMActivePlan<> {}
 
@@ -12,9 +18,12 @@ impl ActivePlan for VMActivePlan {
         unsafe { ::std::mem::transmute(c) }
     }
 
+    fn record_collector(tls: *mut c_void) {
+        COLLECTORS.lock().unwrap().insert(tls as usize);
+    }
+
     unsafe fn is_mutator(tls: *mut c_void) -> bool {
-        // FIXME
-        true
+        !COLLECTORS.lock().unwrap().contains(&(tls as usize))
     }
 
     unsafe fn mutator(tls: *mut c_void) -> &'static mut <SelectedPlan as Plan>::MutatorT {

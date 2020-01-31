@@ -143,13 +143,13 @@ fn process_phase_stack(tls: *mut c_void, resume: bool) {
         }
         match schedule {
             Schedule::Global => {
-                debug!("Execute {:?} as Global...", phase);
+                println!("Execute {:?} as Global...", phase);
                 if primary {
                     unsafe { plan.collection_phase(tls, &phase) }
                 }
             }
             Schedule::Collector => {
-                debug!("Execute {:?} as Collector...", phase);
+                println!("Execute {:?} as Collector...", phase);
                 collector.collection_phase(tls, &phase, primary)
             }
             Schedule::Mutator => {

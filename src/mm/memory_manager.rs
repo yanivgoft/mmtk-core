@@ -14,8 +14,7 @@ use ::plan::CollectorContext;
 use ::plan::ParallelCollectorGroup;
 use ::plan::plan::CONTROL_COLLECTOR_CONTEXT;
 use ::plan::transitive_closure::TransitiveClosure;
-
-use ::vm::{Collection, VMCollection};
+use vm::*;
 
 #[cfg(feature = "jikesrvm")]
 use ::vm::jikesrvm::JTOC_BASE;
@@ -31,8 +30,6 @@ use self::selected_plan::SelectedPlan;
 
 use ::plan::Allocator;
 use util::constants::LOG_BYTES_IN_PAGE;
-use util::heap::layout::vm_layout_constants::HEAP_START;
-use util::heap::layout::vm_layout_constants::HEAP_END;
 use ::util::sanity::sanity_checker::{INSIDE_SANITY, SanityChecker};
 
 #[no_mangle]
@@ -212,6 +209,7 @@ pub unsafe extern fn process_interior_edge(trace_local: *mut c_void, target: *mu
 #[no_mangle]
 pub unsafe extern fn start_worker(tls: *mut c_void, worker: *mut c_void) {
     let worker_instance = &mut *(worker as *mut <SelectedPlan as Plan>::CollectorT);
+    VMActivePlan::record_collector(tls);
     worker_instance.init(tls);
     worker_instance.run(tls);
 }
@@ -265,12 +263,17 @@ pub extern fn used_bytes() -> usize {
 
 #[no_mangle]
 pub extern fn starting_heap_address() -> *mut c_void {
-    HEAP_START.as_usize() as *mut c_void
+    // HEAP_START.as_usize()
+    0x7000_0000_0000usize as _
+    // 0x7f5d_7c01_1000
+    // 0x1000 as _
+    // HEAP_START.as_usize() as *mut c_void
 }
 
 #[no_mangle]
 pub extern fn last_heap_address() -> *mut c_void {
-    HEAP_END.as_usize() as *mut c_void
+    (0x7000_0000_0000usize + 2 * 1024 * 1024 * 1024) as _
+    // HEAP_END.as_usize() as *mut c_void
 }
 
 #[no_mangle]

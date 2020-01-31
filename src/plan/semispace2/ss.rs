@@ -61,7 +61,7 @@ impl Plan for SemiSpace {
         SemiSpace {
             unsync: UnsafeCell::new(SemiSpaceUnsync {
                 hi: false,
-                vm_space: create_vm_space(),
+                vm_space: ImmortalSpace::new("x", true, VMRequest::discontiguous()),
                 copyspace0: CopySpace::new("copyspace0", false, true, VMRequest::discontiguous()),
                 copyspace1: CopySpace::new("copyspace1", true, true, VMRequest::discontiguous()),
                 versatile_space: RawPageSpace::new("versatile_space"),
@@ -76,7 +76,7 @@ impl Plan for SemiSpace {
         
         let heap_size = 1 * 1024 * 1024 * 1024;
         println!("GCInit: Heap Size = {}MB", heap_size / ::util::constants::BYTES_IN_MBYTE);
-        ::util::heap::layout::heap_layout::VM_MAP.finalize_static_space_map();
+        // ::util::heap::layout::heap_layout::VM_MAP.finalize_static_space_map();
         let unsync = &mut *self.unsync.get();
         unsync.total_pages = bytes_to_pages(heap_size);
         unsync.vm_space.init();
@@ -121,10 +121,10 @@ impl Plan for SemiSpace {
         return false;
     }
 
-    fn collection_required<PR: PageResource>(&self, space_full: bool, space: &'static PR::Space) -> bool where Self: Sized {
+    fn collection_required(&self, space_full: bool, space: &'static impl Space) -> bool where Self: Sized {
         let heap_full = self.get_pages_reserved() > self.get_total_pages();
         if heap_full {
-            println!("GC Reason: Heap Full")
+            println!("GC Reason: Heap Full {} {}", self.get_pages_reserved(), self.get_total_pages());
         }
         if space_full {
             println!("GC Reason: Space Full ({})", space.common().name)
@@ -284,10 +284,10 @@ impl SemiSpace {
         println!("Used Size = {}MB", self.get_pages_reserved() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
         println!("Max Heap Size = {}MB", AVAILABLE_BYTES / BYTES_IN_MBYTE);
         // if super::VERBOSE {
-            self.vm_space.print_vm_map();
-            self.versatile_space.print_vm_map();
-            self.copyspace0.print_vm_map();
-            self.copyspace1.print_vm_map();
+            // self.vm_space.print_vm_map();
+            // self.versatile_space.print_vm_map();
+            // self.copyspace0.print_vm_map();
+            // self.copyspace1.print_vm_map();
         // }
     }
 }

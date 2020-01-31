@@ -14,7 +14,6 @@ impl BitMap {
         let mut table = vec![];
         table.resize_with(length, Default::default);
         let map = Self { table };
-        println!("New bitmap {:?} ebd", length);
         map
     }
 

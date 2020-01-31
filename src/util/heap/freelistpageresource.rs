@@ -12,9 +12,10 @@ use util::generic_freelist;
 use util::generic_freelist::GenericFreeList;
 // #[cfg(target_pointer_width = "32")]
 // FIXME: Use `RawMemoryFreeList` for 64-bit machines
-use util::int_array_freelist::IntArrayFreeList as FreeList;
+// use util::int_array_freelist::IntArrayFreeList as FreeList;
 use util::heap::layout::vm_layout_constants::*;
 use util::heap::layout::heap_layout;
+use util::heap::layout::freelist::Freelist;
 use util::conversions;
 use util::constants::*;
 use policy::space::Space;
@@ -127,44 +128,14 @@ impl<S: Space<PR = FreeListPageResource<S>>> PageResource for FreeListPageResour
 
 impl<S: Space<PR = FreeListPageResource<S>>> FreeListPageResource<S> {
     pub fn new_contiguous(space: &S, start: Address, bytes: usize, meta_data_pages_per_region: usize) -> Self {
-        let pages = conversions::bytes_to_pages(bytes);
-        let common_flpr = unsafe {
-            let mut common_flpr = Box::new(CommonFreeListPageResource {
-                free_list: ::std::mem::uninitialized(),
-                start,
-            });
-            ::std::ptr::write(&mut common_flpr.free_list, heap_layout::VM_MAP.create_parent_freelist(pages, PAGES_IN_REGION as _));
-            common_flpr
-        };
-        let growable = HEAP_LAYOUT_64BIT;
-        let mut flpr = FreeListPageResource {
-            common: CommonPageResource {
-                reserved: AtomicUsize::new(0),
-                committed: AtomicUsize::new(0),
-                contiguous: true,
-                growable,
-                space: None,
-            },
-            common_flpr,
-            meta_data_pages_per_region,
-            sync: Mutex::new(FreeListPageResourceSync {
-                pages_currently_on_freelist: if growable { 0 } else { pages },
-                highwater_mark: 0,
-            }),
-        };
-        if !flpr.common.growable {
-            flpr.reserve_metadata(space.common().extent);
-            // reserveMetaData(space.getExtent());
-            // unimplemented!()
-        }
-        flpr
+        unimplemented!()
     }
 
 
     pub fn new_discontiguous(meta_data_pages_per_region: usize) -> Self {
         let common_flpr = unsafe {
             let mut common_flpr = Box::new(CommonFreeListPageResource {
-                free_list: ::std::mem::uninitialized(),
+                free_list: Freelist::new(),
                 start: AVAILABLE_START,
             });
             ::std::ptr::write(&mut common_flpr.free_list, heap_layout::VM_MAP.create_freelist(&common_flpr));

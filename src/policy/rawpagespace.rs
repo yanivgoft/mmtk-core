@@ -4,7 +4,7 @@ use ::plan::TransitiveClosure;
 use ::policy::space::{CommonSpace, Space};
 use ::util::{Address, ObjectReference};
 use ::util::constants::*;
-use ::util::heap::{FreeListPageResource, PageResource, VMRequest};
+use ::util::heap::{PageResource, VMRequest};
 use std::sync::Mutex;
 use util::conversions;
 use std::collections::HashSet;
@@ -18,28 +18,28 @@ const MAX_OBJECTS_IN_HEAP: usize = MAX_HEAP_SIZE / BYTES_IN_PAGE;
 
 #[derive(Debug)]
 pub struct RawPageSpace {
-    common: UnsafeCell<CommonSpace<FreeListPageResource<RawPageSpace>>>,
+    common: UnsafeCell<CommonSpace>,
     mark_state: usize,
     cells: Mutex<HashSet<Address>>,
     marktable: BitMap,
 }
 
 impl Space for RawPageSpace {
-    type PR = FreeListPageResource<RawPageSpace>;
+    // type PR = FreeListPageResource<RawPageSpace>;
 
     fn init(&mut self) {
         let me = unsafe { &*(self as *const Self) };
         let common_mut = self.common_mut();
         assert!(common_mut.vmrequest.is_discontiguous());
-        common_mut.pr = Some(FreeListPageResource::new_discontiguous(0));
-        common_mut.pr.as_mut().unwrap().bind_space(me);
+        common_mut.pr = Some(PageResource::new_discontiguous(0, me.common().descriptor));
+        // common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace {
         unsafe { &*self.common.get() }
     }
 
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace {
         &mut *self.common.get()
     }
 

@@ -1,7 +1,7 @@
 use std::sync::Mutex;
 
 use ::policy::space::{Space, CommonSpace};
-use ::util::heap::{PageResource, MonotonePageResource, VMRequest};
+use ::util::heap::{PageResource, VMRequest};
 use ::util::address::Address;
 
 use ::util::ObjectReference;
@@ -15,7 +15,7 @@ use std::cell::UnsafeCell;
 
 #[derive(Debug)]
 pub struct ImmortalSpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<ImmortalSpace>>>,
+    common: UnsafeCell<CommonSpace>,
     mark_state: u8,
 }
 
@@ -25,12 +25,12 @@ const GC_MARK_BIT_MASK: u8 = 1;
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
 impl Space for ImmortalSpace {
-    type PR = MonotonePageResource<ImmortalSpace>;
+    // type PR = MonotonePageResource<ImmortalSpace>;
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace {
         unsafe {&*self.common.get()}
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace {
         &mut *self.common.get()
     }
 
@@ -40,14 +40,13 @@ impl Space for ImmortalSpace {
 
         let common_mut = self.common_mut();
         if common_mut.vmrequest.is_discontiguous() {
-            common_mut.pr = Some(MonotonePageResource::new_discontiguous(
-                META_DATA_PAGES_PER_REGION));
+            common_mut.pr = Some(PageResource::new_discontiguous(
+                META_DATA_PAGES_PER_REGION, me.common().descriptor));
         } else {
-            common_mut.pr = Some(MonotonePageResource::new_contiguous(common_mut.start,
-                                                                      common_mut.extent,
-                                                                      META_DATA_PAGES_PER_REGION));
+            unimplemented!();
+            // common_mut.pr = Some(PageResource::new_contiguous(common_mut.start, common_mut.extent, META_DATA_PAGES_PER_REGION));
         }
-        common_mut.pr.as_mut().unwrap().bind_space(me);
+        // common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
     fn is_live(&self, object: ObjectReference) -> bool {

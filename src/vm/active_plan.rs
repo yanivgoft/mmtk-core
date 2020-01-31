@@ -10,4 +10,5 @@ pub trait ActivePlan {
     fn collector_count() -> usize;
     fn reset_mutator_iterator();
     fn get_next_mutator() -> Option<&'static mut <SelectedPlan as Plan>::MutatorT>;
+    fn record_collector(tls: *mut c_void) {}
 }

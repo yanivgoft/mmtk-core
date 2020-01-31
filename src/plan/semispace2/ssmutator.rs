@@ -8,14 +8,14 @@ use ::util::alloc::Allocator;
 use ::plan::Allocator as AllocationType;
 use ::plan::plan;
 use ::vm::{Collection, VMCollection};
-use ::util::heap::MonotonePageResource;
+// use ::util::heap::MonotonePageResource;
 use super::PLAN;
 
 use libc::c_void;
 
 #[repr(C)]
 pub struct SSMutator {
-    ss: BumpAllocator<MonotonePageResource<CopySpace>>,
+    ss: BumpAllocator<CopySpace>,
     vs: RawPageAllocator,
 }
 

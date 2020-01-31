@@ -1,5 +1,5 @@
 use ::util::heap::PageResource;
-use ::util::heap::MonotonePageResource;
+// use ::util::heap::MonotonePageResource;
 use ::util::heap::VMRequest;
 use ::policy::space::{Space, CommonSpace};
 use ::util::{Address, ObjectReference};
@@ -14,17 +14,17 @@ const META_DATA_PAGES_PER_REGION: usize = 0;
 
 #[derive(Debug)]
 pub struct CopySpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<CopySpace>>>,
+    common: UnsafeCell<CommonSpace>,
     from_space: bool,
 }
 
 impl Space for CopySpace {
-    type PR = MonotonePageResource<CopySpace>;
+    // type PR = MonotonePageResource<CopySpace>;
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace {
         unsafe { &*self.common.get() }
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace {
         &mut *self.common.get()
     }
 
@@ -34,11 +34,12 @@ impl Space for CopySpace {
 
         let common_mut = self.common_mut();
         if common_mut.vmrequest.is_discontiguous() {
-            common_mut.pr = Some(MonotonePageResource::new_discontiguous(META_DATA_PAGES_PER_REGION));
+            common_mut.pr = Some(PageResource::new_discontiguous(META_DATA_PAGES_PER_REGION, me.common().descriptor));
         } else {
-            common_mut.pr = Some(MonotonePageResource::new_contiguous(common_mut.start, common_mut.extent, META_DATA_PAGES_PER_REGION));
+            unimplemented!()
+            // common_mut.pr = Some(PageResource::new_contiguous(common_mut.start, common_mut.extent, META_DATA_PAGES_PER_REGION));
         }
-        common_mut.pr.as_mut().unwrap().bind_space(me);
+        // common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
     fn is_live(&self, object: ObjectReference) -> bool {
@@ -67,7 +68,7 @@ impl CopySpace {
     }
 
     pub unsafe fn release(&mut self) {
-        self.common().pr.as_ref().unwrap().reset();
+        self.common().pr.as_ref().unwrap().release_all();
         self.from_space = false;
     }
 

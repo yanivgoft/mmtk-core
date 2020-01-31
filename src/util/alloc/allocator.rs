@@ -131,10 +131,10 @@ pub fn determine_collection_attempts() -> usize {
     COLLECTION_ATTEMPTS.load(Ordering::Relaxed)
 }
 
-pub trait Allocator<PR: PageResource> {
+pub trait Allocator<S: Space> {
     fn get_tls(&self) -> *mut c_void;
 
-    fn get_space(&self) -> Option<&'static PR::Space>;
+    fn get_space(&self) -> Option<&'static S>;
 
     fn alloc(&mut self, size: usize, align: usize, offset: isize) -> Address;
 

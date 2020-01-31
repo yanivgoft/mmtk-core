@@ -23,7 +23,7 @@ use std::fmt::Debug;
 use libc::c_void;
 
 pub trait Space: Sized + Debug + 'static {
-    type PR: PageResource<Space = Self>;
+    // type PR: PageResource<Space = Self>;
 
     fn init(&mut self);
 
@@ -43,28 +43,28 @@ pub trait Space: Sized + Debug + 'static {
 
         trace!("Polling ..");
 
-        if allow_poll && VMActivePlan::global().poll::<Self::PR>(false, me) {
+        if allow_poll && VMActivePlan::global().poll(false, me) {
             trace!("Collection required");
             pr.clear_request(pages_reserved);
             VMCollection::block_for_gc(tls);
             unsafe { Address::zero() }
         } else {
             trace!("Collection not required");
-            let rtn = pr.get_new_pages(pages_reserved, pages, self.common().zeroed, tls);
-            if rtn.is_zero() {
+            let rtn = pr.alloc_pages(pages_reserved, pages, self.common().zeroed, tls);
+            if rtn.is_none() {
                 if !allow_poll {
                     println!("VMActivePlan::is_mutator(tls) {:?}", unsafe { VMActivePlan::is_mutator(tls) });
                     println!("PLAN.is_initialized() {:?}", PLAN.is_initialized());
                     panic!("Physical allocation failed when polling not allowed!");
                 }
 
-                let gc_performed = VMActivePlan::global().poll::<Self::PR>(true, me);
+                let gc_performed = VMActivePlan::global().poll(true, me);
                 debug_assert!(gc_performed, "GC not performed when forced.");
                 pr.clear_request(pages_reserved);
                 VMCollection::block_for_gc(tls);
                 unsafe { Address::zero() }
             } else {
-                rtn
+                rtn.unwrap()
             }
         }
     }
@@ -74,22 +74,23 @@ pub trait Space: Sized + Debug + 'static {
         if !space_descriptor::is_contiguous(self.common().descriptor) {
             VM_MAP.get_descriptor_for_address(start) == self.common().descriptor
         } else {
-            start.as_usize() >= self.common().start.as_usize()
-                && start.as_usize() < self.common().start.as_usize() + self.common().extent
+            unimplemented!()
+            // start.as_usize() >= self.common().start.as_usize()
+            //     && start.as_usize() < self.common().start.as_usize() + self.common().extent
         }
     }
 
     // UNSAFE: potential data race as this mutates 'common'
-    unsafe fn grow_discontiguous_space(&self, chunks: usize) -> Address {
-        // FIXME
-        let new_head: Address = VM_MAP.allocate_contiguous_chunks(self.common().descriptor, chunks, self.common().head_discontiguous_region);
-        if new_head.is_zero() {
-            return unsafe{Address::zero()};
-        }
+    // unsafe fn grow_discontiguous_space(&self, chunks: usize) -> Address {
+    //     // FIXME
+    //     let new_head: Address = VM_MAP.allocate_contiguous_chunks(self.common().descriptor, chunks, self.common().head_discontiguous_region);
+    //     if new_head.is_zero() {
+    //         return unsafe{Address::zero()};
+    //     }
 
-        self.unsafe_common_mut().head_discontiguous_region = new_head;
-        new_head
-    }
+    //     self.unsafe_common_mut().head_discontiguous_region = new_head;
+    //     new_head
+    // }
 
     /**
      * This hook is called by page resources each time a space grows.  The space may
@@ -110,75 +111,75 @@ pub trait Space: Sized + Debug + 'static {
         self.common().name
     }
 
-    fn common(&self) -> &CommonSpace<Self::PR>;
-    fn common_mut(&mut self) -> &mut CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace;
+    fn common_mut(&mut self) -> &mut CommonSpace {
         // SAFE: Reference is exclusive
         unsafe {self.unsafe_common_mut()}
     }
 
     // UNSAFE: This get's a mutable reference from self
     // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR>;
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace;
 
     fn is_live(&self, object: ObjectReference) -> bool;
     fn is_movable(&self) -> bool;
 
-    fn release_discontiguous_chunks(&mut self, chunk: Address) {
-        debug_assert!(chunk == conversions::chunk_align(chunk, true));
-        if chunk == self.common().head_discontiguous_region {
-            self.common_mut().head_discontiguous_region = VM_MAP.get_next_contiguous_region(chunk);
-        }
-        VM_MAP.free_contiguous_chunks(chunk);
-    }
+    // fn release_discontiguous_chunks(&mut self, chunk: Address) {
+    //     debug_assert!(chunk == conversions::chunk_align(chunk, true));
+    //     if chunk == self.common().head_discontiguous_region {
+    //         self.common_mut().head_discontiguous_region = VM_MAP.get_next_contiguous_region(chunk);
+    //     }
+    //     VM_MAP.free_contiguous_chunks(chunk);
+    // }
 
     fn release_multiple_pages(&mut self, start: Address);
 
-    unsafe fn release_all_chunks(&self) {
-        VM_MAP.free_all_chunks(self.common().head_discontiguous_region);
-        self.unsafe_common_mut().head_discontiguous_region = Address::zero();
-    }
+    // unsafe fn release_all_chunks(&self) {
+    //     VM_MAP.free_all_chunks(self.common().head_discontiguous_region);
+    //     self.unsafe_common_mut().head_discontiguous_region = Address::zero();
+    // }
 
-    fn print_vm_map(&self) {
-        let common = self.common();
-        print!("{:4} {:5}MB ", common.name, self.reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
-        if common.immortal {
-            print!("I");
-        } else {
-            print!(" ");
-        }
-        if common.movable {
-            print!(" ");
-        } else {
-            print!("N");
-        }
-        print!(" ");
-        if common.contiguous {
-            print!("{}->{}", common.start, common.start+common.extent-1);
-            match common.vmrequest {
-                VMRequest::RequestExtent { extent, top } => {
-                    print!(" E {}", extent);
-                },
-                VMRequest::RequestFraction {frac, top } => {
-                    print!(" F {}", frac);
-                },
-                _ => {}
-            }
-        } else {
-            let mut a = common.head_discontiguous_region;
-            while !a.is_zero() {
-                print!("{}->{}", a, a + VM_MAP.get_contiguous_region_size(a) - 1);
-                a = VM_MAP.get_next_contiguous_region(a);
-                if !a.is_zero() {
-                    print!(" ");
-                }
-            }
-        }
-        println!();
-    }
+    // fn print_vm_map(&self) {
+    //     let common = self.common();
+    //     print!("{:4} {:5}MB ", common.name, self.reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
+    //     if common.immortal {
+    //         print!("I");
+    //     } else {
+    //         print!(" ");
+    //     }
+    //     if common.movable {
+    //         print!(" ");
+    //     } else {
+    //         print!("N");
+    //     }
+    //     print!(" ");
+    //     if common.contiguous {
+    //         print!("{}->{}", common.start, common.start+common.extent-1);
+    //         match common.vmrequest {
+    //             VMRequest::RequestExtent { extent, top } => {
+    //                 print!(" E {}", extent);
+    //             },
+    //             VMRequest::RequestFraction {frac, top } => {
+    //                 print!(" F {}", frac);
+    //             },
+    //             _ => {}
+    //         }
+    //     } else {
+    //         let mut a = common.head_discontiguous_region;
+    //         while !a.is_zero() {
+    //             print!("{}->{}", a, a + VM_MAP.get_contiguous_region_size(a) - 1);
+    //             a = VM_MAP.get_next_contiguous_region(a);
+    //             if !a.is_zero() {
+    //                 print!(" ");
+    //             }
+    //         }
+    //     }
+    //     println!();
+    // }
 }
 
 #[derive(Debug)]
-pub struct CommonSpace<PR: PageResource> {
+pub struct CommonSpace {
     pub name: &'static str,
     name_length: usize,
     pub descriptor: usize,
@@ -190,7 +191,7 @@ pub struct CommonSpace<PR: PageResource> {
     pub contiguous: bool,
     pub zeroed: bool,
 
-    pub pr: Option<PR>,
+    pub pr: Option<PageResource>,
     pub start: Address,
     pub extent: usize,
     pub head_discontiguous_region: Address,
@@ -203,10 +204,9 @@ static mut HEAP_LIMIT: Address = HEAP_END;
 
 const DEBUG: bool = false;
 
-impl<PR: PageResource> CommonSpace<PR> {
-    pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
-               vmrequest: VMRequest) -> Self {
-                println!("CommonSpace: {:?}", vmrequest);
+impl CommonSpace {
+    pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool, vmrequest: VMRequest) -> Self {
+        println!("CommonSpace: {:?}", vmrequest);
         let mut rtn = CommonSpace {
             name,
             name_length: name.len(),
@@ -229,60 +229,62 @@ impl<PR: PageResource> CommonSpace<PR> {
             rtn.descriptor = space_descriptor::create_descriptor();
             // VM.memory.setHeapRange(index, HEAP_START, HEAP_END);
             return rtn;
-        }
-
-        let (extent, top) = match vmrequest {
-            VMRequest::RequestFraction{frac, top: _top}                   => (get_frac_available(frac), _top),
-            VMRequest::RequestExtent{extent: _extent, top: _top}          => (_extent, _top),
-            VMRequest::RequestFixed{start: _, extent: _extent, top: _top} => (_extent, _top),
-            _                                                             => unreachable!(),
-        };
-
-        if extent != raw_chunk_align(extent, false) {
-            panic!("{} requested non-aligned extent: {} bytes", name, extent);
-        }
-
-        let start: Address;
-        if let VMRequest::RequestFixed{start: _start, extent: _, top: _} = vmrequest {
-            start = _start;
-            if start.as_usize() != chunk_align(start, false).as_usize() {
-                panic!("{} starting on non-aligned boundary: {} bytes", name, start.as_usize());
-            }
-        } else if top {
-            // FIXME
-            //if (HeapLayout.vmMap.isFinalized()) VM.assertions.fail("heap is narrowed after regionMap is finalized: " + name);
-            unsafe {
-                HEAP_LIMIT -= extent;
-                start = HEAP_LIMIT;
-            }
         } else {
-            unsafe {
-                start = HEAP_CURSOR;
-                println!("HEAP_CURSOR: {:?} -> {:?}", HEAP_CURSOR, HEAP_CURSOR + extent);
-                HEAP_CURSOR += extent;
-            }
+            unimplemented!()
         }
 
-        unsafe {
-            if HEAP_CURSOR > HEAP_LIMIT {
-                panic!("Out of virtual address space allocating \"{}\" at {} ({} > {})", name,
-                       HEAP_CURSOR - extent, HEAP_CURSOR, HEAP_LIMIT);
-            }
-        }
+        // let (extent, top) = match vmrequest {
+        //     VMRequest::RequestFraction{frac, top: _top}                   => (get_frac_available(frac), _top),
+        //     VMRequest::RequestExtent{extent: _extent, top: _top}          => (_extent, _top),
+        //     VMRequest::RequestFixed{start: _, extent: _extent, top: _top} => (_extent, _top),
+        //     _                                                             => unreachable!(),
+        // };
 
-        rtn.contiguous = true;
-        rtn.start = start;
-        rtn.extent = extent;
-        // FIXME
-        rtn.descriptor = space_descriptor::create_descriptor_from_heap_range(start, start + extent);
-        // VM.memory.setHeapRange(index, start, start.plus(extent));
-        ::util::heap::layout::heap_layout::VM_MAP.insert(start, extent, rtn.descriptor);
+        // if extent != raw_chunk_align(extent, false) {
+        //     panic!("{} requested non-aligned extent: {} bytes", name, extent);
+        // }
 
-        if DEBUG {
-            println!("{} {} {} {}", name, start, start + extent, extent);
-        }
+        // let start: Address;
+        // if let VMRequest::RequestFixed{start: _start, extent: _, top: _} = vmrequest {
+        //     start = _start;
+        //     if start.as_usize() != chunk_align(start, false).as_usize() {
+        //         panic!("{} starting on non-aligned boundary: {} bytes", name, start.as_usize());
+        //     }
+        // } else if top {
+        //     // FIXME
+        //     //if (HeapLayout.vmMap.isFinalized()) VM.assertions.fail("heap is narrowed after regionMap is finalized: " + name);
+        //     unsafe {
+        //         HEAP_LIMIT -= extent;
+        //         start = HEAP_LIMIT;
+        //     }
+        // } else {
+        //     unsafe {
+        //         start = HEAP_CURSOR;
+        //         println!("HEAP_CURSOR: {:?} -> {:?}", HEAP_CURSOR, HEAP_CURSOR + extent);
+        //         HEAP_CURSOR += extent;
+        //     }
+        // }
 
-        rtn
+        // unsafe {
+        //     if HEAP_CURSOR > HEAP_LIMIT {
+        //         panic!("Out of virtual address space allocating \"{}\" at {} ({} > {})", name,
+        //                HEAP_CURSOR - extent, HEAP_CURSOR, HEAP_LIMIT);
+        //     }
+        // }
+
+        // rtn.contiguous = true;
+        // rtn.start = start;
+        // rtn.extent = extent;
+        // // FIXME
+        // rtn.descriptor = space_descriptor::create_descriptor_from_heap_range(start, start + extent);
+        // // VM.memory.setHeapRange(index, start, start.plus(extent));
+        // ::util::heap::layout::heap_layout::VM_MAP.insert(start, extent, rtn.descriptor);
+
+        // if DEBUG {
+        //     println!("{} {} {} {}", name, start, start + extent, extent);
+        // }
+
+        // rtn
     }
 }
 
