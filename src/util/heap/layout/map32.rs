@@ -34,8 +34,9 @@ pub struct Map32 {
     descriptor_map: Vec<SpaceDescriptor>,
 
     // TODO: Is this the right place for this field?
-    // This used to be a global variable, now we need to put it somewhere.
-    // This is supposed to be a per-instance data.
+    // This used to be a global variable. When we remove global states, this needs to be put somewhere.
+    // Currently I am putting it here, as for where this variable is used, we already have
+    // references to vm_map - so it is convenient to put it here.
     cumulative_committed_pages: AtomicUsize,
 }
 
