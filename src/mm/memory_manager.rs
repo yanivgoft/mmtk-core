@@ -263,17 +263,12 @@ pub extern fn used_bytes() -> usize {
 
 #[no_mangle]
 pub extern fn starting_heap_address() -> *mut c_void {
-    // HEAP_START.as_usize()
-    0x7000_0000_0000usize as _
-    // 0x7f5d_7c01_1000
-    // 0x1000 as _
-    // HEAP_START.as_usize() as *mut c_void
+    ::util::heap::layout::heap_layout::VM_MAP.heap_range.0.to_ptr_mut()
 }
 
 #[no_mangle]
 pub extern fn last_heap_address() -> *mut c_void {
-    (0x7000_0000_0000usize + 2 * 1024 * 1024 * 1024) as _
-    // HEAP_END.as_usize() as *mut c_void
+    ::util::heap::layout::heap_layout::VM_MAP.heap_range.1.to_ptr_mut()
 }
 
 #[no_mangle]

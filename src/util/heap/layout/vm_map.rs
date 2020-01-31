@@ -4,9 +4,11 @@ use util::Address;
 use util::constants::*;
 use super::vm_layout_constants::{LOG_BYTES_IN_CHUNK, BYTES_IN_CHUNK};
 use std::sync::atomic::{AtomicUsize, Ordering};
+use vm::*;
 
-pub const LOG_MAX_CHUNKS: usize = 48 - LOG_BYTES_IN_CHUNK;
-pub const MAX_CHUNKS: usize = 1 << LOG_MAX_CHUNKS;
+
+// pub const LOG_MAX_CHUNKS: usize = 48 - LOG_BYTES_IN_CHUNK;
+// pub const MAX_CHUNKS: usize = 1 << LOG_MAX_CHUNKS;
 
 pub struct Region;
 
@@ -18,20 +20,36 @@ pub struct VMMap {
     // shared_fl_map: Vec<Option<&'static CommonFreeListPageResource>>,
     // total_available_discontiguous_chunks: usize,
     descriptor_map: Vec<AtomicUsize>,
-    heap_range: Mutex<(Address, Address)>,
+    pub heap_range: (Address, Address),
     freelist: Mutex<Freelist>,
 }
 
 
 impl VMMap {
+    fn get_chunk_index(&self, chunk: Address) -> usize {
+        (chunk - self.heap_range.0) >> LOG_BYTES_IN_CHUNK
+    }
+    fn get_chunk_address(&self, index: usize) -> Address {
+        self.heap_range.0 + (index << LOG_BYTES_IN_CHUNK)
+    }
+
     pub fn new() -> Self {
+        let heap_range = VMMemory::reserve_heap();
+        let chunks = (heap_range.1 - heap_range.0) >> LOG_BYTES_IN_CHUNK;
         let mut map = vec![];
-        println!("Resize start {}mb", MAX_CHUNKS * 8 / 1024 / 1024);
-        map.resize_with(MAX_CHUNKS, Default::default);
+        println!("Resize start {}mb", chunks * 8 / 1024 / 1024);
+        map.resize_with(chunks, Default::default);
         println!("Resize end");
+        let mut freelist = Freelist::new();
+        {
+            let start = heap_range.0.align_up(BYTES_IN_CHUNK);
+            let limit = heap_range.1.align_down(BYTES_IN_CHUNK);
+            let chunks = (limit - start) >> LOG_BYTES_IN_CHUNK;
+            freelist.insert_free(0, chunks);
+        }
         Self {
-            heap_range: Mutex::new(unsafe { (Address::zero(), Address::zero()) }),
-            freelist: Mutex::new(Freelist::new()),
+            heap_range: heap_range,
+            freelist: Mutex::new(freelist),
             descriptor_map: map,//(0..MAX_CHUNKS).map(|_| AtomicUsize::new(0)).collect(),
         }
     }
@@ -40,25 +58,19 @@ impl VMMap {
         let mut freelist = self.freelist.lock().unwrap();
         match freelist.alloc(chunks) {
             Some(chunk_index) => {
-                let chunk = unsafe { Address::from_usize(chunk_index << LOG_BYTES_IN_CHUNK) };
+                let chunk = self.get_chunk_address(chunk_index);
                 for i in 0..chunks {
                     self.map_chunk(chunk + (i << LOG_BYTES_IN_CHUNK), space_desc);
                 }
                 Some(chunk)
             },
-            _ => {
-                if self.grow_heap(chunks, freelist) {
-                    self.allocate_contiguous_chunks(chunks, space_desc)
-                } else {
-                    None
-                }
-            }
+            _ => None,
         }
     }
 
     pub fn release_contiguous_chunks(&self, start: Address) {
         let mut freelist = self.freelist.lock().unwrap();
-        let index = start.as_usize() >> LOG_BYTES_IN_CHUNK;
+        let index = self.get_chunk_index(start);
         let count = freelist.get_size(index);
         for i in 0..count {
             self.unmap_chunk(start + (i << LOG_BYTES_IN_CHUNK));
@@ -66,49 +78,21 @@ impl VMMap {
         freelist.dealloc(index);
     }
 
-    fn grow_heap(&self, chunks: usize, mut freelist: MutexGuard<Freelist>) -> bool {
-        // Grow virtual heap by 1G
-        unsafe {
-            use ::libc::*;
-
-            let a = 0x7000_0000_0000usize;
-            let size = BYTES_IN_MBYTE * 1024 * 2;
-            let ptr = mmap(a as _, size,
-                PROT_EXEC | PROT_READ | PROT_WRITE,
-                MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE | MAP_FIXED,
-                -1, 0
-            );
-            println!("VMMAP::grow_heap mmap -> {:?}", ptr);
-            assert!(ptr != MAP_FAILED);
-            if ptr == MAP_FAILED {
-                return false;
-            }
-            let raw_start = Address::from_mut_ptr(ptr);
-            let raw_limit = raw_start + size;
-            let start = raw_start.align_up(BYTES_IN_CHUNK);
-            let limit = raw_limit.align_down(BYTES_IN_CHUNK);
-            let index = start.as_usize() >> LOG_BYTES_IN_CHUNK;
-            let chunks = (limit - start) >> LOG_BYTES_IN_CHUNK;
-            freelist.insert_free(index, chunks);
-            true
-        }
-    }
-
     pub fn get_descriptor_for_address(&self, address: Address) -> usize {
-        let index = address.as_usize() >> LOG_BYTES_IN_CHUNK;
+        let index = self.get_chunk_index(address);
         // println!("{:?} {} -> {}", address, index, self.descriptor_map[index].load(Ordering::Relaxed));
         self.descriptor_map[index].load(Ordering::Relaxed)
     }
 
     fn map_chunk(&self, chunk: Address, space: usize) {
-        let index = chunk.as_usize() >> LOG_BYTES_IN_CHUNK;
-        debug_assert!(index < MAX_CHUNKS, "{:?} {} {}", chunk, index, MAX_CHUNKS);
+        let index = self.get_chunk_index(chunk);
+        // debug_assert!(index < MAX_CHUNKS, "{:?} {} {}", chunk, index, MAX_CHUNKS);
         // println!("{:?} {} = {}", chunk, index, space);
         self.descriptor_map[index].store(space, Ordering::Relaxed);
     }
 
     fn unmap_chunk(&self, chunk: Address) {
-        let index = chunk.as_usize() >> LOG_BYTES_IN_CHUNK;
+        let index = self.get_chunk_index(chunk);
         self.descriptor_map[index].store(0, Ordering::Relaxed);
     }
 }

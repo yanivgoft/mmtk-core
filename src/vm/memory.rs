@@ -2,6 +2,7 @@ use ::util::Address;
 use libc;
 
 pub trait Memory {
+  fn reserve_heap() -> (Address, Address);
   fn dzmmap(start: Address, size: usize) -> i32;
   fn zero(start: Address, len: usize) {
     unsafe {
