@@ -50,7 +50,7 @@ pub trait Plan<VM: VMBinding>: Sized {
         self.common().options
     }
     // unsafe because this can only be called once by the init thread
-    unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
+    fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
     fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void;
     fn will_never_move(&self, object: ObjectReference) -> bool;
     // unsafe because only the primary collector thread can call this

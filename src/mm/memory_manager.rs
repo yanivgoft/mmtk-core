@@ -29,17 +29,16 @@ use crate::mmtk::SINGLETON;
 use crate::mmtk::OPTIONS_PROCESSOR;
 use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use vm::VMBinding;
+use mmtk::MMTK;
 
-#[no_mangle]
-pub extern fn start_control_collector(tls: OpaquePointer) {
-    SINGLETON.plan.common().control_collector_context.run(tls);
+pub fn start_control_collector<VM: VMBinding>(mmtk: &MMTK<VM>, tls: OpaquePointer) {
+    mmtk.plan.common().control_collector_context.run(tls);
 }
 
-#[no_mangle]
-pub unsafe extern fn gc_init(heap_size: usize) {
+pub fn gc_init<VM: VMBinding>(mmtk: &MMTK<VM>, heap_size: usize) {
     ::util::logger::init().unwrap();
-    SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
-    SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
+    mmtk.plan.gc_init(heap_size, &SINGLETON.vm_map);
+    mmtk.plan.common().initialized.store(true, Ordering::SeqCst);
 
     // TODO: We should have an option so we know whether we should spawn the controller.
 //    thread::spawn(|| {
@@ -47,8 +46,7 @@ pub unsafe extern fn gc_init(heap_size: usize) {
 //    });
 }
 
-#[no_mangle]
-pub extern fn bind_mutator(tls: OpaquePointer) -> *mut c_void {
+pub fn bind_mutator<VM: VMBinding>(mmtk: &MMTK<VM>, tls: OpaquePointer) -> *mut c_void {
     SelectedPlan::bind_mutator(&SINGLETON.plan, tls)
 }
 
@@ -71,34 +69,33 @@ pub fn post_alloc<VM: VMBinding>(mutator: *mut c_void, refer: ObjectReference, t
     local.post_alloc(refer, type_refer, bytes, allocator);
 }
 
-pub unsafe fn mmtk_malloc<VM: VMBinding>(size: usize) -> *mut c_void {
-    alloc::<VM>(null_mut(), size, 1, 0, Allocator::Default)
+// TODO: I dont think this works. The null pointer will get de-referenced.
+//pub unsafe fn mmtk_malloc<VM: VMBinding>(size: usize) -> *mut c_void {
+//    alloc::<VM>(null_mut(), size, 1, 0, Allocator::Default)
+//}
+
+//#[no_mangle]
+//pub extern fn mmtk_free(_ptr: *const c_void) {}
+
+pub fn will_never_move<VM: VMBinding>(mmtk: &MMTK<VM>, object: ObjectReference) -> bool {
+    mmtk.plan.will_never_move(object)
 }
 
-#[no_mangle]
-pub extern fn mmtk_free(_ptr: *const c_void) {}
-
-#[no_mangle]
-pub extern fn will_never_move(object: ObjectReference) -> bool {
-    SINGLETON.plan.will_never_move(object)
-}
-
-#[no_mangle]
-pub unsafe extern fn is_valid_ref(val: ObjectReference) -> bool {
-    SINGLETON.plan.is_valid_ref(val)
+pub fn is_valid_ref<VM: VMBinding>(mmtk: &MMTK<VM>, val: ObjectReference) -> bool {
+    mmtk.plan.is_valid_ref(val)
 }
 
 #[cfg(feature = "sanity")]
-pub unsafe fn report_delayed_root_edge<VM: VMBinding>(trace_local: *mut c_void, addr: *mut c_void) {
+pub unsafe fn report_delayed_root_edge<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, addr: *mut c_void) {
     use ::util::sanity::sanity_checker::SanityChecker;
-    if SINGLETON.plan.common().is_in_sanity() {
+    if mmtk.plan.common().is_in_sanity() {
         report_delayed_root_edge_inner::<SanityChecker<VM>>(trace_local, addr)
     } else {
         report_delayed_root_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, addr)
     }
 }
 #[cfg(not(feature = "sanity"))]
-pub unsafe fn report_delayed_root_edge<VM: VMBinding>(trace_local: *mut c_void, addr: *mut c_void) {
+pub unsafe fn report_delayed_root_edge<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, addr: *mut c_void) {
     report_delayed_root_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, addr)
 }
 unsafe fn report_delayed_root_edge_inner<T: TraceLocal>(trace_local: *mut c_void, addr: *mut c_void) {
@@ -109,16 +106,16 @@ unsafe fn report_delayed_root_edge_inner<T: TraceLocal>(trace_local: *mut c_void
 }
 
 #[cfg(feature = "sanity")]
-pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
+pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, obj: *mut c_void) -> bool {
     use ::util::sanity::sanity_checker::SanityChecker;
-    if SINGLETON.plan.common().is_in_sanity() {
+    if mmtk.plan.common().is_in_sanity() {
         will_not_move_in_current_collection_inner::<SanityChecker<VM>>(trace_local, obj)
     } else {
         will_not_move_in_current_collection_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, obj)
     }
 }
 #[cfg(not(feature = "sanity"))]
-pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
+pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, obj: *mut c_void) -> bool {
     will_not_move_in_current_collection_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, obj)
 }
 unsafe fn will_not_move_in_current_collection_inner<T: TraceLocal>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
@@ -130,9 +127,9 @@ unsafe fn will_not_move_in_current_collection_inner<T: TraceLocal>(trace_local: 
 }
 
 #[cfg(feature = "sanity")]
-pub unsafe fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
+pub unsafe fn process_interior_edge<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
     use ::util::sanity::sanity_checker::SanityChecker;
-    if SINGLETON.plan.common().is_in_sanity() {
+    if mmtk.plan.common().is_in_sanity() {
         process_interior_edge_inner::<SanityChecker<VM>>(trace_local, target, slot, root)
     } else {
         process_interior_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, target, slot, root)
@@ -140,7 +137,7 @@ pub unsafe fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_void, tar
     trace!("process_interior_root_edge returned with trace_local={:?}", trace_local);
 }
 #[cfg(not(feature = "sanity"))]
-pub unsafe fn process_interior_edge<VM: VMBinding>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
+pub unsafe fn process_interior_edge<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
     process_interior_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, target, slot, root)
 }
 unsafe fn process_interior_edge_inner<T: TraceLocal>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
@@ -157,10 +154,10 @@ pub unsafe fn start_worker<VM: VMBinding>(tls: OpaquePointer, worker: *mut c_voi
     worker_instance.run(tls);
 }
 
-pub unsafe fn enable_collection<VM: VMBinding>(tls: OpaquePointer) {
-    (&mut *SINGLETON.plan.common().control_collector_context.workers.get()).init_group(&SINGLETON, tls);
-    VM::VMCollection::spawn_worker_thread::<<SelectedPlan<VM> as Plan<VM>>::CollectorT>(tls, null_mut()); // spawn controller thread
-    SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
+pub fn enable_collection<VM: VMBinding>(mmtk: &'static MMTK<VM>, tls: OpaquePointer) {
+    unsafe { (&mut *mmtk.plan.common().control_collector_context.workers.get()) }.init_group(mmtk, tls);
+    unsafe { VM::VMCollection::spawn_worker_thread::<<SelectedPlan<VM> as Plan<VM>>::CollectorT>(tls, null_mut()); }// spawn controller thread
+    mmtk.plan.common().initialized.store(true, Ordering::SeqCst);
 }
 
 #[no_mangle]
@@ -173,13 +170,11 @@ pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
     }
 }
 
-#[no_mangle]
-pub extern fn used_bytes() -> usize {
-    SINGLETON.plan.get_pages_used() << LOG_BYTES_IN_PAGE
+pub fn used_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
+    mmtk.plan.get_pages_used() << LOG_BYTES_IN_PAGE
 }
 
-#[no_mangle]
-pub extern fn free_bytes() -> usize {
+pub fn free_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
     SINGLETON.plan.get_free_pages() << LOG_BYTES_IN_PAGE
 }
 
@@ -193,15 +188,13 @@ pub extern fn last_heap_address() -> *mut c_void {
     HEAP_END.as_usize() as *mut c_void
 }
 
-#[no_mangle]
-pub extern fn total_bytes() -> usize {
-    SINGLETON.plan.get_total_pages() << LOG_BYTES_IN_PAGE
+pub fn total_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
+    mmtk.plan.get_total_pages() << LOG_BYTES_IN_PAGE
 }
 
-#[no_mangle]
 #[cfg(feature = "sanity")]
-pub unsafe extern fn scan_region(){
-    ::util::sanity::memory_scan::scan_region(&SINGLETON.plan);
+pub fn scan_region<VM: VMBinding>(mmtk: &MMTK<VM>){
+    ::util::sanity::memory_scan::scan_region(&mmtk.plan);
 }
 
 pub unsafe fn trace_get_forwarded_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
@@ -224,49 +217,44 @@ pub unsafe fn trace_retain_referent<VM: VMBinding>(trace_local: *mut c_void, obj
     local.retain_referent(object)
 }
 
-pub fn handle_user_collection_request<VM: VMBinding>(tls: OpaquePointer) {
-    SINGLETON.plan.handle_user_collection_request(tls, false);
+pub fn handle_user_collection_request<VM: VMBinding>(mmtk: &MMTK<VM>, tls: OpaquePointer) {
+    mmtk.plan.handle_user_collection_request(tls, false);
 }
 
-#[no_mangle]
-pub extern fn is_mapped_object(object: ObjectReference) -> bool {
-    SINGLETON.plan.is_mapped_object(object)
+pub fn is_mapped_object<VM: VMBinding>(mmtk: &MMTK<VM>, object: ObjectReference) -> bool {
+    mmtk.plan.is_mapped_object(object)
 }
 
-#[no_mangle]
-pub extern fn is_mapped_address(address: Address) -> bool {
-    SINGLETON.plan.is_mapped_address(address)
+pub fn is_mapped_address<VM: VMBinding>(mmtk: &MMTK<VM>, address: Address) -> bool {
+    mmtk.plan.is_mapped_address(address)
 }
 
-#[no_mangle]
-pub extern fn modify_check(object: ObjectReference) {
-    SINGLETON.plan.modify_check(object);
+pub fn modify_check<VM: VMBinding>(mmtk: &MMTK<VM>, object: ObjectReference) {
+    mmtk.plan.modify_check(object);
 }
 
-pub unsafe fn add_weak_candidate<VM: VMBinding>(reff: *mut c_void, referent: *mut c_void) {
-    SINGLETON.reference_processors.add_weak_candidate::<VM>(
+pub unsafe fn add_weak_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: *mut c_void, referent: *mut c_void) {
+    mmtk.reference_processors.add_weak_candidate::<VM>(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }
 
-pub unsafe fn add_soft_candidate<VM: VMBinding>(reff: *mut c_void, referent: *mut c_void) {
-    SINGLETON.reference_processors.add_soft_candidate::<VM>(
+pub unsafe fn add_soft_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: *mut c_void, referent: *mut c_void) {
+    mmtk.reference_processors.add_soft_candidate::<VM>(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }
 
-pub unsafe fn add_phantom_candidate<VM: VMBinding>(reff: *mut c_void, referent: *mut c_void) {
-    SINGLETON.reference_processors.add_phantom_candidate::<VM>(
+pub unsafe fn add_phantom_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: *mut c_void, referent: *mut c_void) {
+    mmtk.reference_processors.add_phantom_candidate::<VM>(
         Address::from_mut_ptr(reff).to_object_reference(),
         Address::from_mut_ptr(referent).to_object_reference());
 }
 
-#[no_mangle]
-pub extern fn harness_begin(tls: OpaquePointer) {
-    SINGLETON.harness_begin(tls);
+pub fn harness_begin<VM: VMBinding>(mmtk: &MMTK<VM>, tls: OpaquePointer) {
+    mmtk.harness_begin(tls);
 }
 
-#[no_mangle]
-pub extern fn harness_end() {
-    SINGLETON.harness_end();
+pub fn harness_end<VM: VMBinding>(mmtk: &MMTK<VM>) {
+    mmtk.harness_end();
 }
