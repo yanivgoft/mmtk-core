@@ -67,10 +67,10 @@ impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
         }
     }
 
-    unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap) {
+    fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap) {
         vm_map.finalize_static_space_map(self.common.heap.get_discontig_start(), self.common.heap.get_discontig_end());
 
-        let unsync = &mut *self.unsync.get();
+        let unsync = unsafe { &mut *self.unsync.get() };
         self.common.heap.total_pages.store(bytes_to_pages(heap_size), Ordering::Relaxed);
         // FIXME correctly initialize spaces based on options
         if unsync.vm_space.is_some() {
