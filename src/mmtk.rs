@@ -39,12 +39,12 @@ lazy_static! {
     pub static ref SINGLETON: MMTK<JikesRVM> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
 }
 
-#[cfg(feature = "openjdk")]
-use vm::openjdk::OpenJDK;
-#[cfg(feature = "openjdk")]
-lazy_static! {
-    pub static ref SINGLETON: MMTK<OpenJDK> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
-}
+//#[cfg(feature = "openjdk")]
+//use vm::openjdk::OpenJDK;
+//#[cfg(feature = "openjdk")]
+//lazy_static! {
+//    pub static ref SINGLETON: MMTK<OpenJDK> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+//}
 
 //#[cfg(feature = "dummyvm")]
 //use vm::dummyvm::DummyVM;

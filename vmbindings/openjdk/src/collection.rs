@@ -1,11 +1,11 @@
-use super::super::Collection;
-use ::plan::{MutatorContext, ParallelCollector};
-use ::util::OpaquePointer;
-
-use super::UPCALLS;
-
 use libc::c_void;
-use vm::openjdk::OpenJDK;
+
+use mmtk::vm::Collection;
+use mmtk::{MutatorContext, ParallelCollector};
+use mmtk::util::OpaquePointer;
+
+use OpenJDK;
+use UPCALLS;
 
 pub struct VMCollection {}
 

@@ -1,9 +1,9 @@
-use ::vm::Scanning;
-use ::plan::{TransitiveClosure, TraceLocal};
-use ::util::{ObjectReference, SynchronizedCounter};
-use ::util::OpaquePointer;
 use libc::c_void;
-use vm::openjdk::OpenJDK;
+use mmtk::vm::Scanning;
+use mmtk::{TransitiveClosure, TraceLocal};
+use mmtk::util::{ObjectReference, SynchronizedCounter};
+use mmtk::util::OpaquePointer;
+use OpenJDK;
 
 static COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 

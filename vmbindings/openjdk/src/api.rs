@@ -1,12 +1,15 @@
-use vm::openjdk::{OpenJDK, UPCALLS, OpenJDK_Upcalls};
-use mm::memory_manager;
 use libc::c_void;
-use plan::Allocator;
 use std::ptr::null_mut;
-use util::{ObjectReference, OpaquePointer, Address};
-use ::mmtk::SINGLETON;
-use plan::Plan;
-use util::constants::LOG_BYTES_IN_PAGE;
+use mmtk::memory_manager;
+use mmtk::Allocator;
+use mmtk::util::{ObjectReference, OpaquePointer, Address};
+use mmtk::Plan;
+use mmtk::util::constants::LOG_BYTES_IN_PAGE;
+
+use OpenJDK;
+use UPCALLS;
+use OpenJDK_Upcalls;
+use SINGLETON;
 
 #[no_mangle]
 pub unsafe extern fn openjdk_gc_init(calls: *const OpenJDK_Upcalls, heap_size: usize) {

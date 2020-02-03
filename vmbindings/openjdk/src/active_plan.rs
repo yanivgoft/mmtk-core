@@ -1,14 +1,15 @@
-use ::plan::{Plan, SelectedPlan};
-use super::super::ActivePlan;
-use ::util::OpaquePointer;
 use libc::c_void;
-use vm::openjdk::OpenJDK;
+use mmtk::{Plan, SelectedPlan};
+use mmtk::vm::ActivePlan;
+use mmtk::util::OpaquePointer;
+use OpenJDK;
+use SINGLETON;
 
 pub struct VMActivePlan<> {}
 
 impl ActivePlan<OpenJDK> for VMActivePlan {
     fn global() -> &'static SelectedPlan<OpenJDK> {
-        &::mmtk::SINGLETON.plan
+        &SINGLETON.plan
     }
 
     unsafe fn collector(tls: OpaquePointer) -> &'static mut <SelectedPlan<OpenJDK> as Plan<OpenJDK>>::CollectorT {

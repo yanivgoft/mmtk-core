@@ -1,9 +1,9 @@
-use ::vm::object_model::ObjectModel;
-use ::util::{Address, ObjectReference};
-use ::plan::Allocator;
-use ::util::OpaquePointer;
 use libc::c_void;
-use vm::openjdk::OpenJDK;
+use mmtk::vm::ObjectModel;
+use mmtk::Allocator;
+use mmtk::util::{Address, ObjectReference};
+use mmtk::util::OpaquePointer;
+use OpenJDK;
 
 pub struct VMObjectModel {}
 
