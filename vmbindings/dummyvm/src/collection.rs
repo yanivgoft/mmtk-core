@@ -1,8 +1,8 @@
-use super::super::Collection;
-use ::plan::{MutatorContext, ParallelCollector};
-use ::util::OpaquePointer;
 use libc::c_void;
-use vm::dummyvm::DummyVM;
+use mmtk::vm::Collection;
+use mmtk::{MutatorContext, ParallelCollector};
+use mmtk::util::OpaquePointer;
+use DummyVM;
 
 pub struct VMCollection {}
 

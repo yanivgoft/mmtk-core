@@ -1,10 +1,10 @@
-use mm::memory_manager;
 use libc::c_void;
-use plan::Allocator;
 use std::ptr::null_mut;
-use util::{ObjectReference, OpaquePointer, Address};
-use vm::dummyvm::DummyVM;
-use mmtk::SINGLETON;
+use mmtk::memory_manager;
+use mmtk::Allocator;
+use mmtk::util::{ObjectReference, OpaquePointer, Address};
+use DummyVM;
+use SINGLETON;
 
 #[no_mangle]
 pub extern fn gc_init(heap_size: usize) {

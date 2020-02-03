@@ -28,4 +28,8 @@ mod plan;
 mod mm;
 mod mmtk;
 
-pub use mm::memory_manager::*;
+pub use mm::memory_manager;
+pub use plan::{TransitiveClosure, TraceLocal, Allocator, MutatorContext, ParallelCollector, Plan};
+pub use plan::selected_plan::SelectedPlan;
+pub use mmtk::MMTK;
+pub use mmtk::{VM_MAP, MMAPPER, OPTIONS_PROCESSOR};

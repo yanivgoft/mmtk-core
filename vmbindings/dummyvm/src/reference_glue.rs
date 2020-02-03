@@ -1,9 +1,9 @@
-use ::vm::ReferenceGlue;
-use ::util::ObjectReference;
-use ::plan::TraceLocal;
-use ::util::OpaquePointer;
 use libc::c_void;
-use vm::dummyvm::DummyVM;
+use mmtk::vm::ReferenceGlue;
+use mmtk::util::ObjectReference;
+use mmtk::TraceLocal;
+use mmtk::util::OpaquePointer;
+use DummyVM;
 
 pub struct VMReferenceGlue {}
 

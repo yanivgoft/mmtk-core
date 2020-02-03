@@ -1,14 +1,15 @@
-use ::plan::{Plan, SelectedPlan};
-use super::super::ActivePlan;
-use ::util::OpaquePointer;
 use libc::c_void;
-use vm::dummyvm::DummyVM;
+use mmtk::{Plan, SelectedPlan};
+use mmtk::vm::ActivePlan;
+use mmtk::util::OpaquePointer;
+use DummyVM;
+use SINGLETON;
 
 pub struct VMActivePlan<> {}
 
 impl ActivePlan<DummyVM> for VMActivePlan {
     fn global() -> &'static SelectedPlan<DummyVM> {
-        &::mmtk::SINGLETON.plan
+        &SINGLETON.plan
     }
 
     unsafe fn collector(tls: OpaquePointer) -> &'static mut <SelectedPlan<DummyVM> as Plan<DummyVM>>::CollectorT {
