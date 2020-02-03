@@ -1,20 +1,22 @@
-use vm::jikesrvm::JTOC_BASE;
-use mm::memory_manager;
 use libc::c_void;
-use util::{Address, OpaquePointer, ObjectReference};
-use vm::jikesrvm::JikesRVM;
-use plan::Allocator;
-use mmtk::SINGLETON;
+use mmtk::memory_manager;
+use mmtk::util::{Address, OpaquePointer, ObjectReference};
+use mmtk::Allocator;
+use JikesRVM;
+use JTOC_BASE;
+use SINGLETON;
+use collection::BOOT_THREAD;
+use collection::VMCollection;
 
 #[no_mangle]
 pub unsafe extern fn jikesrvm_gc_init(jtoc: *mut c_void, heap_size: usize) {
     JTOC_BASE = Address::from_mut_ptr(jtoc);
-    ::vm::jikesrvm::BOOT_THREAD
-        = OpaquePointer::from_address(::vm::jikesrvm::collection::VMCollection::thread_from_id(1));
+    BOOT_THREAD
+        = OpaquePointer::from_address(VMCollection::thread_from_id(1));
     memory_manager::gc_init(&SINGLETON, heap_size);
-    debug_assert!(54 == ::vm::jikesrvm::JikesRVM::test(44));
-    debug_assert!(112 == ::vm::jikesrvm::JikesRVM::test2(45, 67));
-    debug_assert!(731 == ::vm::jikesrvm::JikesRVM::test3(21, 34, 9, 8));
+    debug_assert!(54 == JikesRVM::test(44));
+    debug_assert!(112 == JikesRVM::test2(45, 67));
+    debug_assert!(731 == JikesRVM::test3(21, 34, 9, 8));
 }
 
 #[no_mangle]

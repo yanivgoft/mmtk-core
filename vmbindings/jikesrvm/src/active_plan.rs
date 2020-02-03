@@ -1,15 +1,14 @@
-use ::vm::ActivePlan;
-use ::plan::{Plan, SelectedPlan};
-use ::util::{Address, SynchronizedCounter};
-use ::util::OpaquePointer;
-
-use super::entrypoint::*;
-use super::collection::VMCollection;
-use super::JTOC_BASE;
-
 use std::mem;
 use libc::c_void;
-use vm::jikesrvm::JikesRVM;
+use mmtk::vm::ActivePlan;
+use mmtk::{Plan, SelectedPlan};
+use mmtk::util::{Address, SynchronizedCounter};
+use mmtk::util::OpaquePointer;
+use entrypoint::*;
+use collection::VMCollection;
+use JTOC_BASE;
+use JikesRVM;
+use SINGLETON;
 
 static MUTATOR_COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 
@@ -17,7 +16,7 @@ pub struct VMActivePlan<> {}
 
 impl ActivePlan<JikesRVM> for VMActivePlan {
     fn global() -> &'static SelectedPlan<JikesRVM> {
-        &::mmtk::SINGLETON.plan
+        &SINGLETON.plan
     }
 
     // XXX: Are they actually static

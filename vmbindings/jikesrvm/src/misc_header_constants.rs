@@ -1,5 +1,5 @@
-use super::memory_manager_constants::*;
-use super::super::unboxed_size_constants::*;
+use mmtk::vm::unboxed_size_constants::*;
+use memory_manager_constants::*;
 
 /* amount by which tracing causes headers to grow */
 // XXX: workaround for not having const if-expressions

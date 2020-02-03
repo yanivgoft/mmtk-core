@@ -1,5 +1,5 @@
-use super::super::unboxed_size_constants::*;
-use ::plan::selected_plan::SelectedConstraints;
+use mmtk::vm::unboxed_size_constants::*;
+use mmtk::SelectedConstraints;
 
 /** {@code true} if the selected plan needs support for linearly scanning the heap */
 pub const NEEDS_LINEAR_SCAN: bool = SelectedConstraints::NEEDS_LINEAR_SCAN;

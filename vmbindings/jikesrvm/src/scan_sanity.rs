@@ -1,9 +1,8 @@
-use super::entrypoint::*;
-use super::JTOC_BASE;
-use ::plan::{TraceLocal};
-use ::util::OpaquePointer;
-
 use libc::c_void;
+use mmtk::{TraceLocal};
+use mmtk::util::OpaquePointer;
+use entrypoint::*;
+use JTOC_BASE;
 
 pub fn scan_boot_image_sanity<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
     trace!("scan_boot_image_sanity");

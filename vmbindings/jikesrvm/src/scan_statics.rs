@@ -1,14 +1,13 @@
-use super::entrypoint::*;
-use super::JTOC_BASE;
-use super::collection::VMCollection;
-use ::util::Address;
-use ::util::OpaquePointer;
-use ::plan::{TraceLocal, SelectedPlan, Plan, ParallelCollector};
-
-use super::active_plan::VMActivePlan;
-use super::super::ActivePlan;
-
 use libc::c_void;
+
+use mmtk::util::Address;
+use mmtk::util::OpaquePointer;
+use mmtk::vm::ActivePlan;
+use mmtk::{TraceLocal, SelectedPlan, Plan, ParallelCollector};
+use entrypoint::*;
+use JTOC_BASE;
+use collection::VMCollection;
+use active_plan::VMActivePlan;
 
 #[cfg(target_pointer_width = "32")]
 const REF_SLOT_SIZE: usize = 1;

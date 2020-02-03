@@ -2,7 +2,8 @@
 #[macro_export]
 macro_rules! jtoc_call {
     ($offset:ident, $tls:expr $(, $arg:ident)*) => ({
-        let call_addr = (::vm::jikesrvm::JTOC_BASE + $offset).load::<fn()>();
+        use JTOC_BASE;
+        let call_addr = (JTOC_BASE + $offset).load::<fn()>();
         jikesrvm_call!(call_addr, $tls $(, $arg)*)
     });
 }
@@ -11,7 +12,8 @@ macro_rules! jtoc_call {
 #[macro_export]
 macro_rules! jikesrvm_instance_call {
     ($obj:expr, $offset:expr, $tls:expr $(, $arg:ident)*) => ({
-        let tib = Address::from_usize(($obj + ::vm::jikesrvm::java_header::TIB_OFFSET).load::<usize>());
+        use java_header::TIB_OFFSET;
+        let tib = Address::from_usize(($obj + TIB_OFFSET).load::<usize>());
         let call_addr = (tib + $offset).load::<fn()>();
         jikesrvm_call!(call_addr, $tls $(, $arg)*)
     });
@@ -21,7 +23,7 @@ macro_rules! jikesrvm_instance_call {
 #[macro_export]
 macro_rules! jikesrvm_call {
     ($call_addr:expr, $tls:expr $(, $arg:ident)*) => ({
-        use ::vm::jikesrvm::collection::VMCollection as _VMCollection;
+        use collection::VMCollection as _VMCollection;
         use libc::c_void;
         debug_assert!(!$tls.is_null());
 

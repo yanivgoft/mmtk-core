@@ -1,11 +1,24 @@
-use self::entrypoint::*;
-pub use self::collection::BOOT_THREAD;
+#![feature(asm)]
+#[macro_use]
+extern crate mmtk;
+extern crate libc;
+#[macro_use]
+extern crate lazy_static;
+#[macro_use]
+extern crate log;
+
+use mmtk::util::address::Address;
+use mmtk::TraceLocal;
+use mmtk::vm::VMBinding;
+use mmtk::MMTK;
+use mmtk::{VM_MAP, MMAPPER, OPTIONS_PROCESSOR};
+
+use entrypoint::*;
+use collection::BOOT_THREAD;
 
 mod entrypoint;
-
 #[macro_use]
 mod jtoc_call;
-
 pub mod scanning;
 pub mod collection;
 pub mod object_model;
@@ -24,10 +37,6 @@ pub mod boot_image_size;
 pub mod scan_sanity;
 pub mod reference_glue;
 pub mod api;
-
-use ::util::address::Address;
-use plan::TraceLocal;
-use vm::VMBinding;
 
 pub static mut JTOC_BASE: Address = Address(0);
 
@@ -69,4 +78,8 @@ impl JikesRVM {
             jtoc_call!(TEST3_METHOD_OFFSET, BOOT_THREAD, input1, input2, input3, input4)
         }
     }
+}
+
+lazy_static! {
+    pub static ref SINGLETON: MMTK<JikesRVM> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
 }

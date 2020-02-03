@@ -1,14 +1,12 @@
-use super::super::Collection;
-
-use ::util::Address;
-use ::plan::{MutatorContext, ParallelCollector};
-
-use super::entrypoint::*;
-use super::JTOC_BASE;
 use libc::c_void;
-use util::OpaquePointer;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
-use vm::jikesrvm::JikesRVM;
+
+use mmtk::vm::Collection;
+use mmtk::util::Address;
+use mmtk::{MutatorContext, ParallelCollector};
+use mmtk::util::opaque_pointer::{OpaquePointer, UNINITIALIZED_OPAQUE_POINTER};
+use entrypoint::*;
+use JTOC_BASE;
+use JikesRVM;
 
 pub static mut BOOT_THREAD: OpaquePointer = UNINITIALIZED_OPAQUE_POINTER;
 

@@ -1,6 +1,6 @@
-use vm::jikesrvm::boot_image_size::DATA_SIZE_ADJUSTMENT;
-use vm::jikesrvm::boot_image_size::CODE_SIZE_ADJUSTMENT;
-use util::Address;
+use mmtk::util::Address;
+use boot_image_size::DATA_SIZE_ADJUSTMENT;
+use boot_image_size::CODE_SIZE_ADJUSTMENT;
 
 /** The traditional 32-bit heap layout */
 pub const HEAP_LAYOUT_32BIT: usize = 1;

@@ -1,4 +1,4 @@
-use ::plan::selected_plan::SelectedConstraints::*;
+use mmtk::SelectedConstraints::*;
 
 /** Number of slots reserved for interface method pointers. */
 pub const IMT_METHOD_SLOTS: usize = 0; //VM.BuildForIMTInterfaceInvocation ? 29 : 0;

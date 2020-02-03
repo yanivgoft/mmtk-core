@@ -1,7 +1,6 @@
 use std::sync::atomic::AtomicUsize;
-
-use super::java_header_constants;
-use super::java_header_constants::*;
+use java_header_constants;
+use java_header_constants::*;
 
 pub const SCALAR_HEADER_SIZE: usize = JAVA_HEADER_BYTES + OTHER_HEADER_BYTES;
 pub const ARRAY_HEADER_SIZE: usize = SCALAR_HEADER_SIZE + ARRAY_LENGTH_BYTES;

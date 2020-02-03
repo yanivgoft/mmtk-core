@@ -1,28 +1,28 @@
-use super::memory_manager_constants::*;
-use super::java_header_constants::*;
-use super::scan_sanity;
-
-use ::vm::Scanning;
-use ::plan::{TransitiveClosure, TraceLocal, MutatorContext, Plan, SelectedPlan, ParallelCollector};
-use ::util::{ObjectReference, Address, SynchronizedCounter};
-use ::vm::jikesrvm::entrypoint::*;
-use super::JTOC_BASE;
-use super::super::unboxed_size_constants::LOG_BYTES_IN_ADDRESS;
-use vm::jikesrvm::object_model::VMObjectModel;
-use vm::ObjectModel;
-use vm::jikesrvm::active_plan::VMActivePlan;
-use vm::ActivePlan;
-use vm::jikesrvm::collection::VMCollection;
-use vm::Collection;
+use libc::c_void;
 use std::mem::size_of;
 use std::slice;
-use ::vm::jikesrvm::java_header::TIB_OFFSET;
-use ::vm::jikesrvm::tib_layout_constants::TIB_TYPE_INDEX;
-use ::vm::unboxed_size_constants::BYTES_IN_ADDRESS;
-use ::util::OpaquePointer;
 
-use libc::c_void;
-use vm::jikesrvm::JikesRVM;
+use mmtk::vm::Scanning;
+use mmtk::{TransitiveClosure, TraceLocal, MutatorContext, Plan, SelectedPlan, ParallelCollector};
+use mmtk::util::{ObjectReference, Address, SynchronizedCounter};
+use mmtk::util::OpaquePointer;
+use mmtk::vm::unboxed_size_constants::LOG_BYTES_IN_ADDRESS;
+use mmtk::vm::unboxed_size_constants::BYTES_IN_ADDRESS;
+use mmtk::vm::ObjectModel;
+use mmtk::vm::ActivePlan;
+use mmtk::vm::Collection;
+
+use memory_manager_constants::*;
+use java_header_constants::*;
+use scan_sanity;
+use entrypoint::*;
+use JTOC_BASE;
+use object_model::VMObjectModel;
+use active_plan::VMActivePlan;
+use collection::VMCollection;
+use java_header::TIB_OFFSET;
+use tib_layout_constants::TIB_TYPE_INDEX;
+use JikesRVM;
 
 static COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 

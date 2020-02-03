@@ -1,13 +1,13 @@
-use ::vm::ReferenceGlue;
-use ::util::{Address, ObjectReference};
-use super::entrypoint::*;
-use ::plan::TraceLocal;
-
-use ::util::reference_processor::*;
-use ::util::OpaquePointer;
-
 use libc::c_void;
-use vm::jikesrvm::JikesRVM;
+
+use mmtk::vm::ReferenceGlue;
+use mmtk::util::{Address, ObjectReference};
+use mmtk::TraceLocal;
+use mmtk::util::reference_processor::*;
+use mmtk::util::OpaquePointer;
+
+use entrypoint::*;
+use JikesRVM;
 
 pub struct VMReferenceGlue {}
 

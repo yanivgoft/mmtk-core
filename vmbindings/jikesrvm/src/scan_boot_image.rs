@@ -1,18 +1,17 @@
-use ::util::Address;
-use ::util::OpaquePointer;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use super::super::unboxed_size_constants::*;
-use super::java_size_constants::*;
-use super::entrypoint::*;
-use super::JTOC_BASE;
-use ::plan::{TraceLocal, Plan, SelectedPlan, ParallelCollector};
-
-use super::collection::VMCollection;
-use super::active_plan::VMActivePlan;
-use vm::active_plan::ActivePlan;
-
 use libc::c_void;
+use mmtk::util::Address;
+use mmtk::util::OpaquePointer;
+use mmtk::{TraceLocal, Plan, SelectedPlan, ParallelCollector};
+use mmtk::vm::unboxed_size_constants::*;
+use mmtk::vm::ActivePlan;
+
+use collection::VMCollection;
+use active_plan::VMActivePlan;
+use java_size_constants::*;
+use entrypoint::*;
+use JTOC_BASE;
 
 const DEBUG: bool = false;
 const FILTER: bool = true;

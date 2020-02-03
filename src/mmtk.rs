@@ -32,12 +32,12 @@ lazy_static!{
     pub static ref OPTIONS_PROCESSOR: UnsafeOptionsWrapper = UnsafeOptionsWrapper::new(Options::default());
 }
 
-#[cfg(feature = "jikesrvm")]
-use vm::jikesrvm::JikesRVM;
-#[cfg(feature = "jikesrvm")]
-lazy_static! {
-    pub static ref SINGLETON: MMTK<JikesRVM> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
-}
+//#[cfg(feature = "jikesrvm")]
+//use vm::jikesrvm::JikesRVM;
+//#[cfg(feature = "jikesrvm")]
+//lazy_static! {
+//    pub static ref SINGLETON: MMTK<JikesRVM> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+//}
 
 //#[cfg(feature = "openjdk")]
 //use vm::openjdk::OpenJDK;

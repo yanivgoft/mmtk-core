@@ -1,29 +1,28 @@
-extern crate libc;
 use libc::*;
-
-use super::java_header_constants::{ADDRESS_BASED_HASHING, GC_HEADER_OFFSET, DYNAMIC_HASH_OFFSET,
-    HASH_STATE_MASK, HASH_STATE_HASHED_AND_MOVED, ARRAY_BASE_OFFSET, ARRAY_LENGTH_OFFSET,
-    HASHCODE_BYTES, HASH_STATE_UNHASHED, HASH_STATE_HASHED, HASHCODE_OFFSET, ALIGNMENT_MASK};
-use super::java_header::*;
-use super::memory_manager_constants::*;
-use super::tib_layout_constants::*;
-use super::entrypoint::*;
-use super::super::unboxed_size_constants::*;
-use super::java_size_constants::{BYTES_IN_INT, BYTES_IN_DOUBLE};
-use super::class_loader_constants::*;
-use super::JTOC_BASE;
-
-use super::super::ActivePlan;
-use super::active_plan::VMActivePlan;
-
-use ::vm::object_model::ObjectModel;
-use ::util::{Address, ObjectReference, OpaquePointer};
-use ::util::alloc::allocator::fill_alignment_gap;
-use ::util::constants::{};
-use ::plan::{Allocator, CollectorContext};
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, AtomicU8, Ordering};
-use vm::jikesrvm::JikesRVM;
+
+use mmtk::vm::unboxed_size_constants::*;
+use mmtk::vm::ActivePlan;
+use mmtk::vm::ObjectModel;
+use mmtk::util::{Address, ObjectReference, OpaquePointer};
+use mmtk::util::alloc::allocator::fill_alignment_gap;
+use mmtk::util::constants::{};
+use mmtk::{Allocator, CollectorContext};
+
+use java_header_constants::{ADDRESS_BASED_HASHING, GC_HEADER_OFFSET, DYNAMIC_HASH_OFFSET,
+                            HASH_STATE_MASK, HASH_STATE_HASHED_AND_MOVED, ARRAY_BASE_OFFSET, ARRAY_LENGTH_OFFSET,
+                            HASHCODE_BYTES, HASH_STATE_UNHASHED, HASH_STATE_HASHED, HASHCODE_OFFSET, ALIGNMENT_MASK};
+use java_header::*;
+use memory_manager_constants::*;
+use tib_layout_constants::*;
+use entrypoint::*;
+use java_size_constants::{BYTES_IN_INT, BYTES_IN_DOUBLE};
+use class_loader_constants::*;
+
+use JTOC_BASE;
+use active_plan::VMActivePlan;
+use JikesRVM;
 
 /** Should we gather stats on hash code state transitions for address-based hashing? */
 const HASH_STATS: bool = false;
