@@ -10,7 +10,6 @@ use std::fmt::Debug;
 
 use libc::c_void;
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
 
 pub trait PageResource: Sized + 'static + Debug {
     type Space: Space<PR = Self>;

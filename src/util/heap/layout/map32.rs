@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ::policy::space::Space;
 use ::util::generic_freelist::GenericFreeList;
 use std::mem;
-use util::heap::space_descriptor::{SpaceDescriptor, UNINITIALIZED_SPACE_DESCRIPTOR};
+use util::heap::space_descriptor::SpaceDescriptor;
 
 // use ::util::free::IntArrayFreeList;
 
@@ -34,8 +34,9 @@ pub struct Map32 {
     descriptor_map: Vec<SpaceDescriptor>,
 
     // TODO: Is this the right place for this field?
-    // This used to be a global variable, now we need to put it somewhere.
-    // This is supposed to be a per-instance data.
+    // This used to be a global variable. When we remove global states, this needs to be put somewhere.
+    // Currently I am putting it here, as for where this variable is used, we already have
+    // references to vm_map - so it is convenient to put it here.
     cumulative_committed_pages: AtomicUsize,
 }
 
@@ -51,7 +52,7 @@ impl Map32 {
             total_available_discontiguous_chunks: 0,
             finalized: false,
             sync: Mutex::new(()),
-            descriptor_map: vec![UNINITIALIZED_SPACE_DESCRIPTOR; MAX_CHUNKS],
+            descriptor_map: vec![SpaceDescriptor::UNINITIALIZED; MAX_CHUNKS],
             cumulative_committed_pages: AtomicUsize::new(0),
         }
     }
@@ -158,7 +159,7 @@ impl Map32 {
         self_mut.prev_link[chunk as usize] = 0;
         self_mut.next_link[chunk as usize] = 0;
         for offset in 0..chunks {
-            self_mut.descriptor_map[(chunk + offset) as usize] = UNINITIALIZED_SPACE_DESCRIPTOR;
+            self_mut.descriptor_map[(chunk + offset) as usize] = SpaceDescriptor::UNINITIALIZED;
             // VM.barriers.objectArrayStoreNoGCBarrier(spaceMap, chunk + offset, null);
         }
         chunks as _

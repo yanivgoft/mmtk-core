@@ -5,7 +5,7 @@ use ::plan::controller_collector_context::ControllerCollectorContext;
 use ::plan::{Plan, Phase};
 use ::util::ObjectReference;
 use ::util::heap::VMRequest;
-use ::util::heap::layout::Mmapper;
+use ::util::heap::layout::Mmapper as IMmapper;
 use ::util::Address;
 use ::util::OpaquePointer;
 
@@ -20,14 +20,13 @@ use super::NoGCMutator;
 use super::NoGCCollector;
 use util::conversions::bytes_to_pages;
 use plan::plan::{create_vm_space, CommonPlan};
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
-use util::options::Options;
-use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
+use util::heap::layout::heap_layout::Mmapper;
+use util::options::{Options, UnsafeOptionsWrapper};
+use std::sync::Arc;
 use util::heap::HeapMeta;
+use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 use std::sync::atomic::Ordering;
-use util::statistics::stats::Stats;
 
 pub type SelectedPlan = NoGC;
 
@@ -49,7 +48,7 @@ impl Plan for NoGC {
     type TraceLocalT = NoGCTraceLocal;
     type CollectorT = NoGCCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self {
         let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
 
         NoGC {

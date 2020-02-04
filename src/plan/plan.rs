@@ -23,10 +23,10 @@ use util::statistics::counter::MonotoneNanoTime;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
 use util::heap::layout::Mmapper as IMmapper;
-use util::heap::layout::ByteMapMmapper;
-use util::options::Options;
-use std::sync::Mutex;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
+use util::options::{Options, UnsafeOptionsWrapper};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use mmtk::MMTK;
 
 // FIXME: Move somewhere more appropriate
 #[cfg(feature = "jikesrvm")]
@@ -51,13 +51,13 @@ pub trait Plan: Sized {
     type TraceLocalT: TraceLocal;
     type CollectorT: ParallelCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self;
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self;
     fn common(&self) -> &CommonPlan;
     fn mmapper(&self) -> &'static Mmapper {
         self.common().mmapper
     }
-    fn options(&self) -> &'static Options {
-        self.common().options
+    fn options(&self) -> &Options {
+        &self.common().options
     }
     // unsafe because this can only be called once by the init thread
     unsafe fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
@@ -200,13 +200,13 @@ pub trait Plan: Sized {
 
     fn determine_collection_attempts(&self) -> usize {
         if !self.common().allocation_success.load(Ordering::Relaxed) {
-            self.common().collection_attempts.fetch_add(1, Ordering::Relaxed);
+            self.common().max_collection_attempts.fetch_add(1, Ordering::Relaxed);
         } else {
             self.common().allocation_success.store(false, Ordering::Relaxed);
-            self.common().collection_attempts.store(1, Ordering::Relaxed);
+            self.common().max_collection_attempts.store(1, Ordering::Relaxed);
         }
 
-        self.common().collection_attempts.load(Ordering::Relaxed)
+        self.common().max_collection_attempts.load(Ordering::Relaxed)
     }
 
     fn is_mapped_object(&self, object: ObjectReference) -> bool {
@@ -245,7 +245,7 @@ pub enum GcStatus {
 pub struct CommonPlan {
     pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
-    pub options: &'static Options,
+    pub options: Arc<UnsafeOptionsWrapper>,
     pub stats: Stats,
     pub heap: HeapMeta,
 
@@ -255,8 +255,13 @@ pub struct CommonPlan {
     pub stacks_prepared: AtomicBool,
     pub emergency_collection: AtomicBool,
     pub user_triggered_collection: AtomicBool,
+    // Has an allocation succeeded since the emergency collection?
     pub allocation_success: AtomicBool,
-    pub collection_attempts: AtomicUsize,
+    // Maximum number of failed attempts by a single thread
+    pub max_collection_attempts: AtomicUsize,
+    // Current collection attempt
+    pub cur_collection_attempts: AtomicUsize,
+    // Lock used for out of memory handling
     pub oom_lock: Mutex<()>,
 
     pub control_collector_context: ControllerCollectorContext,
@@ -266,7 +271,7 @@ pub struct CommonPlan {
 }
 
 impl CommonPlan {
-    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options, heap: HeapMeta) -> CommonPlan {
+    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>, heap: HeapMeta) -> CommonPlan {
         CommonPlan {
             vm_map, mmapper, options, heap,
             stats: Stats::new(),
@@ -277,7 +282,8 @@ impl CommonPlan {
             emergency_collection: AtomicBool::new(false),
             user_triggered_collection: AtomicBool::new(false),
             allocation_success: AtomicBool::new(false),
-            collection_attempts: AtomicUsize::new(0),
+            max_collection_attempts: AtomicUsize::new(0),
+            cur_collection_attempts: AtomicUsize::new(0),
             oom_lock: Mutex::new(()),
             control_collector_context: ControllerCollectorContext::new(),
 

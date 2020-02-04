@@ -15,7 +15,7 @@ use ::policy::largeobjectspace::LargeObjectSpace;
 use ::plan::Phase;
 use ::plan::trace::Trace;
 use ::util::ObjectReference;
-use ::util::heap::layout::Mmapper;
+use ::util::heap::layout::Mmapper as IMmapper;
 use ::util::Address;
 use ::util::heap::PageResource;
 use ::util::heap::VMRequest;
@@ -31,13 +31,12 @@ use ::vm::{Scanning, VMScanning};
 use std::thread;
 use util::conversions::bytes_to_pages;
 use plan::plan::{create_vm_space, CommonPlan};
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use util::heap::layout::heap_layout::VMMap;
-use util::heap::layout::ByteMapMmapper;
-use util::options::Options;
+use util::heap::layout::heap_layout::Mmapper;
+use util::options::{Options, UnsafeOptionsWrapper};
+use std::sync::Arc;
 use util::heap::HeapMeta;
 use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
-use util::statistics::stats::Stats;
 
 pub type SelectedPlan = SemiSpace;
 
@@ -57,9 +56,6 @@ pub struct SemiSpaceUnsync {
     pub copyspace1: CopySpace,
     pub versatile_space: ImmortalSpace,
     pub los: LargeObjectSpace,
-
-    // TODO: Check if we really need this. We have collection_attempt in CommonPlan.
-    collection_attempt: usize,
 }
 
 unsafe impl Sync for SemiSpace {}
@@ -69,7 +65,7 @@ impl Plan for SemiSpace {
     type TraceLocalT = SSTraceLocal;
     type CollectorT = SSCollector;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self {
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self {
         let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
 
         SemiSpace {
@@ -83,7 +79,6 @@ impl Plan for SemiSpace {
                 versatile_space: ImmortalSpace::new("versatile_space", true,
                                                     VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
                 los: LargeObjectSpace::new("los", true, VMRequest::discontiguous(), vm_map, mmapper, &mut heap),
-                collection_attempt: 0,
             }),
             ss_trace: Trace::new(),
             common: CommonPlan::new(vm_map, mmapper, options, heap),
@@ -147,15 +142,14 @@ impl Plan for SemiSpace {
 
         match phase {
             &Phase::SetCollectionKind => {
-                let unsync = &mut *self.unsync.get();
-                unsync.collection_attempt = if self.is_user_triggered_collection() {
+                self.common.cur_collection_attempts.store(if self.is_user_triggered_collection() {
                     1
                 } else {
                     self.determine_collection_attempts()
-                };
+                }, Ordering::Relaxed);
 
                 let emergency_collection = !self.is_internal_triggered_collection()
-                    && self.last_collection_was_exhaustive() && unsync.collection_attempt > 1;
+                    && self.last_collection_was_exhaustive() && self.common.cur_collection_attempts.load(Ordering::Relaxed) > 1;
                 self.common().emergency_collection.store(emergency_collection, Ordering::Relaxed);
 
                 if emergency_collection {

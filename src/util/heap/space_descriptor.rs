@@ -28,12 +28,12 @@ const INDEX_SHIFT: usize = TYPE_BITS;
 static DISCONTIGUOUS_SPACE_INDEX: AtomicUsize = AtomicUsize::new(0);
 const DISCONTIG_INDEX_INCREMENT: usize = 1 << TYPE_BITS;
 
-pub const UNINITIALIZED_SPACE_DESCRIPTOR: SpaceDescriptor = SpaceDescriptor(0);
-
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct SpaceDescriptor(usize);
 
 impl SpaceDescriptor {
+    pub const UNINITIALIZED: Self = SpaceDescriptor(0);
+
     pub fn create_descriptor_from_heap_range(start: Address, end: Address) -> SpaceDescriptor {
         let top = end == vm_layout_constants::HEAP_END;
         if HEAP_LAYOUT_64BIT {
@@ -75,7 +75,7 @@ impl SpaceDescriptor {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0 == UNINITIALIZED_SPACE_DESCRIPTOR.0
+        self.0 == SpaceDescriptor::UNINITIALIZED.0
     }
 
     pub fn is_contiguous(&self) -> bool {
@@ -86,14 +86,18 @@ impl SpaceDescriptor {
         ((self.0 & TYPE_MASK) == TYPE_CONTIGUOUS_HI)
     }
 
-    #[allow(exceeding_bitshifts)]
+    #[cfg(target_pointer_width = "64")]
     pub fn get_start(&self) -> Address {
-        if cfg!(target_pointer_width = "64") {
-          return unsafe { Address::from_usize(self.get_index() << heap_parameters::LOG_SPACE_SIZE_64) };
-        }
+        return unsafe { Address::from_usize(self.get_index() << heap_parameters::LOG_SPACE_SIZE_64) };
+    }
+
+    #[cfg(target_pointer_width = "32")]
+    pub fn get_start(&self) -> Address {
         debug_assert!(self.is_contiguous());
-        let mantissa = self.0 >> MANTISSA_SHIFT;
-        let exponent = (self.0 & EXPONENT_MASK) >> EXPONENT_SHIFT;
+
+        let descriptor = self.0;
+        let mantissa = descriptor >> MANTISSA_SHIFT;
+        let exponent = (descriptor & EXPONENT_MASK) >> EXPONENT_SHIFT;
         unsafe { Address::from_usize(mantissa << (BASE_EXPONENT + exponent)) }
     }
 

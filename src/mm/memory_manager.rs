@@ -32,8 +32,6 @@ use util::heap::layout::vm_layout_constants::HEAP_START;
 use util::heap::layout::vm_layout_constants::HEAP_END;
 use util::OpaquePointer;
 use crate::mmtk::SINGLETON;
-use crate::mmtk::OPTIONS_PROCESSOR;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 
 #[no_mangle]
 #[cfg(feature = "jikesrvm")]
@@ -98,7 +96,7 @@ pub unsafe extern fn gc_init(heap_size: usize) {
     SINGLETON.plan.gc_init(heap_size, &SINGLETON.vm_map);
     SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
     thread::spawn(|| {
-        SINGLETON.plan.common().control_collector_context.run(UNINITIALIZED_OPAQUE_POINTER )
+        SINGLETON.plan.common().control_collector_context.run(OpaquePointer::UNINITIALIZED)
     });
 }
 
@@ -241,7 +239,7 @@ pub extern fn enable_collection(size: usize) {
 pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
     let name_str: &CStr = unsafe { CStr::from_ptr(name) };
     let value_str: &CStr = unsafe { CStr::from_ptr(value) };
-    let option = &OPTIONS_PROCESSOR;
+    let option = &SINGLETON.options;
     unsafe {
         option.process(name_str.to_str().unwrap(), value_str.to_str().unwrap())
     }
