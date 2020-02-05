@@ -159,8 +159,7 @@ pub fn enable_collection<VM: VMBinding>(mmtk: &'static MMTK<VM>, tls: OpaquePoin
     mmtk.plan.common().initialized.store(true, Ordering::SeqCst);
 }
 
-#[no_mangle]
-pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
+pub fn process(name: *const c_char, value: *const c_char) -> bool {
     let name_str: &CStr = unsafe { CStr::from_ptr(name) };
     let value_str: &CStr = unsafe { CStr::from_ptr(value) };
     let option = &OPTIONS_PROCESSOR;
@@ -177,13 +176,11 @@ pub fn free_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
     mmtk.plan.get_free_pages() << LOG_BYTES_IN_PAGE
 }
 
-#[no_mangle]
-pub extern fn starting_heap_address() -> *mut c_void {
+pub fn starting_heap_address() -> *mut c_void {
     HEAP_START.as_usize() as *mut c_void
 }
 
-#[no_mangle]
-pub extern fn last_heap_address() -> *mut c_void {
+pub fn last_heap_address() -> *mut c_void {
     HEAP_END.as_usize() as *mut c_void
 }
 

@@ -1,4 +1,5 @@
 use libc::c_void;
+use libc::c_char;
 use std::ptr::null_mut;
 use mmtk::memory_manager;
 use mmtk::Allocator;
@@ -169,6 +170,21 @@ pub extern fn harness_begin(tls: OpaquePointer) {
 #[no_mangle]
 pub extern fn harness_end(tls: OpaquePointer) {
     memory_manager::harness_end(&SINGLETON)
+}
+
+#[no_mangle]
+pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
+    memory_manager::process(name, value)
+}
+
+#[no_mangle]
+pub extern fn starting_heap_address() -> *mut c_void {
+    memory_manager::starting_heap_address()
+}
+
+#[no_mangle]
+pub extern fn last_heap_address() -> *mut c_void {
+    memory_manager::last_heap_address()
 }
 
 #[no_mangle]
