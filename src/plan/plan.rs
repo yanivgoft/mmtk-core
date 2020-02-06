@@ -6,7 +6,7 @@ use std::sync::atomic::{self, AtomicUsize, AtomicBool, Ordering};
 use ::util::OpaquePointer;
 use ::policy::space::Space;
 use ::util::heap::PageResource;
-use ::vm::{Collection, VMCollection, ActivePlan, VMActivePlan};
+use ::vm::{Collection, VMCollection, ActivePlan, VMActivePlan, ObjectModel, VMObjectModel};
 use super::controller_collector_context::ControllerCollectorContext;
 use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
 use util::constants::LOG_BYTES_IN_MBYTE;
