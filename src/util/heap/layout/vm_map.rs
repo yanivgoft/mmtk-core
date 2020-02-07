@@ -1,14 +1,11 @@
-use std::sync::{Mutex, MutexGuard, RwLock};
+use std::sync::{Mutex, MutexGuard};
 use super::freelist::*;
 use util::Address;
-use util::constants::*;
 use super::vm_layout_constants::{LOG_BYTES_IN_CHUNK, BYTES_IN_CHUNK};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use vm::*;
 
 
-// pub const LOG_MAX_CHUNKS: usize = 48 - LOG_BYTES_IN_CHUNK;
-// pub const MAX_CHUNKS: usize = 1 << LOG_MAX_CHUNKS;
 
 pub struct Region;
 
@@ -115,6 +112,36 @@ impl VMMap {
         } else {
             Some(self.get_chunk_address(next))
         }
+    }
+
+    pub fn free_all_chunks(&self, any_chunk: Address) {
+        if any_chunk.is_zero() { return }
+        let mut freelist = self.freelist.lock().unwrap();
+        let chunk = self.get_chunk_index(any_chunk);
+        while self.next_link[chunk].load(Ordering::Relaxed) != 0 {
+            let x = self.next_link[chunk].load(Ordering::Relaxed);
+            self.free_contiguous_chunks_no_lock(x, &mut freelist);
+        }
+        while self.prev_link[chunk].load(Ordering::Relaxed) != 0 {
+            let x = self.prev_link[chunk].load(Ordering::Relaxed);
+            self.free_contiguous_chunks_no_lock(x, &mut freelist);
+        }
+        self.free_contiguous_chunks_no_lock(chunk as _, &mut freelist);
+    }
+
+    fn free_contiguous_chunks_no_lock(&self, chunk: usize, freelist: &mut MutexGuard<Freelist>) {
+        let count = freelist.get_size(chunk);
+        for i in 0..count {
+            self.unmap_chunk(self.get_chunk_address(chunk) + (i << LOG_BYTES_IN_CHUNK));
+        }
+        freelist.dealloc(chunk);
+        // Remove chunk from list
+        let next = self.next_link[chunk].load(Ordering::Relaxed);
+        let prev = self.prev_link[chunk].load(Ordering::Relaxed);
+        if next != 0 { self.prev_link[next].store(prev, Ordering::Relaxed) };
+        if prev != 0 { self.next_link[prev].store(next, Ordering::Relaxed) };
+        self.prev_link[chunk].store(0, Ordering::Relaxed);
+        self.next_link[chunk].store(0, Ordering::Relaxed);
     }
 
     pub fn get_contiguous_region_chunks(&self, start: Address) -> usize {

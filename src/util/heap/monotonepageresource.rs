@@ -55,16 +55,9 @@ impl PageResource for MonotonePageResource {
     fn release_all(&self) {
         self.common.reserved.store(0, Ordering::Relaxed);
         self.common.committed.store(0, Ordering::Relaxed);
-        let mut chunk_start = {
-            let mut lock = self.common.head_discontiguous_region.lock().unwrap();
-            let start = *lock;
-            *lock = unsafe { Address::zero() };
-            start
-        };
-        while !chunk_start.is_zero() {
-            VM_MAP.release_contiguous_chunks(chunk_start);
-            chunk_start = ::util::heap::layout::heap_layout::VM_MAP.get_next_contiguous_region(chunk_start).unwrap_or(unsafe { Address::zero() });
-        }
+        let mut head_discontiguous_region = self.common.head_discontiguous_region.lock().unwrap();
+        VM_MAP.free_all_chunks(*head_discontiguous_region);
+        *head_discontiguous_region = unsafe { Address::zero() };
         *self.alloc_chunk.lock().unwrap() = (unsafe { Address::zero() }, unsafe { Address::zero() });
     }
 }
