@@ -23,7 +23,7 @@ use std::fmt::Debug;
 use libc::c_void;
 
 pub trait Space: Sized + Debug + 'static {
-    // type PR: PageResource<Space = Self>;
+    type PR: PageResource;
 
     fn init(&mut self);
 
@@ -50,7 +50,7 @@ pub trait Space: Sized + Debug + 'static {
             unsafe { Address::zero() }
         } else {
             trace!("Collection not required");
-            let rtn = pr.alloc_pages(pages_reserved, pages, self.common().zeroed, tls);
+            let rtn = pr.alloc_pages(pages_reserved, pages, self.common().zeroed, self, tls);
             if rtn.is_none() {
                 if !allow_poll {
                     println!("VMActivePlan::is_mutator(tls) {:?}", unsafe { VMActivePlan::is_mutator(tls) });
@@ -111,15 +111,15 @@ pub trait Space: Sized + Debug + 'static {
         self.common().name
     }
 
-    fn common(&self) -> &CommonSpace;
-    fn common_mut(&mut self) -> &mut CommonSpace {
+    fn common(&self) -> &CommonSpace<Self::PR>;
+    fn common_mut(&mut self) -> &mut CommonSpace<Self::PR> {
         // SAFE: Reference is exclusive
         unsafe {self.unsafe_common_mut()}
     }
 
     // UNSAFE: This get's a mutable reference from self
     // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace;
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR>;
 
     fn is_live(&self, object: ObjectReference) -> bool;
     fn is_movable(&self) -> bool;
@@ -179,7 +179,7 @@ pub trait Space: Sized + Debug + 'static {
 }
 
 #[derive(Debug)]
-pub struct CommonSpace {
+pub struct CommonSpace<PR: PageResource> {
     pub name: &'static str,
     name_length: usize,
     pub descriptor: usize,
@@ -191,7 +191,7 @@ pub struct CommonSpace {
     pub contiguous: bool,
     pub zeroed: bool,
 
-    pub pr: Option<PageResource>,
+    pub pr: Option<PR>,
     pub start: Address,
     pub extent: usize,
     pub head_discontiguous_region: Address,
@@ -204,7 +204,7 @@ static mut HEAP_LIMIT: Address = HEAP_END;
 
 const DEBUG: bool = false;
 
-impl CommonSpace {
+impl <PR: PageResource> CommonSpace<PR> {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool, vmrequest: VMRequest) -> Self {
         println!("CommonSpace: {:?}", vmrequest);
         let mut rtn = CommonSpace {

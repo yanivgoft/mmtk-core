@@ -124,7 +124,7 @@ impl Plan for SemiSpace {
     fn collection_required(&self, space_full: bool, space: &'static impl Space) -> bool where Self: Sized {
         let heap_full = self.get_pages_reserved() > self.get_total_pages();
         if heap_full {
-            println!("GC Reason: Heap Full {} {}", self.get_pages_reserved(), self.get_total_pages());
+            println!("GC Reason: Heap Full {} {} {}", self.tospace().reserved_pages(), self.get_pages_reserved(), self.get_total_pages());
         }
         if space_full {
             println!("GC Reason: Space Full ({})", space.common().name)
@@ -281,7 +281,9 @@ impl SemiSpace {
         use ::util::constants::*;
         use ::util::heap::layout::vm_layout_constants::*;
         println!("Heap Size = {}MB", self.total_pages * BYTES_IN_PAGE / BYTES_IN_MBYTE);
-        println!("Used Size = {}MB", self.get_pages_reserved() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
+        println!("Used Size = {}MB", (self.tospace().reserved_pages() + self.fromspace().reserved_pages()) * BYTES_IN_PAGE / BYTES_IN_MBYTE);
+        println!("To space = {}MB", self.tospace().reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
+        println!("From space = {}MB", self.fromspace().reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
         println!("Max Heap Size = {}MB", AVAILABLE_BYTES / BYTES_IN_MBYTE);
         // if super::VERBOSE {
             // self.vm_space.print_vm_map();

@@ -1,5 +1,5 @@
 use ::util::heap::PageResource;
-// use ::util::heap::MonotonePageResource;
+use ::util::heap::MonotonePageResource;
 use ::util::heap::VMRequest;
 use ::policy::space::{Space, CommonSpace};
 use ::util::{Address, ObjectReference};
@@ -14,17 +14,17 @@ const META_DATA_PAGES_PER_REGION: usize = 0;
 
 #[derive(Debug)]
 pub struct CopySpace {
-    common: UnsafeCell<CommonSpace>,
+    common: UnsafeCell<CommonSpace<MonotonePageResource>>,
     from_space: bool,
 }
 
 impl Space for CopySpace {
-    // type PR = MonotonePageResource<CopySpace>;
+    type PR = MonotonePageResource;
 
-    fn common(&self) -> &CommonSpace {
+    fn common(&self) -> &CommonSpace<Self::PR> {
         unsafe { &*self.common.get() }
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
         &mut *self.common.get()
     }
 
@@ -34,7 +34,7 @@ impl Space for CopySpace {
 
         let common_mut = self.common_mut();
         if common_mut.vmrequest.is_discontiguous() {
-            common_mut.pr = Some(PageResource::new_discontiguous(META_DATA_PAGES_PER_REGION, me.common().descriptor));
+            common_mut.pr = Some(MonotonePageResource::new_discontiguous(META_DATA_PAGES_PER_REGION, me.common().descriptor));
         } else {
             unimplemented!()
             // common_mut.pr = Some(PageResource::new_contiguous(common_mut.start, common_mut.extent, META_DATA_PAGES_PER_REGION));

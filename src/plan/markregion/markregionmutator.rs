@@ -50,7 +50,7 @@ impl MutatorContext for MarkRegionMutator {
         } else {
             self.vs.alloc(size, align, offset)
         };
-        assert!(a < ::util::heap::layout::vm_layout_constants::HEAP_END);
+        // assert!(a < ::util::heap::layout::vm_layout_constants::HEAP_END);
         a
     }
 

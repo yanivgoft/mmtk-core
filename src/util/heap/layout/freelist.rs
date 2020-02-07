@@ -78,13 +78,16 @@ impl Freelist {
 
     pub fn insert_free(&mut self, index: usize, count: usize) {
         // println!("Insert free {} {}", index, count);
-        let mut index = index;
-        let limit = index + count;
+        let index = index;
+        let mut limit = index + count;
         for size_class in (0..48).rev() {
-            while index < limit && index & ((1 << size_class) - 1) == 0 && (limit - index) >= (1 << size_class)  {
-                // println!("push_to_bucket {} {}", size_class, index);
-                self.push_to_bucket(size_class, index);
-                index += 1 << size_class;
+            let i = (index + (1 << size_class) - 1) >> size_class << size_class;
+            let j = i + (1 << size_class);
+            // println!("test bucket {} ({}, {}) index={}", size_class, i, j, index);
+            if j <= limit {
+                // println!("push_to_bucket {} {}", size_class, i);
+                self.push_to_bucket(size_class, i);
+                limit = i;
             }
         }
     }
