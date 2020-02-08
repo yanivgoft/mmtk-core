@@ -4,7 +4,7 @@ use ::plan::TransitiveClosure;
 use ::policy::space::{CommonSpace, Space};
 use ::util::{Address, ObjectReference};
 use ::util::constants::*;
-use ::util::heap::{PageResource, FreeListPageResource, VMRequest};
+use ::util::heap::{PageResource, FreeListPageResource, VMRequest, SpaceMemoryMeta};
 use std::sync::Mutex;
 use util::conversions;
 use std::collections::HashSet;
@@ -28,10 +28,10 @@ impl Space for RawPageSpace {
     type PR = FreeListPageResource;
 
     fn init(&mut self) {
-        let me = unsafe { &*(self as *const Self) };
-        let common_mut = self.common_mut();
-        assert!(common_mut.vmrequest.is_discontiguous());
-        common_mut.pr = Some(FreeListPageResource::new_discontiguous(Self::MEDATADA_PAGES, me.common().descriptor));
+        // let me = unsafe { &*(self as *const Self) };
+        // let common_mut = self.common_mut();
+        // assert!(common_mut.vmrequest.is_discontiguous());
+        // common_mut.pr = Some(FreeListPageResource::new_discontiguous(Self::MEDATADA_PAGES, me.common().descriptor));
         // common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
@@ -52,7 +52,7 @@ impl Space for RawPageSpace {
     }
 
     fn release_multiple_pages(&mut self, start: Address) {
-        self.common_mut().pr.as_mut().unwrap().release_pages(start);
+        self.common_mut().pr.release_pages(start);
     }
 }
 
@@ -60,11 +60,11 @@ impl RawPageSpace {
     const MAX_PAGES_IN_CHUNK: usize = BYTES_IN_CHUNK / BYTES_IN_PAGE;
     const OBJECT_MARKTABLE_OFFSET: usize = 0;
     const METADATA_BYTES: usize = Self::OBJECT_MARKTABLE_OFFSET + (Self::MAX_PAGES_IN_CHUNK >> LOG_BITS_IN_BYTE);
-    const MEDATADA_PAGES: usize = (Self::METADATA_BYTES + BYTES_IN_PAGE - 1) >> LOG_BYTES_IN_PAGE;
+    const METATADA_PAGES: usize = (Self::METADATA_BYTES + BYTES_IN_PAGE - 1) >> LOG_BYTES_IN_PAGE;
 
     pub fn new(name: &'static str) -> Self {
         RawPageSpace {
-            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, VMRequest::discontiguous())),
+            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, Self::METATADA_PAGES, VMRequest::discontiguous())),
             mark_state: 0,
             cells: Mutex::new(HashSet::new()),
         }
@@ -88,10 +88,15 @@ impl RawPageSpace {
             self.mark_state += 1;
         }
         // Clear metadata
-        let mut chunk_start = *self.common().pr.as_ref().unwrap().common().head_discontiguous_region.lock().unwrap();
-        while !chunk_start.is_zero() {
-            VMMemory::zero(chunk_start, self.common().pr.as_ref().unwrap().common().metadata_pages_per_region << LOG_BYTES_IN_PAGE);
-            chunk_start = ::util::heap::layout::heap_layout::VM_MAP.get_next_contiguous_region(chunk_start).unwrap_or(unsafe { Address::zero() });
+        match self.common().pr.common().memory {
+            SpaceMemoryMeta::Discontiguous { ref head } => {
+                let mut chunk_start = *head.read().unwrap();
+                while !chunk_start.is_zero() {
+                    VMMemory::zero(chunk_start, self.common().pr.common().metadata_pages_per_region << LOG_BYTES_IN_PAGE);
+                    chunk_start = ::util::heap::layout::heap_layout::VM_MAP.get_next_contiguous_region(chunk_start).unwrap_or(unsafe { Address::zero() });
+                }
+            }
+            _ => unreachable!()
         }
     }
 

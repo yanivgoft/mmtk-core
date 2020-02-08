@@ -1,10 +1,8 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 use std::sync::atomic::AtomicUsize;
-use std::ops::{Deref, DerefMut};
 use std::sync::atomic::Ordering;
 use util::address::Address;
-use util::heap::pageresource::CommonPageResource;
-use super::layout::heap_layout::VM_MAP;
+use util::heap::pageresource::{CommonPageResource, SpaceMemoryMeta};
 use util::heap::layout::vm_layout_constants::*;
 use util::heap::layout::freelist::Freelist;
 use util::constants::*;
@@ -47,43 +45,41 @@ impl PageResource for FreeListPageResource {
     }
 
     fn release_all(&self) {
-        self.common.reserved.store(0, Ordering::Relaxed);
-        self.common.committed.store(0, Ordering::Relaxed);
-        
-        let mut chunk_start = {
-            let mut lock = self.common().head_discontiguous_region.lock().unwrap();
-            let start = *lock;
-            *lock = unsafe { Address::zero() };
-            start
-        };
-        while !chunk_start.is_zero() {
-            VM_MAP.release_contiguous_chunks(chunk_start);
-            chunk_start = ::util::heap::layout::heap_layout::VM_MAP.get_next_contiguous_region(chunk_start).unwrap_or(unsafe { Address::zero() });
-        }
-        self.freelist.lock().unwrap().reset()
-    }
-}
-
-impl FreeListPageResource {
-    pub fn new_contiguous(start: Address, bytes: usize,  metadata_pages_per_region: usize) -> Self {
         unimplemented!()
     }
 
-    pub fn new_discontiguous(metadata_pages_per_region: usize, space_descriptor: usize) -> Self {
+    fn new_contiguous(start: Address, bytes: usize, metadata_pages_per_region: usize, space_descriptor: usize) -> Self {
+        let mut freelist = Freelist::new();
+        let page_index = ::util::conversions::bytes_to_pages(start.as_usize());
+        let count = ::util::conversions::bytes_to_pages(bytes);
+        freelist.insert_free(page_index, count);
         Self {
             common: CommonPageResource {
                 reserved: AtomicUsize::new(0),
                 committed: AtomicUsize::new(0),
-                contiguous: false,
-                growable: true,
                 space_descriptor,
                 metadata_pages_per_region,
-                head_discontiguous_region: Mutex::new(unsafe { Address::zero() }),
+                memory: SpaceMemoryMeta::Contiguous { start, extent: bytes },
+            },
+            freelist: Mutex::new(freelist),
+        }
+    }
+
+    fn new_discontiguous(metadata_pages_per_region: usize, space_descriptor: usize) -> Self {
+        Self {
+            common: CommonPageResource {
+                reserved: AtomicUsize::new(0),
+                committed: AtomicUsize::new(0),
+                space_descriptor,
+                metadata_pages_per_region,
+                memory: SpaceMemoryMeta::Discontiguous { head: RwLock::new(unsafe { Address::zero() }) },
             },
             freelist: Mutex::new(Freelist::new()),
         }
     }
+}
 
+impl FreeListPageResource {
     fn alloc_pages_aux(&self, reserved_pages: usize, required_pages: usize, zeroed: bool, is_retrial: bool, tls: *mut ::libc::c_void) -> Option<(Address, bool)> {
         let mut freelist = self.freelist.lock().unwrap();
         match freelist.alloc(required_pages) {
@@ -96,6 +92,9 @@ impl FreeListPageResource {
                 Some((page_address, false))
             },
             _ => {
+                if let SpaceMemoryMeta::Contiguous {..} = self.common().memory {
+                    return None;
+                }
                 if is_retrial {
                     return None;
                 }

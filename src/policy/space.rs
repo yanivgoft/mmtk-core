@@ -4,19 +4,16 @@ use ::util::conversions::*;
 
 use ::vm::{ActivePlan, VMActivePlan, Collection, VMCollection, ObjectModel, VMObjectModel};
 use ::util::heap::{VMRequest, PageResource};
-use ::util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END, AVAILABLE_BYTES, LOG_BYTES_IN_CHUNK};
-use ::util::heap::layout::vm_layout_constants::{AVAILABLE_START, AVAILABLE_END};
-
+use ::util::heap::layout::vm_layout_constants::LOG_BYTES_IN_CHUNK;
 use ::plan::Plan;
 use ::plan::selected_plan::PLAN;
 use ::plan::{Allocator, TransitiveClosure};
-
 use std::sync::atomic::{AtomicUsize, Ordering};
-
 use ::util::constants::{LOG_BYTES_IN_MBYTE, BYTES_IN_PAGE, BYTES_IN_MBYTE};
 use ::util::conversions;
 use ::util::heap::space_descriptor;
 use ::util::heap::layout::heap_layout::VM_MAP;
+use std::sync::Mutex;
 
 use std::fmt::Debug;
 
@@ -34,7 +31,7 @@ pub trait Space: Sized + Debug + 'static {
             && PLAN.is_initialized();
 
         trace!("Reserving pages");
-        let pr = self.common().pr.as_ref().unwrap();
+        let pr = &self.common().pr;
         let pages_reserved = pr.reserve_pages(pages);
         trace!("Pages reserved");
 
@@ -104,7 +101,7 @@ pub trait Space: Sized + Debug + 'static {
     fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {}
 
     fn reserved_pages(&self) -> usize {
-        self.common().pr.as_ref().unwrap().reserved_pages()
+        self.common().pr.reserved_pages()
     }
 
     fn get_name(&self) -> &'static str {
@@ -181,131 +178,88 @@ pub trait Space: Sized + Debug + 'static {
 #[derive(Debug)]
 pub struct CommonSpace<PR: PageResource> {
     pub name: &'static str,
-    name_length: usize,
     pub descriptor: usize,
-    index: usize,
     pub vmrequest: VMRequest,
-
     immortal: bool,
     movable: bool,
-    pub contiguous: bool,
-    pub zeroed: bool,
-
-    pub pr: Option<PR>,
-    pub start: Address,
-    pub extent: usize,
-    pub head_discontiguous_region: Address,
+    zeroed: bool,
+    pub pr: PR,
 }
 
-// FIXME replace with atomic ints
-static mut SPACE_COUNT: usize = 0;
-static mut HEAP_CURSOR: Address = HEAP_START;
-static mut HEAP_LIMIT: Address = HEAP_END;
-
-const DEBUG: bool = false;
+lazy_static! {
+    static ref AVAILABLE_HEAP: Mutex<(Address, Address)> = Mutex::new(VM_MAP.heap_range);
+}
 
 impl <PR: PageResource> CommonSpace<PR> {
-    pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool, vmrequest: VMRequest) -> Self {
+    pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool, metadata_pages_per_region: usize, vmrequest: VMRequest) -> Self {
         println!("CommonSpace: {:?}", vmrequest);
-        let mut rtn = CommonSpace {
+
+        if vmrequest.is_discontiguous() {
+            let descriptor = space_descriptor::create_descriptor();
+            return Self {
+                name,
+                descriptor,
+                vmrequest,
+                immortal,
+                movable,
+                zeroed,
+                pr: PR::new_discontiguous(metadata_pages_per_region, descriptor),
+            }
+        }
+
+        let mut available_heap = AVAILABLE_HEAP.lock().unwrap();
+        let (extent, top) = match vmrequest {
+            VMRequest::RequestFraction{frac, top: _top}                   => (get_frac_available(frac, &available_heap), _top),
+            VMRequest::RequestExtent{extent: _extent, top: _top}          => (_extent, _top),
+            VMRequest::RequestFixed{start: _, extent: _extent, top: _top} => (_extent, _top),
+            _                                                             => unreachable!(),
+        };
+
+        if extent != raw_chunk_align(extent, false) {
+            panic!("{} requested non-aligned extent: {} bytes", name, extent);
+        }
+
+        let start: Address = {
+            if let VMRequest::RequestFixed { start, .. } = vmrequest {
+                if start.as_usize() != chunk_align(start, false).as_usize() {
+                    panic!("{} starting on non-aligned boundary: {} bytes", name, start.as_usize());
+                }
+                start
+            } else if top {
+                available_heap.1 -= extent;
+                available_heap.1
+            } else {
+                let start = available_heap.0;
+                available_heap.0 += extent;
+                start
+            }
+        };
+
+        if available_heap.0 > available_heap.1 {
+            panic!("Out of virtual address space allocating \"{}\" at {} ({} > {})", name, available_heap.0 - extent, available_heap.0, available_heap.1);
+        }
+        
+        let descriptor = space_descriptor::create_descriptor_from_heap_range(start, start + extent);
+        VM_MAP.insert(start, extent, descriptor);
+
+        Self {
             name,
-            name_length: name.len(),
-            descriptor: 0,
-            index: unsafe { let tmp = SPACE_COUNT; SPACE_COUNT += 1; tmp },
+            descriptor,
             vmrequest,
             immortal,
             movable,
-            contiguous: true,
             zeroed,
-            pr: None,
-            start: unsafe{Address::zero()},
-            extent: 0,
-            head_discontiguous_region: unsafe{Address::zero()},
-        };
-
-        if vmrequest.is_discontiguous() {
-            rtn.contiguous = false;
-            // FIXME
-            rtn.descriptor = space_descriptor::create_descriptor();
-            // VM.memory.setHeapRange(index, HEAP_START, HEAP_END);
-            return rtn;
-        } else {
-            unimplemented!()
+            pr: PR::new_contiguous(start, extent, metadata_pages_per_region, descriptor),
         }
-
-        // let (extent, top) = match vmrequest {
-        //     VMRequest::RequestFraction{frac, top: _top}                   => (get_frac_available(frac), _top),
-        //     VMRequest::RequestExtent{extent: _extent, top: _top}          => (_extent, _top),
-        //     VMRequest::RequestFixed{start: _, extent: _extent, top: _top} => (_extent, _top),
-        //     _                                                             => unreachable!(),
-        // };
-
-        // if extent != raw_chunk_align(extent, false) {
-        //     panic!("{} requested non-aligned extent: {} bytes", name, extent);
-        // }
-
-        // let start: Address;
-        // if let VMRequest::RequestFixed{start: _start, extent: _, top: _} = vmrequest {
-        //     start = _start;
-        //     if start.as_usize() != chunk_align(start, false).as_usize() {
-        //         panic!("{} starting on non-aligned boundary: {} bytes", name, start.as_usize());
-        //     }
-        // } else if top {
-        //     // FIXME
-        //     //if (HeapLayout.vmMap.isFinalized()) VM.assertions.fail("heap is narrowed after regionMap is finalized: " + name);
-        //     unsafe {
-        //         HEAP_LIMIT -= extent;
-        //         start = HEAP_LIMIT;
-        //     }
-        // } else {
-        //     unsafe {
-        //         start = HEAP_CURSOR;
-        //         println!("HEAP_CURSOR: {:?} -> {:?}", HEAP_CURSOR, HEAP_CURSOR + extent);
-        //         HEAP_CURSOR += extent;
-        //     }
-        // }
-
-        // unsafe {
-        //     if HEAP_CURSOR > HEAP_LIMIT {
-        //         panic!("Out of virtual address space allocating \"{}\" at {} ({} > {})", name,
-        //                HEAP_CURSOR - extent, HEAP_CURSOR, HEAP_LIMIT);
-        //     }
-        // }
-
-        // rtn.contiguous = true;
-        // rtn.start = start;
-        // rtn.extent = extent;
-        // // FIXME
-        // rtn.descriptor = space_descriptor::create_descriptor_from_heap_range(start, start + extent);
-        // // VM.memory.setHeapRange(index, start, start.plus(extent));
-        // ::util::heap::layout::heap_layout::VM_MAP.insert(start, extent, rtn.descriptor);
-
-        // if DEBUG {
-        //     println!("{} {} {} {}", name, start, start + extent, extent);
-        // }
-
-        // rtn
     }
 }
 
-pub fn get_discontig_start() -> Address {
-    unsafe { HEAP_CURSOR }
-}
-
-pub fn get_discontig_end() -> Address {
-    unsafe { HEAP_LIMIT - 1 }
-}
-
-fn get_frac_available(frac: f32) -> usize {
-    trace!("AVAILABLE_START={}", AVAILABLE_START);
-    trace!("AVAILABLE_END={}", AVAILABLE_END);
-    let bytes = (frac * AVAILABLE_BYTES as f32) as usize;
-    trace!("bytes={}*{}={}", frac, AVAILABLE_BYTES, bytes);
+fn get_frac_available(frac: f32, available_heap: &(Address, Address)) -> usize {
+    let total = available_heap.1 - available_heap.0;
+    let bytes = (frac * total as f32) as usize;
     let mb = bytes >> LOG_BYTES_IN_MBYTE;
     let rtn = mb << LOG_BYTES_IN_MBYTE;
-    trace!("rtn={}", rtn);
     let aligned_rtn = raw_chunk_align(rtn, false);
-    trace!("aligned_rtn={}", aligned_rtn);
     aligned_rtn
 }
 

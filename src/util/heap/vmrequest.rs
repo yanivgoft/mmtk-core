@@ -36,63 +36,36 @@ impl VMRequest {
         }
     }
 
-    pub fn common64bit(top: bool) -> Self {
-        VMRequest::RequestExtent {
-            extent: MAX_SPACE_EXTENT,
-            top,
-        }
-    }
-
     pub fn discontiguous() -> Self {
-        // if HEAP_LAYOUT_64BIT {
-        //     Self::common64bit(false)
-        // } else {
-            VMRequest::RequestDiscontiguous
-        // }
+        VMRequest::RequestDiscontiguous
     }
 
     pub fn fixed_size(mb: usize) -> Self {
-        // if HEAP_LAYOUT_64BIT {
-        //     Self::common64bit(false)
-        // } else {
-            VMRequest::RequestExtent {
-                extent: mb << LOG_BYTES_IN_MBYTE,
-                top: false,
-            }
-        // }
+        VMRequest::RequestExtent {
+            extent: mb << LOG_BYTES_IN_MBYTE,
+            top: false,
+        }
     }
 
     pub fn fraction(frac: f32) -> Self {
-        // if HEAP_LAYOUT_64BIT {
-        //     Self::common64bit(false)
-        // } else {
-            VMRequest::RequestFraction {
-                frac,
-                top: false,
-            }
-        // }
+        VMRequest::RequestFraction {
+            frac,
+            top: false,
+        }
     }
 
     pub fn high_fixed_size(mb: usize) -> Self {
-        // if HEAP_LAYOUT_64BIT {
-        //     Self::common64bit(false)
-        // } else {
-            VMRequest::RequestExtent {
-                extent: mb << LOG_BYTES_IN_MBYTE,
-                top: true,
-            }
-        // }
+        VMRequest::RequestExtent {
+            extent: mb << LOG_BYTES_IN_MBYTE,
+            top: true,
+        }
     }
 
     pub fn fixed_extent(extent: usize, top: bool) -> Self {
-        // if HEAP_LAYOUT_64BIT {
-        //     Self::common64bit(false)
-        // } else {
-            VMRequest::RequestExtent {
-                extent,
-                top,
-            }
-        // }
+        VMRequest::RequestExtent {
+            extent,
+            top,
+        }
     }
 }
 

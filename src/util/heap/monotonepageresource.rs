@@ -1,8 +1,8 @@
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 use std::sync::atomic::AtomicUsize;
 use ::util::address::Address;
 use ::policy::space::Space;
-use ::util::heap::pageresource::CommonPageResource;
+use ::util::heap::pageresource::{CommonPageResource, SpaceMemoryMeta};
 use ::util::heap::layout::vm_layout_constants::LOG_BYTES_IN_CHUNK;
 use util::constants::*;
 use super::layout::heap_layout::VM_MAP;
@@ -55,30 +55,46 @@ impl PageResource for MonotonePageResource {
     fn release_all(&self) {
         self.common.reserved.store(0, Ordering::Relaxed);
         self.common.committed.store(0, Ordering::Relaxed);
-        let mut head_discontiguous_region = self.common.head_discontiguous_region.lock().unwrap();
-        VM_MAP.free_all_chunks(*head_discontiguous_region);
-        *head_discontiguous_region = unsafe { Address::zero() };
-        *self.alloc_chunk.lock().unwrap() = (unsafe { Address::zero() }, unsafe { Address::zero() });
+        match self.common.memory {
+            SpaceMemoryMeta::Discontiguous { ref head } => {
+                let mut head = head.write().unwrap();
+                VM_MAP.free_all_chunks(*head);
+                *head = unsafe { Address::zero() };
+                *self.alloc_chunk.lock().unwrap() = (unsafe { Address::zero() }, unsafe { Address::zero() });
+            }
+            SpaceMemoryMeta::Contiguous { start, extent } => {
+                *self.alloc_chunk.lock().unwrap() = (start, start + extent);
+            }
+        }
+        
     }
-}
 
-impl MonotonePageResource {
-    pub fn new_contiguous(_start: Address, _bytes: usize,  _metadata_pages_per_region: usize) -> Self {
-        unimplemented!()
-    }
-
-    pub fn new_discontiguous(metadata_pages_per_region: usize, space_descriptor: usize) -> Self {
+    fn new_contiguous(start: Address, bytes: usize, metadata_pages_per_region: usize, space_descriptor: usize) -> Self {
         Self {
             common: CommonPageResource {
                 reserved: AtomicUsize::new(0),
                 committed: AtomicUsize::new(0),
-                contiguous: false,
-                growable: true,
                 space_descriptor,
                 metadata_pages_per_region,
-                head_discontiguous_region: Mutex::new(unsafe { Address::zero() }),
+                memory: SpaceMemoryMeta::Contiguous { start, extent: bytes },
+            },
+            alloc_chunk: Mutex::new((start, start + bytes)),
+        }
+    }
+
+    fn new_discontiguous(metadata_pages_per_region: usize, space_descriptor: usize) -> Self {
+        Self {
+            common: CommonPageResource {
+                reserved: AtomicUsize::new(0),
+                committed: AtomicUsize::new(0),
+                space_descriptor,
+                metadata_pages_per_region,
+                memory: SpaceMemoryMeta::Discontiguous { head: RwLock::new(unsafe { Address::zero() }) },
             },
             alloc_chunk: Mutex::new((unsafe { Address::zero() }, unsafe { Address::zero() })),
         }
     }
+}
+
+impl MonotonePageResource {
 }

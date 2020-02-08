@@ -77,15 +77,12 @@ impl Freelist {
     }
 
     pub fn insert_free(&mut self, index: usize, count: usize) {
-        // println!("Insert free {} {}", index, count);
         let index = index;
         let mut limit = index + count;
         for size_class in (0..48).rev() {
             let i = (index + (1 << size_class) - 1) >> size_class << size_class;
             let j = i + (1 << size_class);
-            // println!("test bucket {} ({}, {}) index={}", size_class, i, j, index);
             if j <= limit {
-                // println!("push_to_bucket {} {}", size_class, i);
                 self.push_to_bucket(size_class, i);
                 limit = i;
             }
@@ -111,11 +108,49 @@ impl Freelist {
             _ => None,
         }
     }
+
+    fn get_cell_containing(&self, index: usize, count: usize) -> Option<(usize, usize, usize)> {
+        let min_size_class = Self::get_size_class(count).unwrap();
+        for size_class in (min_size_class..48).rev() {
+            let size = 1 << size_class;
+            let mut i = 0;
+            for cell in &self.free_buckets[size_class] {
+                if *cell <= index && (cell + size) >= (index + count) {
+                    return Some((size_class, *cell, i));
+                }
+                i += 1;
+            }
+        }
+        None
+    }
+
+    pub fn alloc_from(&mut self, start: usize, count: usize) -> Option<usize> {
+        match self.get_cell_containing(start, count) {
+            Some((size_class, cell, index)) => {
+                // Remove this cell
+                {
+                    let mut tail = self.free_buckets[size_class].split_off(index);
+                    tail.pop_front();
+                    self.free_buckets[size_class].append(&mut tail);
+                }
+                let size = 1 << size_class;
+                let pieces = [(cell, start - cell), (start, count), (start + count, cell + size - start - count)];
+                if pieces[0].1 > 0 {
+                    self.insert_free(pieces[0].0, pieces[0].1);
+                }
+                if pieces[2].1 > 0 {
+                    self.insert_free(pieces[2].0, pieces[2].1);
+                }
+                self.sizes.insert(start, count);
+                Some(start)
+            },
+            _ => None,
+        }
+    }
     
     pub fn dealloc(&mut self, index: usize) -> usize {
         let count = self.sizes.remove(&index).unwrap();
-        let size_class = Self::get_size_class(count).unwrap();
-        self.push_to_bucket(size_class, index);
+        self.insert_free(index, count);
         count
     }
 

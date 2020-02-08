@@ -51,7 +51,18 @@ impl VMMap {
             next_link: (0..chunks).map(|_| AtomicUsize::new(0)).collect(),
             heap_range: heap_range,
             freelist: Mutex::new(freelist),
-            descriptor_map: map,//(0..MAX_CHUNKS).map(|_| AtomicUsize::new(0)).collect(),
+            descriptor_map: map,
+        }
+    }
+
+    pub fn insert(&self, start: Address, extent: usize, descriptor: usize) {
+        debug_assert!(::util::conversions::chunk_align(start, true) == start);
+        let mut freelist = self.freelist.lock().unwrap();
+        let chunk_index = self.get_chunk_index(start);
+        let count = extent >> LOG_BYTES_IN_CHUNK;
+        freelist.alloc_from(chunk_index, count).unwrap();
+        for i in 0..count {
+            self.map_chunk(start + (i << LOG_BYTES_IN_CHUNK), descriptor);
         }
     }
 

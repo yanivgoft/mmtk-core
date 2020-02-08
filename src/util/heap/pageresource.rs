@@ -1,22 +1,16 @@
 use ::util::address::Address;
 use ::policy::space::Space;
-use ::vm::{ActivePlan, VMActivePlan};
-
-use std::marker::PhantomData;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::RwLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::fmt::Debug;
-use std::ops::Deref;
-use libc::c_void;
-use util::constants::*;
-use util::heap::layout::vm_layout_constants::*;
-use util::heap::layout::freelist::*;
 use util::heap::layout::heap_layout::VM_MAP;
-use std::collections::HashMap;
 
 static CUMULATIVE_COMMITTED: AtomicUsize = AtomicUsize::new(0);
 
 pub trait PageResource: Sized + 'static + Debug {
+    fn new_contiguous(start: Address, bytes: usize, metadata_pages_per_region: usize, space_descriptor: usize) -> Self;
+    fn new_discontiguous(metadata_pages_per_region: usize, space_descriptor: usize) -> Self;
+
     fn reserve_pages(&self, pages: usize) -> usize {
         let adj_pages = pages;//self.adjust_for_metadata(pages);
         self.common().reserved.fetch_add(adj_pages, Ordering::Relaxed);
@@ -38,25 +32,35 @@ pub trait PageResource: Sized + 'static + Debug {
     fn release_all(&self);
 
     fn allocate_contiguous_chunks(&self, chunks: usize) -> Option<Address> {
-        let mut head_discontiguous_region = self.common().head_discontiguous_region.lock().unwrap();
-        match VM_MAP.allocate_contiguous_chunks(chunks, self.common().space_descriptor, *head_discontiguous_region) {
-            Some(chunk_start) => {
-                *head_discontiguous_region = chunk_start;
-                Some(chunk_start)
-            },
-            _ => {
-                None
-            },
+        match self.common().memory {
+            SpaceMemoryMeta::Discontiguous { ref head } => {
+                let mut head = head.write().unwrap();
+                match VM_MAP.allocate_contiguous_chunks(chunks, self.common().space_descriptor, *head) {
+                    Some(chunk_start) => {
+                        *head = chunk_start;
+                        Some(chunk_start)
+                    },
+                    _ => {
+                        None
+                    },
+                }
+            }
+            _ => unreachable!()
         }
     }
 
-    fn release_discontiguous_chunks(&mut self, chunk: Address) {
+    fn release_contiguous_chunks(&self, chunk: Address) {
         debug_assert!(chunk == ::util::conversions::chunk_align(chunk, true));
-        let mut head_discontiguous_region = self.common().head_discontiguous_region.lock().unwrap();
-        if chunk == *head_discontiguous_region {
-            *head_discontiguous_region = VM_MAP.get_next_contiguous_region(chunk).unwrap_or(unsafe { Address::zero() });
+        match self.common().memory {
+            SpaceMemoryMeta::Discontiguous { ref head } => {
+                let mut head = head.write().unwrap();
+                if chunk == *head {
+                    *head = VM_MAP.get_next_contiguous_region(chunk).unwrap_or(unsafe { Address::zero() });
+                }
+                VM_MAP.release_contiguous_chunks(chunk);
+            }
+            _ => unreachable!()
         }
-        VM_MAP.release_contiguous_chunks(chunk);
     }
 
     fn reserved_pages(&self) -> usize {
@@ -84,9 +88,13 @@ pub fn cumulative_committed_pages() -> usize {
 pub struct CommonPageResource {
     pub reserved: AtomicUsize,
     pub committed: AtomicUsize,
-    pub contiguous: bool,
-    pub growable: bool,
     pub space_descriptor: usize,
     pub metadata_pages_per_region: usize,
-    pub head_discontiguous_region: Mutex<Address>,
+    pub memory: SpaceMemoryMeta,
+}
+
+#[derive(Debug)]
+pub enum SpaceMemoryMeta {
+    Contiguous { start: Address, extent: usize },
+    Discontiguous { head: RwLock<Address> },
 }

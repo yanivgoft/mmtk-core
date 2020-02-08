@@ -51,13 +51,13 @@ impl<S: Space> BumpAllocator<S> {
         self.space = space;
     }
 
-    pub fn scan(&self) {
-        unsafe {
-            self.scan_region(DumpLinearScan{},
-                             self.get_space().unwrap().common().start,
-                             Address::zero());
-        }
-    }
+    // pub fn scan(&self) {
+    //     unsafe {
+    //         self.scan_region(DumpLinearScan{},
+    //                          self.get_space().unwrap().common().start,
+    //                          Address::zero());
+    //     }
+    // }
 
     fn scan_region<T: LinearScan>(&self, scanner: T, start: Address, end: Address) {
         // We are diverging from the original implementation

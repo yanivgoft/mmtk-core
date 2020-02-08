@@ -30,15 +30,14 @@ impl Space for CopySpace {
 
     fn init(&mut self) {
         // Borrow-checker fighting so that we can have a cyclic reference
-        let me = unsafe { &*(self as *const Self) };
+        // let me = unsafe { &*(self as *const Self) };
 
-        let common_mut = self.common_mut();
-        if common_mut.vmrequest.is_discontiguous() {
-            common_mut.pr = Some(MonotonePageResource::new_discontiguous(META_DATA_PAGES_PER_REGION, me.common().descriptor));
-        } else {
-            unimplemented!()
-            // common_mut.pr = Some(PageResource::new_contiguous(common_mut.start, common_mut.extent, META_DATA_PAGES_PER_REGION));
-        }
+        // let common_mut = self.common_mut();
+        // if common_mut.vmrequest.is_discontiguous() {
+        //     common_mut.pr = Some(MonotonePageResource::new_discontiguous(META_DATA_PAGES_PER_REGION, me.common().descriptor));
+        // } else {
+        //     common_mut.pr = Some(MonotonePageResource::new_contiguous(common_mut.start, common_mut.extent, META_DATA_PAGES_PER_REGION, me.common().descriptor));
+        // }
         // common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
@@ -58,7 +57,7 @@ impl Space for CopySpace {
 impl CopySpace {
     pub fn new(name: &'static str, from_space: bool, zeroed: bool, vmrequest: VMRequest) -> Self {
         CopySpace {
-            common: UnsafeCell::new(CommonSpace::new(name, true, false, zeroed, vmrequest)),
+            common: UnsafeCell::new(CommonSpace::new(name, true, false, zeroed, META_DATA_PAGES_PER_REGION, vmrequest)),
             from_space,
         }
     }
@@ -68,7 +67,7 @@ impl CopySpace {
     }
 
     pub unsafe fn release(&mut self) {
-        self.common().pr.as_ref().unwrap().release_all();
+        self.common().pr.release_all();
         self.from_space = false;
     }
 

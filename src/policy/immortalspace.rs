@@ -36,16 +36,16 @@ impl Space for ImmortalSpace {
 
     fn init(&mut self) {
         // Borrow-checker fighting so that we can have a cyclic reference
-        let me = unsafe { &*(self as *const Self) };
+        // let me = unsafe { &*(self as *const Self) };
 
-        let common_mut = self.common_mut();
-        if common_mut.vmrequest.is_discontiguous() {
-            common_mut.pr = Some(MonotonePageResource::new_discontiguous(
-                META_DATA_PAGES_PER_REGION, me.common().descriptor));
-        } else {
-            unimplemented!();
-            // common_mut.pr = Some(PageResource::new_contiguous(common_mut.start, common_mut.extent, META_DATA_PAGES_PER_REGION));
-        }
+        // let common_mut = self.common_mut();
+        // if common_mut.vmrequest.is_discontiguous() {
+        //     common_mut.pr = Some(MonotonePageResource::new_discontiguous(
+        //         META_DATA_PAGES_PER_REGION, me.common().descriptor));
+        // } else {
+        //     unimplemented!();
+        //     // common_mut.pr = Some(PageResource::new_contiguous(common_mut.start, common_mut.extent, META_DATA_PAGES_PER_REGION));
+        // }
         // common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
@@ -65,7 +65,7 @@ impl Space for ImmortalSpace {
 impl ImmortalSpace {
     pub fn new(name: &'static str, zeroed: bool, vmrequest: VMRequest) -> Self {
         ImmortalSpace {
-            common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, vmrequest)),
+            common: UnsafeCell::new(CommonSpace::new(name, false, true, zeroed, META_DATA_PAGES_PER_REGION, vmrequest)),
             mark_state: 0,
         }
     }

@@ -4,7 +4,7 @@ use ::plan::TransitiveClosure;
 use ::policy::space::{CommonSpace, Space};
 use ::util::{Address, ObjectReference};
 use ::util::constants::*;
-use ::util::heap::{PageResource, FreeListPageResource, VMRequest};
+use ::util::heap::{PageResource, FreeListPageResource, VMRequest, SpaceMemoryMeta};
 use ::vm::*;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, AtomicU8, Ordering};
@@ -28,10 +28,10 @@ impl Space for MarkRegionSpace {
     type PR = FreeListPageResource;
 
     fn init(&mut self) {
-        let me = unsafe { &*(self as *const Self) };
-        let common_mut = self.common_mut();
-        assert!(common_mut.vmrequest.is_discontiguous());
-        common_mut.pr = Some(FreeListPageResource::new_discontiguous(Self::MEDATADA_PAGES, me.common().descriptor));
+        // let me = unsafe { &*(self as *const Self) };
+        // let common_mut = self.common_mut();
+        // assert!(common_mut.vmrequest.is_discontiguous());
+        // common_mut.pr = Some(FreeListPageResource::new_discontiguous(Self::MEDATADA_PAGES, me.common().descriptor));
         // common_mut.pr.as_mut().unwrap().bind_space(me);
     }
 
@@ -52,7 +52,7 @@ impl Space for MarkRegionSpace {
     }
 
     fn release_multiple_pages(&mut self, start: Address) {
-        self.common_mut().pr.as_mut().unwrap().release_pages(start);
+        self.common_mut().pr.release_pages(start);
     }
 
     fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {
@@ -63,7 +63,7 @@ impl Space for MarkRegionSpace {
     }
 }
 
-static MARKED_REGIONS: AtomicUsize = AtomicUsize::new(0);
+
 
 impl MarkRegionSpace {
     pub const LOG_BYTES_IN_REGION: usize = LOG_BYTES_IN_PAGE as usize + 3;
@@ -83,7 +83,7 @@ impl MarkRegionSpace {
 
     pub fn new(name: &'static str) -> Self {
         Self {
-            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, VMRequest::discontiguous())),
+            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, Self::MEDATADA_PAGES, VMRequest::discontiguous())),
             committed_regions: Mutex::default(),
             mark_state: 0,
         }
@@ -107,26 +107,22 @@ impl MarkRegionSpace {
         }
     }
 
-    fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {}
-
     pub fn prepare(&mut self) {
         self.mark_state += 1;
         while self.mark_state == 0 {
             self.mark_state += 1;
         }
         // Clear metadata
-        let mut chunk_start = *self.common().pr.as_ref().unwrap().common().head_discontiguous_region.lock().unwrap();
-        while !chunk_start.is_zero() {
-            VMMemory::zero(chunk_start, self.common().pr.as_ref().unwrap().common().metadata_pages_per_region << LOG_BYTES_IN_PAGE);
-            chunk_start = ::util::heap::layout::heap_layout::VM_MAP.get_next_contiguous_region(chunk_start).unwrap_or(unsafe { Address::zero() });
+        match self.common().pr.common().memory {
+            SpaceMemoryMeta::Discontiguous { ref head } => {
+                let mut chunk_start = *head.read().unwrap();
+                while !chunk_start.is_zero() {
+                    VMMemory::zero(chunk_start, self.common().pr.common().metadata_pages_per_region << LOG_BYTES_IN_PAGE);
+                    chunk_start = ::util::heap::layout::heap_layout::VM_MAP.get_next_contiguous_region(chunk_start).unwrap_or(unsafe { Address::zero() });
+                }
+            }
+            _ => unreachable!()
         }
-        
-        let mut committed_regions = self.committed_regions.lock().unwrap();
-        for r in committed_regions.iter() {
-            let chunk = ::util::conversions::chunk_align(*r, true);
-            VMMemory::zero(chunk, self.common().pr.as_ref().unwrap().common().metadata_pages_per_region << LOG_BYTES_IN_PAGE);
-        }
-        MARKED_REGIONS.store(0, Ordering::Relaxed);
     }
 
     pub fn release(&mut self) {
@@ -137,7 +133,6 @@ impl MarkRegionSpace {
                 dead_regions.push(*r);
             }
         }
-        println!("Marked {} regions", MARKED_REGIONS.load(Ordering::Relaxed));
         println!("[MarkRegionSpace] Released {}/{} regions", dead_regions.len(), committed_regions.len());
         for r in &dead_regions {
             committed_regions.remove(r);
@@ -195,10 +190,7 @@ impl MarkRegionSpace {
 
     fn mark_region(&self, r: Address) {
         let entry = Self::get_region_marktable_entry(r);
-        if entry.fetch_or(1, Ordering::Relaxed) == 0 {
-            // println!("mark region {:?}", r);
-            MARKED_REGIONS.fetch_add(1, Ordering::Relaxed);
-        };
+        entry.store(1, Ordering::Relaxed);
     }
 
     fn get_region_containing_object(o: ObjectReference) -> Address {
