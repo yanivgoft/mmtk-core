@@ -1,32 +1,20 @@
-use std::marker::PhantomData;
 use std::collections::{LinkedList, HashMap};
 
 
-pub trait BlockDescriptor {
-    const LOG_SIZE: usize;
-    const SIZE: usize = 1 << Self::LOG_SIZE;
-    const MASK: usize = Self::SIZE - 1;
-}
 
 pub struct Freelist {
-    committed_buckets: [LinkedList<usize>; 48],
-    free_buckets: [LinkedList<usize>; 48],
+    free_buckets: [LinkedList<usize>; Self::MAX_SIZE_CLASS],
+    free_sizes: HashMap<usize, usize>,
     sizes: HashMap<usize, usize>,
 }
 
 
 impl Freelist {
+    const MAX_SIZE_CLASS: usize = 48;
+
     pub fn new() -> Self {
         let f = || LinkedList::new();
         Self {
-            committed_buckets: [
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-            ],
             free_buckets: [
                 f(), f(), f(), f(), f(), f(), f(), f(),
                 f(), f(), f(), f(), f(), f(), f(), f(),
@@ -35,8 +23,8 @@ impl Freelist {
                 f(), f(), f(), f(), f(), f(), f(), f(),
                 f(), f(), f(), f(), f(), f(), f(), f(),
             ],
+            free_sizes: HashMap::new(),
             sizes: HashMap::new(),
-            // phantom: PhantomData,
         }
     }
 
@@ -49,16 +37,12 @@ impl Freelist {
             return None;
         }
         match self.pop_from_bucket(size_class) {
-            Some(index) => {
-                // println!("Pop from size class {} index={}", size_class, index);
-                Some(index)
-            },
+            Some(index) => Some(index),
             _ => {
                 if let Some(index) = self.alloc_cell(size_class + 1) {
                     let cell0 = index;
                     let cell1 = index + (1 << size_class);
                     self.push_to_bucket(size_class, cell1);
-                    // self.committed_buckets[size_class].push_front(cell0);
                     Some(cell0)
                 } else {
                     None
@@ -69,11 +53,17 @@ impl Freelist {
 
     fn push_to_bucket(&mut self, bucket: usize, value: usize) {
         assert!(value & ((1 << bucket) - 1) == 0);
+        self.free_sizes.insert(value, 1 << bucket);
         self.free_buckets[bucket].push_front(value);
     }
 
     fn pop_from_bucket(&mut self, bucket: usize) -> Option<usize> {
-        self.free_buckets[bucket].pop_front()
+        if let Some(cell) = self.free_buckets[bucket].pop_front() {
+            self.free_sizes.remove(&cell);
+            Some(cell)
+        } else {
+            None
+        }
     }
 
     pub fn insert_free(&mut self, index: usize, count: usize) {
@@ -89,14 +79,9 @@ impl Freelist {
         }
     }
 
-    pub fn insert_committed(&mut self, index: usize, count: usize) {
-        unimplemented!()
-    }
-
     pub fn alloc(&mut self, count: usize) -> Option<usize> {
         match Self::get_size_class(count) {
             Some(size_class) => {
-                // println!("size class = {}", size_class);
                 match self.alloc_cell(size_class) {
                     Some(index) => {
                         self.sizes.insert(index, count);
@@ -126,12 +111,13 @@ impl Freelist {
 
     pub fn alloc_from(&mut self, start: usize, count: usize) -> Option<usize> {
         match self.get_cell_containing(start, count) {
-            Some((size_class, cell, index)) => {
+            Some((size_class, cell, _index)) => {
                 // Remove this cell
                 {
-                    let mut tail = self.free_buckets[size_class].split_off(index);
-                    tail.pop_front();
-                    self.free_buckets[size_class].append(&mut tail);
+                    self.remove_cell(size_class, cell).unwrap();
+                    // let mut tail = self.free_buckets[size_class].split_off(index);
+                    // tail.pop_front();
+                    // self.free_buckets[size_class].append(&mut tail);
                 }
                 let size = 1 << size_class;
                 let pieces = [(cell, start - cell), (start, count), (start + count, cell + size - start - count)];
@@ -148,10 +134,69 @@ impl Freelist {
         }
     }
     
-    pub fn dealloc(&mut self, index: usize) -> usize {
-        let count = self.sizes.remove(&index).unwrap();
-        self.insert_free(index, count);
+    pub fn dealloc(&mut self, unit: usize) -> usize {
+        let count = self.sizes.remove(&unit).unwrap();
+        let size_class = count.trailing_zeros() as usize;
+        self.push_to_bucket(size_class, unit);
+        // self.__coalesce(unit, size_class);
         count
+    }
+
+    fn __coalesce(&mut self, unit: usize, size_class: usize) {
+        // assume: `unit` is not in `self.free_buckets[size_class]`
+        if size_class >= Self::MAX_SIZE_CLASS - 1 {
+            let sc = Self::MAX_SIZE_CLASS - 1;
+            for u in (unit .. (unit + (1 << size_class))).step_by(1 << sc) {
+                self.push_to_bucket(size_class, u);
+            }
+            return
+        }
+        let sibling_cell = unit ^ (1 << size_class);
+        if self.free_sizes.get(&sibling_cell) == Some(&(1 << size_class)) {
+            // `sibling_cell` is free, we can merge these two cells
+            self.remove_cell(size_class, sibling_cell).unwrap();
+            let merged_unit = unit & !(1 << size_class);
+            self.__coalesce(merged_unit, size_class + 1);
+        } else {
+            self.push_to_bucket(size_class, unit);
+        }
+    }
+
+    fn remove_cell(&mut self, bucket: usize, cell: usize) -> Result<usize, ()> {
+        let old_length = self.free_buckets[bucket].len();
+        self.free_buckets[bucket].drain_filter(|x| *x == cell);
+        debug_assert!(self.free_buckets[bucket].len() + 1 >= old_length);
+        if self.free_buckets[bucket].len() + 1 == old_length {
+            self.free_sizes.remove(&cell).unwrap();
+            Ok(cell)
+        } else {
+            Err(())
+        }
+    }
+
+    pub fn remove(&mut self, unit: usize, count: usize) {
+        let size_class = count.trailing_zeros() as usize;
+        self.remove_cell(size_class, unit).unwrap();
+    }
+
+    pub fn get_coalescable_size(&self, unit: usize) -> usize {
+        let size = self.sizes[&unit];
+        let size_class = size.trailing_zeros() as usize;
+        self.__get_coalescable_size(unit, size_class)
+    }
+
+    fn __get_coalescable_size(&self, unit: usize, size_class: usize) -> usize {
+        if size_class >= Self::MAX_SIZE_CLASS {
+            return 0;
+        }
+        let sibling_cell = unit ^ (1 << size_class);
+        if self.free_sizes.get(&sibling_cell) == Some(&(1 << size_class)) {
+            // sibling_cell is free, we can merge these two cells
+            let merged_unit = unit & !(1 << size_class);
+            (1 << (size_class + 1)) + self.__get_coalescable_size(merged_unit, size_class + 1)
+        } else {
+            1 << size_class
+        }
     }
 
     pub fn get_size(&mut self, index: usize) -> usize {
@@ -159,12 +204,10 @@ impl Freelist {
     }
 
     pub fn reset(&mut self) {
-        for x in self.committed_buckets.iter_mut() {
-            x.clear();
-        }
         for x in self.free_buckets.iter_mut() {
             x.clear();
         }
+        self.free_sizes.clear();
         self.sizes.clear();
     }
 }

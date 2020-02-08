@@ -21,7 +21,7 @@ pub trait PageResource: Sized + 'static + Debug {
         self.common().reserved.fetch_sub(reserved_pages, Ordering::Relaxed);
     }
 
-    fn commit_pages(&self, reserved_pages: usize, actual_pages: usize, tls: *mut ::libc::c_void) {
+    fn commit_pages(&self, reserved_pages: usize, actual_pages: usize, _tls: *mut ::libc::c_void) {
         let delta = actual_pages - reserved_pages;
         self.common().reserved.fetch_add(delta, Ordering::Relaxed);
         self.common().committed.fetch_add(actual_pages, Ordering::Relaxed);

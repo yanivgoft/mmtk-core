@@ -41,7 +41,20 @@ impl PageResource for FreeListPageResource {
         let pages = freelist.get_size(page_index);
         self.common.reserved.fetch_sub(pages, Ordering::Relaxed);
         self.common.committed.fetch_sub(pages, Ordering::Relaxed);
-        freelist.dealloc(page_index)
+        let freed = freelist.dealloc(page_index);
+        // Try free this chunk
+        if self.common.metadata_pages_per_region > 0 {
+            let chunk = ::util::conversions::chunk_align(first, true);
+            let first_unit = ::util::conversions::bytes_to_pages(chunk.as_usize());
+            if freelist.get_coalescable_size(first_unit) == PAGES_IN_CHUNK {
+                freelist.dealloc(first_unit);
+                freelist.remove(first_unit, PAGES_IN_CHUNK);
+                self.free_chunk(&mut freelist, chunk);
+            }
+        } else if freed == PAGES_IN_CHUNK {
+            self.free_chunk(&mut freelist, ::util::conversions::chunk_align(first, true));
+        }
+        freed
     }
 
     fn release_all(&self) {
@@ -103,7 +116,8 @@ impl FreeListPageResource {
                     Some(chunk_start) => {
                         let page_index = chunk_start.as_usize() >> LOG_BYTES_IN_PAGE;
                         let pages = (required_chunks << LOG_BYTES_IN_CHUNK) >> LOG_BYTES_IN_PAGE;
-                        freelist.insert_free(page_index + self.common.metadata_pages_per_region, pages - self.common.metadata_pages_per_region);
+                        freelist.insert_free(page_index, pages);
+                        freelist.alloc_from(page_index, self.common.metadata_pages_per_region).unwrap();
                         ::std::mem::drop(freelist);
                         self.alloc_pages_aux(reserved_pages, required_pages, zeroed, true, tls).map(|(a, _)| (a, true))
                     },
@@ -113,4 +127,9 @@ impl FreeListPageResource {
         }
     }
 
+    fn free_chunk(&self, freelist: &mut Freelist, chunk: Address) {
+        let first_unit = ::util::conversions::bytes_to_pages(chunk.as_usize());
+        freelist.remove(first_unit, PAGES_IN_CHUNK);
+        self.release_contiguous_chunks(chunk);
+    }
 }
