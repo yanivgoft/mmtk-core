@@ -11,7 +11,6 @@ use std::sync::atomic::{Ordering, AtomicBool};
 
 use util::OpaquePointer;
 use std::sync::Arc;
-use std::marker::PhantomData;
 use vm::VMBinding;
 
 // TODO: remove this singleton at some point to allow multiple instances of MMTK
@@ -26,9 +25,6 @@ lazy_static!{
     // TODO: We should refactor this when we know more about how multiple MMTK instances work.
     pub static ref VM_MAP: VMMap = VMMap::new();
     pub static ref MMAPPER: Mmapper = Mmapper::new();
-
-    // mmtk instance
-    pub static ref SINGLETON: MMTK = MMTK::new(&VM_MAP, &MMAPPER);
 }
 
 #[cfg(feature = "jikesrvm")]
@@ -49,7 +45,7 @@ lazy_static! {
 use vm::dummyvm::DummyVM;
 #[cfg(feature = "dummyvm")]
 lazy_static! {
-    pub static ref SINGLETON: MMTK<DummyVM> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+    pub static ref SINGLETON: MMTK<DummyVM> = MMTK::new(&VM_MAP, &MMAPPER);
 }
 
 pub struct MMTK<VM: VMBinding> {
@@ -61,9 +57,6 @@ pub struct MMTK<VM: VMBinding> {
     pub options: Arc<UnsafeOptionsWrapper>,
 
     inside_harness: AtomicBool,
-
-    // FIXME: Delete this before merging
-    p: PhantomData<VM>
 }
 
 impl<VM: VMBinding> MMTK<VM> {
@@ -79,7 +72,6 @@ impl<VM: VMBinding> MMTK<VM> {
             reference_processors: ReferenceProcessors::new(),
             options,
             inside_harness: AtomicBool::new(false),
-            p: PhantomData,
         }
     }
 

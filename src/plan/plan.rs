@@ -6,7 +6,7 @@ use std::sync::atomic::{self, AtomicUsize, AtomicBool, Ordering};
 use ::util::OpaquePointer;
 use ::policy::space::Space;
 use ::util::heap::PageResource;
-use ::vm::{Collection, VMCollection, ActivePlan, VMActivePlan, ObjectModel, VMObjectModel};
+use ::vm::{Collection, ActivePlan, ObjectModel};
 use super::controller_collector_context::ControllerCollectorContext;
 use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
 use util::constants::LOG_BYTES_IN_MBYTE;
@@ -42,7 +42,7 @@ pub trait Plan<VM: VMBinding>: Sized {
     type CollectorT: ParallelCollector<VM>;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self;
-    fn common(&self) -> &CommonPlan;
+    fn common(&self) -> &CommonPlan<VM>;
     fn mmapper(&self) -> &'static Mmapper {
         self.common().mmapper
     }
