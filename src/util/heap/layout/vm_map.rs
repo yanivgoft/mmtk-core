@@ -1,5 +1,5 @@
 use std::sync::{Mutex, MutexGuard};
-use super::freelist::*;
+use util::freelist::*;
 use util::Address;
 use super::vm_layout_constants::{LOG_BYTES_IN_CHUNK, BYTES_IN_CHUNK};
 use std::sync::atomic::{AtomicUsize, Ordering};

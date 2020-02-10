@@ -15,8 +15,7 @@ pub mod statistics;
 pub mod queue;
 mod synchronized_counter;
 pub mod reference_processor;
-pub mod generic_freelist;
-pub mod int_array_freelist;
+pub mod freelist;
 pub mod treadmill;
 pub mod bitmap;
 

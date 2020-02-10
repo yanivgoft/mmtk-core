@@ -4,7 +4,7 @@ use std::sync::atomic::Ordering;
 use util::address::Address;
 use util::heap::pageresource::{CommonPageResource, SpaceMemoryMeta};
 use util::heap::layout::vm_layout_constants::*;
-use util::heap::layout::freelist::Freelist;
+use util::freelist::*;
 use util::constants::*;
 use policy::space::Space;
 use super::PageResource;
