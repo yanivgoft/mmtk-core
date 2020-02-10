@@ -54,13 +54,6 @@ impl Space for MarkRegionSpace {
     fn release_multiple_pages(&mut self, start: Address) {
         self.common_mut().pr.release_pages(start);
     }
-
-    fn grow_space(&self, start: Address, bytes: usize, new_chunk: bool) {
-        // Clear metadata
-        if new_chunk {
-
-        }
-    }
 }
 
 
@@ -78,12 +71,14 @@ impl MarkRegionSpace {
     const MAX_REGIONS_IN_CHUNK: usize = BYTES_IN_CHUNK / Self::BYTES_IN_REGION;
     const REGION_MARKTABLE_OFFSET: usize = 0;
     const OBJECT_MARKTABLE_OFFSET: usize = Self::REGION_MARKTABLE_OFFSET + Self::MAX_REGIONS_IN_CHUNK;
-    const METADATA_BYTES: usize = Self::OBJECT_MARKTABLE_OFFSET + (Self::MAX_OBJECTS_IN_CHUNK >> LOG_BITS_IN_BYTE);
-    const MEDATADA_PAGES: usize = (Self::METADATA_BYTES + BYTES_IN_PAGE - 1) >> LOG_BYTES_IN_PAGE;
+    const _METADATA_BYTES: usize = Self::OBJECT_MARKTABLE_OFFSET + (Self::MAX_OBJECTS_IN_CHUNK >> LOG_BITS_IN_BYTE);
+    const _MEDATADA_PAGES: usize = (Self::_METADATA_BYTES + BYTES_IN_PAGE - 1) >> LOG_BYTES_IN_PAGE;
+    const METADATA_REGIONS: usize = (Self::_MEDATADA_PAGES + (Self::PAGES_IN_REGION - 1)) >> Self::LOG_PAGES_IN_REGION;
+    const METADARA_PAGES: usize = Self::METADATA_REGIONS << Self::LOG_PAGES_IN_REGION;
 
     pub fn new(name: &'static str) -> Self {
         Self {
-            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, Self::MEDATADA_PAGES, VMRequest::discontiguous())),
+            common: UnsafeCell::new(CommonSpace::new(name, false, false, true, Self::METADARA_PAGES, VMRequest::discontiguous())),
             committed_regions: Mutex::default(),
             mark_state: 0,
         }
@@ -115,9 +110,9 @@ impl MarkRegionSpace {
         // Clear metadata
         match self.common().pr.common().memory {
             SpaceMemoryMeta::Discontiguous { ref head } => {
-                let mut chunk_start = *head.read().unwrap();
+                let mut chunk_start: Address = *head.read().unwrap();
                 while !chunk_start.is_zero() {
-                    VMMemory::zero(chunk_start, self.common().pr.common().metadata_pages_per_region << LOG_BYTES_IN_PAGE);
+                    VMMemory::zero(chunk_start, Self::_MEDATADA_PAGES << LOG_BYTES_IN_PAGE);
                     chunk_start = ::util::heap::layout::heap_layout::VM_MAP.get_next_contiguous_region(chunk_start).unwrap_or(unsafe { Address::zero() });
                 }
             }

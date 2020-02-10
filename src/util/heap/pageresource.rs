@@ -53,8 +53,8 @@ pub trait PageResource: Sized + 'static + Debug {
         debug_assert!(chunk == ::util::conversions::chunk_align(chunk, true));
         match self.common().memory {
             SpaceMemoryMeta::Discontiguous { ref head } => {
-                let mut head = head.write().unwrap();
-                if chunk == *head {
+                if chunk == *head.read().unwrap() {
+                    let mut head = head.write().unwrap();
                     *head = VM_MAP.get_next_contiguous_region(chunk).unwrap_or(unsafe { Address::zero() });
                 }
                 VM_MAP.release_contiguous_chunks(chunk);

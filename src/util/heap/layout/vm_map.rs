@@ -28,10 +28,8 @@ impl VMMap {
         let heap_range = VMMemory::reserve_heap();
         let chunks = (heap_range.1 - heap_range.0) >> LOG_BYTES_IN_CHUNK;
         let mut map = vec![];
-        // println!("Resize start {}mb", chunks * 8 / 1024 / 1024);
         map.resize_with(chunks, Default::default);
-        // println!("Resize end");
-        let mut freelist = Freelist::new();
+        let mut freelist = Freelist::new(None);
         {
             let start = heap_range.0.align_up(BYTES_IN_CHUNK);
             let limit = heap_range.1.align_down(BYTES_IN_CHUNK);

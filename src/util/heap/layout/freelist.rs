@@ -1,214 +1,247 @@
-use std::collections::{LinkedList, HashMap};
-
-
 
 pub struct Freelist {
-    free_buckets: [LinkedList<usize>; Self::MAX_SIZE_CLASS],
-    free_sizes: HashMap<usize, usize>,
-    sizes: HashMap<usize, usize>,
+    table: Vec<u64>,
+    head: Option<usize>,
+    coalesce_boundary: Option<usize>,
 }
 
+const INVALID: usize = (1 << 30) - 1;
+const NEXT_OFFSET: usize = 0;
+const NEXT_MASK: u64 = ((1 << 30) - 1) << NEXT_OFFSET;
+const PREV_OFFSET: usize = 30;
+const PREV_MASK: u64 = ((1 << 30) - 1) << PREV_OFFSET;
+const FREE_OFFSET: usize = 62;
+const FREE_MASK: u64 = 1 << FREE_OFFSET;
+const MULTI_OFFSET: usize = 63;
+const MULTI_MASK: u64 = 1 << MULTI_OFFSET;
 
 impl Freelist {
-    const MAX_SIZE_CLASS: usize = 48;
-
-    pub fn new() -> Self {
-        let f = || LinkedList::new();
+    pub fn new(coalesce_boundary: Option<usize>) -> Self {
         Self {
-            free_buckets: [
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-                f(), f(), f(), f(), f(), f(), f(), f(),
-            ],
-            free_sizes: HashMap::new(),
-            sizes: HashMap::new(),
+            table: vec![],
+            head: None,
+            coalesce_boundary,
         }
     }
 
-    fn get_size_class(count: usize) -> Option<usize> {
-        count.checked_next_power_of_two().map(|v| v.trailing_zeros() as usize)
+    fn resize_table(&mut self, length: usize) {
+        let length = length.checked_next_power_of_two().unwrap();
+        let length = if length > 1024 { length } else { 1024 };
+        self.table.resize(length, 0);
     }
 
-    fn alloc_cell(&mut self, size_class: usize) -> Option<usize> {
-        if size_class >= self.free_buckets.len() {
-            return None;
+    pub fn insert_free(&mut self, unit: usize, size: usize) {
+        if unit + size > self.table.len() {
+            self.resize_table(unit + size);
         }
-        match self.pop_from_bucket(size_class) {
-            Some(index) => Some(index),
-            _ => {
-                if let Some(index) = self.alloc_cell(size_class + 1) {
-                    let cell0 = index;
-                    let cell1 = index + (1 << size_class);
-                    self.push_to_bucket(size_class, cell1);
-                    Some(cell0)
-                } else {
-                    None
-                }
-            }
-        }
+        self.insert_free_node(unit, size);
+        debug_assert!(self.get_size(unit) == size);
     }
 
-    fn push_to_bucket(&mut self, bucket: usize, value: usize) {
-        assert!(value & ((1 << bucket) - 1) == 0);
-        self.free_sizes.insert(value, 1 << bucket);
-        self.free_buckets[bucket].push_front(value);
-    }
-
-    fn pop_from_bucket(&mut self, bucket: usize) -> Option<usize> {
-        if let Some(cell) = self.free_buckets[bucket].pop_front() {
-            self.free_sizes.remove(&cell);
-            Some(cell)
+    fn remove_free_node(&mut self, unit: usize) {
+        debug_assert!(self.is_free(unit));
+        self.set_free(unit, false);
+        // Remove from list
+        if self.head == Some(unit) {
+            let next = self.get_next(unit);
+            next.map(|n| self.set_prev(n, None));
+            self.head = next;
         } else {
-            None
-        }
-    }
-
-    pub fn insert_free(&mut self, index: usize, count: usize) {
-        let index = index;
-        let mut limit = index + count;
-        for size_class in (0..48).rev() {
-            let i = (index + (1 << size_class) - 1) >> size_class << size_class;
-            let j = i + (1 << size_class);
-            if j <= limit {
-                self.push_to_bucket(size_class, i);
-                limit = i;
+            let prev = self.get_prev(unit).unwrap();
+            if let Some(next) = self.get_next(unit) {
+                self.set_next(prev, Some(next));
+                self.set_prev(next, Some(prev));
+            } else {
+                self.set_next(prev, None);
             }
         }
     }
 
-    pub fn alloc(&mut self, count: usize) -> Option<usize> {
-        match Self::get_size_class(count) {
-            Some(size_class) => {
-                match self.alloc_cell(size_class) {
-                    Some(index) => {
-                        self.sizes.insert(index, count);
-                        Some(index)
-                    }
-                    _ => None
-                }
-            },
-            _ => None,
-        }
+    fn split_node_and_remove_first(&mut self, unit: usize, first_size: usize) -> usize {
+        debug_assert!(first_size > 0);
+        debug_assert!(self.is_free(unit));
+        let size = self.get_size(unit);
+        debug_assert!(size > first_size);
+        self.remove_free_node(unit);
+        self.set_size(unit, first_size);
+        self.insert_free_node(unit + first_size, size - first_size);
+        unit
     }
 
-    fn get_cell_containing(&self, index: usize, count: usize) -> Option<(usize, usize, usize)> {
-        let min_size_class = Self::get_size_class(count).unwrap();
-        for size_class in (min_size_class..48).rev() {
-            let size = 1 << size_class;
-            let mut i = 0;
-            for cell in &self.free_buckets[size_class] {
-                if *cell <= index && (cell + size) >= (index + count) {
-                    return Some((size_class, *cell, i));
-                }
-                i += 1;
+    pub fn alloc(&mut self, size: usize) -> Option<usize> {
+        let mut unit_opt = self.head;
+        while let Some(unit) = unit_opt  {
+            if self.get_size(unit) >= size {
+                return self.alloc_from(unit, size);
             }
+            unit_opt = self.get_next(unit);
         }
         None
     }
 
-    pub fn alloc_from(&mut self, start: usize, count: usize) -> Option<usize> {
-        match self.get_cell_containing(start, count) {
-            Some((size_class, cell, _index)) => {
-                // Remove this cell
-                {
-                    self.remove_cell(size_class, cell).unwrap();
-                    // let mut tail = self.free_buckets[size_class].split_off(index);
-                    // tail.pop_front();
-                    // self.free_buckets[size_class].append(&mut tail);
-                }
-                let size = 1 << size_class;
-                let pieces = [(cell, start - cell), (start, count), (start + count, cell + size - start - count)];
-                if pieces[0].1 > 0 {
-                    self.insert_free(pieces[0].0, pieces[0].1);
-                }
-                if pieces[2].1 > 0 {
-                    self.insert_free(pieces[2].0, pieces[2].1);
-                }
-                self.sizes.insert(start, count);
-                Some(start)
-            },
-            _ => None,
+    pub fn alloc_from(&mut self, unit: usize, size: usize) -> Option<usize> {
+        let unit_size = self.get_size(unit);
+        if unit_size > size {
+            self.split_node_and_remove_first(unit, size);
+        } else {
+            self.remove_free_node(unit);
+        }
+        debug_assert!(self.get_size(unit) == size);
+        debug_assert!(!self.is_free(unit));
+        Some(unit)
+    }
+
+    fn coalesce_nodes(&mut self, left: usize, right: usize) {
+        if let Some(log_boundary) = self.coalesce_boundary {
+            if (left ^ right) >> log_boundary != 0 {
+                return
+            }
+        }
+        debug_assert!(left + self.get_size(left) == right);
+        debug_assert!(self.is_free(left));
+        debug_assert!(self.is_free(right));
+        self.remove_free_node(left);
+        self.remove_free_node(right);
+        let size = self.get_size(left) + self.get_size(right);
+        self.insert_free_node(left, size);
+        debug_assert!(self.get_size(left) == size);
+    }
+
+    fn insert_free_node(&mut self, unit: usize, size: usize) {
+        self.set_free(unit, true);
+        self.set_size(unit, size);
+        if let Some(head) = self.head {
+            self.set_next(unit, Some(head));
+            self.set_prev(unit, None);
+            self.set_prev(head, Some(unit));
+            self.head = Some(unit);
+        } else {
+            self.set_prev(unit, None);
+            self.set_next(unit, None);
+            self.head = Some(unit);
         }
     }
     
-    pub fn dealloc(&mut self, unit: usize) -> usize {
-        let count = self.sizes.remove(&unit).unwrap();
-        let size_class = count.trailing_zeros() as usize;
-        self.push_to_bucket(size_class, unit);
-        // self.__coalesce(unit, size_class);
-        count
-    }
-
-    fn __coalesce(&mut self, unit: usize, size_class: usize) {
-        // assume: `unit` is not in `self.free_buckets[size_class]`
-        if size_class >= Self::MAX_SIZE_CLASS - 1 {
-            let sc = Self::MAX_SIZE_CLASS - 1;
-            for u in (unit .. (unit + (1 << size_class))).step_by(1 << sc) {
-                self.push_to_bucket(size_class, u);
-            }
-            return
+    pub fn dealloc(&mut self, unit: usize) -> (usize, usize) {
+        let size = self.get_size(unit);
+        // Add to freelist
+        self.insert_free_node(unit, size);
+        // Coalesce
+        let mut coalesced_unit = unit;
+        let coalescable_left = self.get_left(unit).and_then(|x| if self.is_free(x) { Some(x) } else { None });
+        let coalescable_right = self.get_right(unit).and_then(|x| if self.is_free(x) { Some(x) } else { None });
+        if let Some(left) = coalescable_left {
+            self.coalesce_nodes(left, unit);
+            coalesced_unit = left;
         }
-        let sibling_cell = unit ^ (1 << size_class);
-        if self.free_sizes.get(&sibling_cell) == Some(&(1 << size_class)) {
-            // `sibling_cell` is free, we can merge these two cells
-            self.remove_cell(size_class, sibling_cell).unwrap();
-            let merged_unit = unit & !(1 << size_class);
-            self.__coalesce(merged_unit, size_class + 1);
-        } else {
-            self.push_to_bucket(size_class, unit);
+        if let Some(right) = coalescable_right {
+            self.coalesce_nodes(coalesced_unit, right);
         }
-    }
-
-    fn remove_cell(&mut self, bucket: usize, cell: usize) -> Result<usize, ()> {
-        let old_length = self.free_buckets[bucket].len();
-        self.free_buckets[bucket].drain_filter(|x| *x == cell);
-        debug_assert!(self.free_buckets[bucket].len() + 1 >= old_length);
-        if self.free_buckets[bucket].len() + 1 == old_length {
-            self.free_sizes.remove(&cell).unwrap();
-            Ok(cell)
-        } else {
-            Err(())
-        }
+        let coalesced_size = self.get_size(coalesced_unit);
+        (size, coalesced_size)
     }
 
     pub fn remove(&mut self, unit: usize, count: usize) {
-        let size_class = count.trailing_zeros() as usize;
-        self.remove_cell(size_class, unit).unwrap();
+        self.remove_free_node(unit);
     }
 
-    pub fn get_coalescable_size(&self, unit: usize) -> usize {
-        let size = self.sizes[&unit];
-        let size_class = size.trailing_zeros() as usize;
-        self.__get_coalescable_size(unit, size_class)
-    }
-
-    fn __get_coalescable_size(&self, unit: usize, size_class: usize) -> usize {
-        if size_class >= Self::MAX_SIZE_CLASS {
-            return 0;
+    fn get_left(&self, unit: usize) -> Option<usize> {
+        if let Some(log_boundary) = self.coalesce_boundary {
+            if unit & ((1 << log_boundary) - 1) == 0 {
+                return None;
+            }
         }
-        let sibling_cell = unit ^ (1 << size_class);
-        if self.free_sizes.get(&sibling_cell) == Some(&(1 << size_class)) {
-            // sibling_cell is free, we can merge these two cells
-            let merged_unit = unit & !(1 << size_class);
-            (1 << (size_class + 1)) + self.__get_coalescable_size(merged_unit, size_class + 1)
+        if self.is_multi(unit - 1) {
+            let size = self.table[unit - 1] & !MULTI_MASK;
+            let left_unit = unit - size as usize;
+            Some(left_unit)
         } else {
-            1 << size_class
+            Some(unit - 1)
         }
     }
 
-    pub fn get_size(&mut self, index: usize) -> usize {
-        self.sizes[&index]
+    fn get_right(&self, unit: usize) -> Option<usize> {
+        let right_unit = unit + self.get_size(unit);
+        if let Some(log_boundary) = self.coalesce_boundary {
+            if right_unit & ((1 << log_boundary) - 1) == 0 {
+                return None;
+            }
+        }
+        if right_unit >= self.table.len() {
+            None
+        } else {
+            Some(right_unit)
+        }
     }
 
-    pub fn reset(&mut self) {
-        for x in self.free_buckets.iter_mut() {
-            x.clear();
+    #[inline(always)]
+    fn get_next(&self, unit: usize) -> Option<usize> {
+        let n = ((self.table[unit] & NEXT_MASK) >> NEXT_OFFSET) as usize;
+        if n == INVALID {
+            None
+        } else {
+            Some(n)
         }
-        self.free_sizes.clear();
-        self.sizes.clear();
+    }
+
+    #[inline(always)]
+    fn get_prev(&self, unit: usize) -> Option<usize> {
+        let p = ((self.table[unit] & PREV_MASK) >> PREV_OFFSET) as usize;
+        if p == INVALID {
+            None
+        } else {
+            Some(p)
+        }
+    }
+
+    fn set_next(&mut self, unit: usize, next: Option<usize>) {
+        let next = next.unwrap_or(INVALID);
+        self.table[unit] = (self.table[unit] & !NEXT_MASK) | ((next as u64) << NEXT_OFFSET);
+    }
+
+    fn set_prev(&mut self, unit: usize, prev: Option<usize>) {
+        let prev = prev.unwrap_or(INVALID);
+        self.table[unit] = (self.table[unit] & !PREV_MASK) | ((prev as u64) << PREV_OFFSET);
+    }
+    
+    fn set_free(&mut self, unit: usize, free: bool) {
+        if free {
+            self.table[unit] |= 1 << FREE_OFFSET;
+        } else {
+            self.table[unit] &= !(1 << FREE_OFFSET);
+        }
+    }
+    
+    #[inline(always)]
+    fn is_free(&self, unit: usize) -> bool {
+        self.table[unit] & FREE_MASK != 0
+    }
+
+    #[inline(always)]
+    fn is_multi(&self, unit: usize) -> bool {
+        self.table[unit] & MULTI_MASK != 0
+    }
+
+    #[inline(always)]
+    pub fn get_size(&self, unit: usize) -> usize {
+        if self.is_multi(unit) {
+            let x = self.table[unit + 1] & !MULTI_MASK;
+            x as usize
+        } else {
+            1
+        }
+    }
+
+    pub fn set_size(&mut self, unit: usize, size: usize) {
+        if size == 1 {
+            self.table[unit] &= !MULTI_MASK;
+        } else {
+            self.table[unit] |= MULTI_MASK;
+            self.table[unit + 1] = MULTI_MASK | (size as u64);
+            if size > 2 {
+                self.table[unit + size - 1] = MULTI_MASK | (size as u64);
+            }
+        }
     }
 }
 
