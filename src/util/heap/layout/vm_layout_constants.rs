@@ -49,33 +49,33 @@ pub const MAX_SPACE_EXTENT: usize = 1 << LOG_SPACE_EXTENT;
 
 // FIXME: HEAP_START, HEAP_END are VM-dependent
 /** Lowest virtual address used by the virtual machine */
-pub const HEAP_START: Address = unsafe{Address::from_usize(chunk_align!(0x60000000, true))};
+// pub const HEAP_START: Address = unsafe{Address::from_usize(chunk_align!(0x60000000, true))};
 
 /** Highest virtual address used by the virtual machine */
-pub const HEAP_END: Address = unsafe{Address::from_usize(chunk_align!(0x3b0000000, false))};
+// pub const HEAP_END: Address = unsafe{Address::from_usize(chunk_align!(0x3b0000000, false))};
 
 /**
  * Lowest virtual address available for MMTk to manage.  The address space between
  * HEAP_START and AVAILABLE_START comprises memory directly managed by the VM,
  * and not available to MMTk.
  */
-#[cfg(feature = "jikesrvm")]
-pub const AVAILABLE_START: Address = unsafe{Address::from_usize(
-    chunk_align!(0x67000000 + (0x64000000 - 0x60000000)/5, false))};
+// #[cfg(feature = "jikesrvm")]
+// pub const AVAILABLE_START: Address = unsafe{Address::from_usize(
+//     chunk_align!(0x67000000 + (0x64000000 - 0x60000000)/5, false))};
 
 // FIXME: We assme that openjdk's bootimage size is 0
-#[cfg(not(feature = "jikesrvm"))]
-pub const AVAILABLE_START: Address = HEAP_START;    
+// #[cfg(not(feature = "jikesrvm"))]
+// pub const AVAILABLE_START: Address = HEAP_START;    
 
 /**
  * Highest virtual address available for MMTk to manage.  The address space between
  * HEAP_END and AVAILABLE_END comprises memory directly managed by the VM,
  * and not available to MMTk.
 */
-pub const AVAILABLE_END: Address = unsafe{Address::from_usize(chunk_align!(0x3b0000000, true))};
+// pub const AVAILABLE_END: Address = unsafe{Address::from_usize(chunk_align!(0x3b0000000, true))};
 
 /** Size of the address space available to the MMTk heap. */
-pub const AVAILABLE_BYTES: usize = AVAILABLE_END.as_usize() - AVAILABLE_START.as_usize();
+// pub const AVAILABLE_BYTES: usize = AVAILABLE_END.as_usize() - AVAILABLE_START.as_usize();
 
 /** Granularity at which we map and unmap virtual address space in the heap */
 pub const LOG_MMAP_CHUNK_BYTES: usize = 20;

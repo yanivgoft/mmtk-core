@@ -11,7 +11,6 @@ use plan::plan::EMERGENCY_COLLECTION;
 use vm::*;
 use plan::trace::Trace;
 use util::constants::*;
-use util::heap::layout::vm_layout_constants::AVAILABLE_BYTES;
 use std::cell::UnsafeCell;
 use std::thread;
 use libc::c_void;
@@ -230,7 +229,7 @@ impl Plan for MarkRegion {
 impl MarkRegion {
     pub fn print_vm_map(&self) {
         println!("Heap Size = {}MB", self.total_pages * BYTES_IN_PAGE / BYTES_IN_MBYTE);
-        println!("Max Heap Size = {}MB", AVAILABLE_BYTES / BYTES_IN_MBYTE);
+        // println!("Max Heap Size = {}MB", AVAILABLE_BYTES / BYTES_IN_MBYTE);
         // if super::VERBOSE {
             // self.vm_space.print_vm_map();
             // self.versatile_space.print_vm_map();

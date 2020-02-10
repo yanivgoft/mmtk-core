@@ -284,7 +284,7 @@ impl SemiSpace {
         println!("Used Size = {}MB", (self.tospace().reserved_pages() + self.fromspace().reserved_pages()) * BYTES_IN_PAGE / BYTES_IN_MBYTE);
         println!("To space = {}MB", self.tospace().reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
         println!("From space = {}MB", self.fromspace().reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
-        println!("Max Heap Size = {}MB", AVAILABLE_BYTES / BYTES_IN_MBYTE);
+        // println!("Max Heap Size = {}MB", AVAILABLE_BYTES / BYTES_IN_MBYTE);
         // if super::VERBOSE {
             // self.vm_space.print_vm_map();
             // self.versatile_space.print_vm_map();

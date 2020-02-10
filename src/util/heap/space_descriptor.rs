@@ -4,6 +4,7 @@ use util::heap::layout::heap_parameters;
 use super::vmrequest::HEAP_LAYOUT_64BIT;
 use util::constants::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use util::heap::layout::heap_layout::VM_MAP;
 
 
 const TYPE_BITS: usize = 2;
@@ -33,9 +34,9 @@ lazy_static! {
 const DISCONTIG_INDEX_INCREMENT: usize = 1 << TYPE_BITS;
 
 pub fn create_descriptor_from_heap_range(start: Address, end: Address) -> usize {
-    let top = end == vm_layout_constants::HEAP_END;
+    let top = end == VM_MAP.heap_range.1;
     if HEAP_LAYOUT_64BIT {
-        let space_index = if start > vm_layout_constants::HEAP_END { ::std::usize::MAX } else { start.0 >> vm_layout_constants::SPACE_SHIFT_64 };
+        let space_index = if start > VM_MAP.heap_range.1 { ::std::usize::MAX } else { start.0 >> vm_layout_constants::SPACE_SHIFT_64 };
         return space_index << INDEX_SHIFT |
             (if top { TYPE_CONTIGUOUS_HI } else { TYPE_CONTIGUOUS });
     }

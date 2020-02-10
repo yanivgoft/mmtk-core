@@ -13,8 +13,8 @@ use util::heap::layout::vm_layout_constants::*;
 use vm::*;
 
 
-const MAX_HEAP_SIZE: usize = HEAP_END.as_usize() - HEAP_START.as_usize();
-const MAX_OBJECTS_IN_HEAP: usize = MAX_HEAP_SIZE / BYTES_IN_PAGE;
+// const MAX_HEAP_SIZE: usize = HEAP_END.as_usize() - HEAP_START.as_usize();
+// const MAX_OBJECTS_IN_HEAP: usize = MAX_HEAP_SIZE / BYTES_IN_PAGE;
 
 
 #[derive(Debug)]
