@@ -300,6 +300,34 @@ mod tests {
     }
 
     #[test]
+    fn free_coalesce() {
+        let mut l = IntArrayFreeList::new(LIST_SIZE, 2, 1);
+        let res1 = l.alloc(2);
+        assert_eq!(res1, 0);
+        let res2 = l.alloc(2);
+        assert_eq!(res2, 2);
+
+        // Free Unit2. It will coalesce with Unit4
+        let coalesced_size = l.free(res2, true);
+        assert_eq!(coalesced_size, 3);
+    }
+
+    #[test]
+    fn free_cant_coalesce() {
+        let mut l = IntArrayFreeList::new(LIST_SIZE, 2, 1);
+        let res1 = l.alloc(2);
+        assert_eq!(res1, 0);
+        let res2 = l.alloc(2);
+        assert_eq!(res2, 2);
+        let res3 = l.alloc(1);
+        assert_eq!(res3, 4);
+
+        // Free Unit2. It cannot coalesce with Unit4
+        let coalesced_size = l.free(res2, true);
+        assert_eq!(coalesced_size, 2);
+    }
+
+    #[test]
     fn free_realloc() {
         let mut l = IntArrayFreeList::new(LIST_SIZE, 2, 1);
         let res1 = l.alloc(2);
