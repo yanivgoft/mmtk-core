@@ -1,5 +1,6 @@
 use ::util::Address;
 use ::util::OpaquePointer;
+use ::util::conversions;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::super::unboxed_size_constants::*;
@@ -82,7 +83,7 @@ fn process_chunk<T: TraceLocal>(chunk_start: Address, image_start: Address,
                 cursor += 1isize;
             }
             /* enqueue the specified slot or slots */
-            debug_assert!(conversion::is_address_aligned(Address::from_usize(offset)));
+            debug_assert!(conversions::is_address_aligned(Address::from_usize(offset)));
             let mut slot: Address = image_start + offset;
             if cfg!(feature = "debug") {
                 REFS.fetch_add(1, Ordering::Relaxed);
@@ -98,7 +99,7 @@ fn process_chunk<T: TraceLocal>(chunk_start: Address, image_start: Address,
                 for i in 0..runlength {
                     offset += BYTES_IN_ADDRESS;
                     slot = image_start + offset;
-                    debug_assert!(conversion::is_address_aligned(slot));
+                    debug_assert!(conversions::is_address_aligned(slot));
                     if cfg!(feature = "debug") {
                         REFS.fetch_add(1, Ordering::Relaxed);
                     }

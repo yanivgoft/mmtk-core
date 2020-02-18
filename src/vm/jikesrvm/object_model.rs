@@ -20,6 +20,7 @@ use ::vm::object_model::ObjectModel;
 use ::util::{Address, ObjectReference, OpaquePointer};
 use ::util::alloc::allocator::fill_alignment_gap;
 use ::util::constants::{};
+use ::util::conversions;
 use ::plan::{Allocator, CollectorContext};
 use std::mem::size_of;
 use std::sync::atomic::{AtomicUsize, AtomicU8, Ordering};
@@ -203,7 +204,7 @@ impl ObjectModel<JikesRVM> for VMObjectModel {
                 }
             }
             object.to_address()
-                + Address::from_usize(size).align_up(BYTES_IN_INT).as_usize()
+                + conversions::raw_align_up(size, BYTES_IN_INT)
                 + (-OBJECT_REF_OFFSET)
         }
     }
@@ -452,7 +453,7 @@ impl VMObjectModel {
             }
         }
 
-        unsafe { Address::from_usize(size).align_up(BYTES_IN_INT).as_usize() }
+        conversions::raw_align_up(size, BYTES_IN_INT)
     }
 
     #[inline(always)]
@@ -481,7 +482,7 @@ impl VMObjectModel {
             if is_class {
                 size
             } else {
-                Address::from_usize(size).align_up(BYTES_IN_INT).as_usize()
+                conversions::raw_align_up(size, BYTES_IN_INT)
             }
         }
     }
@@ -562,8 +563,8 @@ impl VMObjectModel {
         trace!("VMObjectModel.aligned_32_copy");
         //debug_assert!(copy_bytes >= 0);
         debug_assert!(copy_bytes & BYTES_IN_INT - 1 == 0);
-        debug_assert!(src.as_usize() & (BYTES_IN_INT - 1) == 0);
-        debug_assert!(src.as_usize() & (BYTES_IN_INT - 1) == 0);
+        debug_assert!(src.is_aligned_to(BYTES_IN_INT));
+        debug_assert!(src.is_aligned_to(BYTES_IN_INT));
         debug_assert!(src + copy_bytes <= dst || src >= dst + BYTES_IN_INT);
 
         let cnt = copy_bytes;
@@ -571,11 +572,9 @@ impl VMObjectModel {
         let dst_end = dst + cnt;
         let overlap = !(src_end <= dst) && !(dst_end <= src);
         if overlap {
-            memmove(dst.as_usize() as *mut c_void,
-                    src.as_usize() as *mut c_void, cnt);
+            memmove(dst.to_ptr_mut(), src.to_ptr_mut(), cnt);
         } else {
-            memcpy(dst.as_usize() as *mut c_void,
-                   src.as_usize() as *mut c_void, cnt);
+            memcpy(dst.to_ptr_mut(), src.to_ptr_mut(), cnt);
         }
     }
 

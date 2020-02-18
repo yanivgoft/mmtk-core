@@ -15,5 +15,5 @@ pub fn get_metadata_base(address: Address) -> Address {
 
 #[inline]
 pub fn get_metadata_offset(address: Address, log_coverage: usize, log_align: usize) -> usize {
-    ((address.as_usize() & REGION_MASK) >> (log_coverage + log_align)) << log_align
+    ((address & REGION_MASK) >> (log_coverage + log_align)) << log_align
 }

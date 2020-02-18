@@ -18,7 +18,7 @@ use util::heap::space_descriptor::SpaceDescriptor;
 
 const NON_MAP_FRACTION: f64 = 1.0 - 8.0 / 4096.0;
 #[cfg(target_pointer_width = "32")]
-const MAP_BASE_ADDRESS: Address = Address(0);
+const MAP_BASE_ADDRESS: Address = Address::ZERO;
 
 pub struct Map32 {
     prev_link: Vec<i32>,
@@ -230,7 +230,7 @@ impl Map32 {
     }
 
     fn get_chunk_index(&self, address: Address) -> usize {
-        address.as_usize() >> LOG_BYTES_IN_CHUNK
+        address >> LOG_BYTES_IN_CHUNK
     }
 
     fn address_for_chunk_index(&self, chunk: usize) -> Address {

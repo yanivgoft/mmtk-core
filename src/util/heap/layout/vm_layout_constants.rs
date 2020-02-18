@@ -71,7 +71,7 @@ pub const AVAILABLE_START: Address = chunk_align_up(unsafe{ Address::from_usize(
 pub const AVAILABLE_END: Address = chunk_align_down(unsafe{ Address::from_usize(0xb0000000) });
 
 /** Size of the address space available to the MMTk heap. */
-pub const AVAILABLE_BYTES: usize = AVAILABLE_END.as_usize() - AVAILABLE_START.as_usize();
+pub const AVAILABLE_BYTES: usize = AVAILABLE_END.get_extent(AVAILABLE_START);
 
 /** Granularity at which we map and unmap virtual address space in the heap */
 pub const LOG_MMAP_CHUNK_BYTES: usize = 20;

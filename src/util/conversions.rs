@@ -14,10 +14,6 @@ pub fn is_page_aligned(address: Address) -> bool {
     address.is_aligned_to(BYTES_IN_PAGE)
 }
 
-pub fn align_up(addr: Address, bits: usize) -> Address {
-    addr.align_up(1 << bits)
-}
-
 // const function cannot have conditional expression
 pub const fn chunk_align_up(addr: Address) -> Address {
     addr.align_up(BYTES_IN_CHUNK)
@@ -39,6 +35,14 @@ pub fn chunk_align(addr: Address, down: bool) -> Address {
 pub fn raw_chunk_align(immut_addr: usize, down: bool) -> usize {
     let addr = if !down { immut_addr + BYTES_IN_CHUNK - 1 } else { immut_addr };
     (addr >> LOG_BYTES_IN_CHUNK) << LOG_BYTES_IN_CHUNK
+}
+
+pub const fn raw_align_up(val: usize, align: usize) -> usize {
+    (val + align - 1) & !(align - 1)
+}
+
+pub const fn raw_align_down(val: usize, align: usize) -> usize {
+    val & !(align - 1)
 }
 
 pub fn pages_to_bytes(pages: usize) -> usize {
@@ -68,38 +72,6 @@ pub fn bytes_to_pages(bytes: usize) -> usize {
 mod tests {
     use util::Address;
     use util::conversions::*;
-
-    #[test]
-    fn test_align_up() {
-        let addr = unsafe { Address::from_usize(0x123456789) };
-        assert_eq!(align_up(addr, 0),  unsafe { Address::from_usize(0x123456789) }); // no align
-        assert_eq!(align_up(addr, 1),  unsafe { Address::from_usize(0x12345678a) }); // 2 bytes align
-        assert_eq!(align_up(addr, 2),  unsafe { Address::from_usize(0x12345678c) }); // 4 bytes align
-        assert_eq!(align_up(addr, 3),  unsafe { Address::from_usize(0x123456790) }); // 8
-        assert_eq!(align_up(addr, 4),  unsafe { Address::from_usize(0x123456790) }); // 16
-        assert_eq!(align_up(addr, 5),  unsafe { Address::from_usize(0x1234567a0) }); // 32
-        assert_eq!(align_up(addr, 6),  unsafe { Address::from_usize(0x1234567c0) }); // 64
-        assert_eq!(align_up(addr, 7),  unsafe { Address::from_usize(0x123456800) }); // 128
-        assert_eq!(align_up(addr, 8),  unsafe { Address::from_usize(0x123456800) }); // 256
-        assert_eq!(align_up(addr, 9),  unsafe { Address::from_usize(0x123456800) }); // 512
-        assert_eq!(align_up(addr, 10), unsafe { Address::from_usize(0x123456800) }); // 1K
-        assert_eq!(align_up(addr, 11), unsafe { Address::from_usize(0x123456800) }); // 2K
-        assert_eq!(align_up(addr, 12), unsafe { Address::from_usize(0x123457000) }); // 4K
-        assert_eq!(align_up(addr, 13), unsafe { Address::from_usize(0x123458000) }); // 8K
-        assert_eq!(align_up(addr, 14), unsafe { Address::from_usize(0x123458000) }); // 16K
-        assert_eq!(align_up(addr, 15), unsafe { Address::from_usize(0x123458000) }); // 32K
-        assert_eq!(align_up(addr, 16), unsafe { Address::from_usize(0x123460000) }); // 64K
-        assert_eq!(align_up(addr, 17), unsafe { Address::from_usize(0x123460000) }); // 128K
-        assert_eq!(align_up(addr, 18), unsafe { Address::from_usize(0x123480000) }); // 256K
-        assert_eq!(align_up(addr, 19), unsafe { Address::from_usize(0x123480000) }); // 512K
-        assert_eq!(align_up(addr, 20), unsafe { Address::from_usize(0x123500000) }); // 1M
-        assert_eq!(align_up(addr, 21), unsafe { Address::from_usize(0x123600000) }); // 2M
-        assert_eq!(align_up(addr, 22), unsafe { Address::from_usize(0x123800000) }); // 4M
-
-        for i in 0..=22 {
-            assert!(align_up(addr, i).is_aligned_to(1 << i));
-        }
-    }
 
     #[test]
     fn test_page_align() {

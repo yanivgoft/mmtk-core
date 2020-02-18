@@ -36,7 +36,7 @@ pub struct CommonFreeListPageResource {
 impl CommonFreeListPageResource {
     pub fn resize_freelist(&mut self, start_address: Address) {
         // debug_assert!((HEAP_LAYOUT_64BIT || !contiguous) && !Plan.isInitialized());
-        self.start = conversions::align_up(start_address, LOG_BYTES_IN_REGION);
+        self.start = start_address.align_up(BYTES_IN_REGION);
         // self.free_list.resize_freelist();
     }
 }

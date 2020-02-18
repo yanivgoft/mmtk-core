@@ -81,7 +81,7 @@ impl Mmapper for ByteMapMmapper {
             }
 
             if self.mapped[chunk].load(Ordering::Relaxed) == PROTECTED {
-                if unsafe { mprotect(mmap_start.as_usize() as *mut c_void, MMAP_CHUNK_BYTES,
+                if unsafe { mprotect(mmap_start.to_ptr_mut(), MMAP_CHUNK_BYTES,
                                      PROT_READ | PROT_WRITE | PROT_EXEC) != 0 } {
                     drop(guard);
                     panic!("Mmapper.ensureMapped (unprotect) failed");
@@ -118,7 +118,7 @@ impl Mmapper for ByteMapMmapper {
         for chunk in start_chunk .. end_chunk {
             if self.mapped[chunk].load(Ordering::Relaxed) == MAPPED {
                 let mmap_start = Self::mmap_chunks_to_address(chunk);
-                if unsafe{mprotect(mmap_start.as_usize() as *mut c_void, MMAP_CHUNK_BYTES,
+                if unsafe{mprotect(mmap_start.to_ptr_mut(), MMAP_CHUNK_BYTES,
                                    PROT_NONE) != 0} {
                     drop(guard);
                     panic!("Mmapper.mprotect failed");
@@ -156,7 +156,7 @@ impl ByteMapMmapper {
     }
 
     fn address_to_mmap_chunks_down(addr: Address) -> usize {
-        addr.as_usize() >> LOG_MMAP_CHUNK_BYTES
+        addr >> LOG_MMAP_CHUNK_BYTES
     }
 
     fn mmap_chunks_to_address(chunk: usize) -> Address {
@@ -164,6 +164,6 @@ impl ByteMapMmapper {
     }
 
     fn address_to_mmap_chunks_up(addr: Address) -> usize {
-        (addr + MMAP_CHUNK_BYTES - 1).as_usize() >> LOG_MMAP_CHUNK_BYTES
+        (addr + MMAP_CHUNK_BYTES - 1) >> LOG_MMAP_CHUNK_BYTES
     }
 }

@@ -2,6 +2,7 @@ use std::cmp;
 use std::fmt;
 use std::mem;
 use std::ops::*;
+use std::sync::atomic::Ordering;
 
 /// size in bytes
 pub type ByteSize = usize;
@@ -71,7 +72,49 @@ impl Sub<Address> for Address {
     }
 }
 
+/// Address & mask
+impl BitAnd<usize> for Address {
+    type Output = usize;
+    fn bitand(self, other: usize) -> usize {
+        self.0 & other
+    }
+}
+// Be careful about the return type here. Address & u8 = u8
+// This is different from Address | u8 = usize
+impl BitAnd<u8> for Address {
+    type Output = u8;
+    fn bitand(self, other: u8) -> u8 {
+        (self.0 as u8) & other
+    }
+}
+
+/// Address | mask
+impl BitOr<usize> for Address {
+    type Output = usize;
+    fn bitor(self, other: usize) -> usize {
+        self.0 | other
+    }
+}
+// Be careful about the return type here. Address | u8 = size
+// This is different from Address & u8 = u8
+impl BitOr<u8> for Address {
+    type Output = usize;
+    fn bitor(self, other: u8) -> usize {
+        self.0 | (other as usize)
+    }
+}
+
+/// Address >> shift (get an index)
+impl Shr<usize> for Address {
+    type Output = usize;
+    fn shr(self, shift: usize) -> usize {
+        self.0 >> shift
+    }
+}
+
 impl Address {
+    pub const ZERO: Self = Address(0);
+
     /// creates Address from a pointer
     #[inline(always)]
     pub fn from_ptr<T>(ptr: *const T) -> Address {
@@ -92,7 +135,7 @@ impl Address {
     /// creates a null Address (0)
     /// It is unsafe and the user needs to be aware that they are creating an invalid address.
     #[inline(always)]
-    pub unsafe fn zero() -> Address {
+    pub const unsafe fn zero() -> Address {
         Address(0)
     }
 
@@ -117,6 +160,21 @@ impl Address {
         self + mem::size_of::<T>() as isize * offset
     }
 
+    #[inline(always)]
+    pub const fn get_extent(self, other: Address) -> ByteSize {
+        self.0 - other.0
+    }
+
+    #[inline(always)]
+    pub const fn get_offset(self, other: Address) -> ByteOffset {
+        self.0 as isize - other.0 as isize
+    }
+
+    #[inline(always)]
+    pub const fn add(self, size: usize) -> Address {
+        Address(self.0 + size)
+    }
+
     /// loads a value of type T from the address
     #[inline(always)]
     pub unsafe fn load<T: Copy>(&self) -> T {
@@ -138,13 +196,15 @@ impl Address {
     /// aligns up the address to the given alignment
     #[inline(always)]
     pub const fn align_up(&self, align: ByteSize) -> Address {
-        Address((self.0 + align - 1) & !(align - 1))
+        use util::conversions;
+        Address(conversions::raw_align_up(self.0, align))
     }
 
     /// aligns down the address to the given alignment
     #[inline(always)]
     pub const fn align_down(&self, align: ByteSize) -> Address {
-        Address((self.0) & !(align - 1))
+        use util::conversions;
+        Address(conversions::raw_align_down(self.0, align))
     }
 
     /// is this address aligned to the given alignment
@@ -257,6 +317,22 @@ mod tests {
             assert_eq!(Address::from_usize(0x11).is_aligned_to(0x10), false);
             assert_eq!(Address::from_usize(0x10).is_aligned_to(0x8), true);
             assert_eq!(Address::from_usize(0x10).is_aligned_to(0x20), false);
+        }
+    }
+
+    #[test]
+    fn bit_and() {
+        unsafe {
+            assert_eq!(Address::from_usize(0b1111_1111_1100usize) & 0b1010u8, 0b1000u8);
+            assert_eq!(Address::from_usize(0b1111_1111_1100usize) & 0b1000_0000_1010usize, 0b1000_0000_1000usize);
+        }
+    }
+
+    #[test]
+    fn bit_or() {
+        unsafe {
+            assert_eq!(Address::from_usize(0b1111_1111_1100usize) | 0b1010u8, 0b1111_1111_1110usize);
+            assert_eq!(Address::from_usize(0b1111_1111_1100usize) | 0b1000_0000_1010usize, 0b1111_1111_1110usize);
         }
     }
 }

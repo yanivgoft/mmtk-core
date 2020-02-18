@@ -77,8 +77,8 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
         if !self.common().descriptor.is_contiguous() {
             self.common().vm_map().get_descriptor_for_address(start) == self.common().descriptor
         } else {
-            start.as_usize() >= self.common().start.as_usize()
-                && start.as_usize() < self.common().start.as_usize() + self.common().extent
+            start >= self.common().start
+                && start < self.common().start + self.common().extent
         }
     }
 
@@ -249,8 +249,8 @@ impl<VM: VMBinding, PR: PageResource<VM>> CommonSpace<VM, PR> {
         let start: Address;
         if let VMRequest::RequestFixed{start: _start, extent: _, top: _} = vmrequest {
             start = _start;
-            if start.as_usize() != chunk_align(start, false).as_usize() {
-                panic!("{} starting on non-aligned boundary: {} bytes", name, start.as_usize());
+            if start != chunk_align(start, false) {
+                panic!("{} starting on non-aligned boundary: {}", name, start);
             }
         } else {
             // FIXME

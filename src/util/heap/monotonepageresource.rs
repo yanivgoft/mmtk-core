@@ -93,7 +93,7 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> PageResource
         if self.meta_data_pages_per_region != 0 {
             /* adjust allocation for metadata */
             let region_start = Self::get_region_start(sync.cursor + pages_to_bytes(required_pages));
-            let region_delta = region_start.as_usize() as isize - sync.cursor.as_usize() as isize;
+            let region_delta = region_start.get_offset(sync.cursor);
             if region_delta >= 0 {
                 /* start new region, so adjust pages and return address accordingly */
                 required_pages += bytes_to_pages(region_delta as usize) + self.meta_data_pages_per_region;
@@ -130,7 +130,7 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> PageResource
             sync.cursor = tmp;
 
             /* In a contiguous space we can bump along into the next chunk, so preserve the currentChunk invariant */
-            if self.common().contiguous && chunk_align(sync.cursor, true).as_usize() != sync.current_chunk.as_usize() {
+            if self.common().contiguous && chunk_align(sync.cursor, true) != sync.current_chunk {
                 sync.current_chunk = chunk_align(sync.cursor, true);
             }
             self.commit_pages(reserved_pages, required_pages, tls);
@@ -215,13 +215,11 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> MonotonePage
         let sync = self.sync.lock().unwrap();
         debug!("[{}]{}: cursor={}, current_chunk={}, delta={}",
                self.common().space.unwrap().common().name,
-               site, sync.cursor.as_usize(), sync.current_chunk, sync.cursor - sync.current_chunk);
+               site, sync.cursor, sync.current_chunk, sync.cursor - sync.current_chunk);
     }
 
     fn get_region_start(addr: Address) -> Address {
-        unsafe{
-            Address::from_usize(addr.as_usize() & !(BYTES_IN_REGION - 1))
-        }
+        addr.align_down(BYTES_IN_REGION)
     }
 
     pub unsafe fn reset(&self) {
