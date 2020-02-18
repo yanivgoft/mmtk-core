@@ -31,14 +31,10 @@ static REFS: AtomicUsize = AtomicUsize::new(0);
 
 pub fn scan_boot_image<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
     unsafe {
-        let boot_record = Address::from_usize((JTOC_BASE + THE_BOOT_RECORD_FIELD_OFFSET)
-            .load::<usize>());
-        let map_start = Address::from_usize((boot_record + BOOT_IMAGE_R_MAP_START_OFFSET)
-            .load::<usize>());
-        let map_end = Address::from_usize((boot_record + BOOT_IMAGE_R_MAP_END_OFFSET)
-            .load::<usize>());
-        let image_start = Address::from_usize((boot_record + BOOT_IMAGE_DATA_START_FIELD_OFFSET)
-            .load::<usize>());
+        let boot_record = (JTOC_BASE + THE_BOOT_RECORD_FIELD_OFFSET).load::<Address>();
+        let map_start = (boot_record + BOOT_IMAGE_R_MAP_START_OFFSET).load::<Address>();
+        let map_end = ((boot_record + BOOT_IMAGE_R_MAP_END_OFFSET).load::<Address>());
+        let image_start = (boot_record + BOOT_IMAGE_DATA_START_FIELD_OFFSET).load::<Address>();
 
         let collector = VMActivePlan::collector(tls);
 

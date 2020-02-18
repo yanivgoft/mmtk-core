@@ -46,51 +46,57 @@ const PACKED: bool = true;
 
 pub struct VMObjectModel {}
 
+impl VMObjectModel {
+    #[inline(always)]
+    pub fn load_rvm_type(object: ObjectReference) -> Address {
+        unsafe {
+            let tib = (object.to_address() + TIB_OFFSET).load::<Address>();
+            (tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS).load::<Address>()
+        }
+    }
+    #[inline(always)]
+    pub fn load_tib(object: ObjectReference) -> Address {
+        unsafe { (object.to_address() + TIB_OFFSET).load::<Address>() }
+    }
+}
+
 impl ObjectModel<JikesRVM> for VMObjectModel {
     #[inline(always)]
     fn copy(from: ObjectReference, allocator: Allocator, tls: OpaquePointer) -> ObjectReference {
         trace!("ObjectModel.copy");
-        unsafe {
-            trace!("getting tib");
-            let tib = Address::from_usize((from.to_address() + TIB_OFFSET).load::<usize>());
-            trace!("getting type, tib={:?}", tib);
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+        let tib = Self::load_tib(from);
+        let rvm_type = Self::load_rvm_type(from);
 
-            trace!("Is it a class?");
-            if (rvm_type + IS_CLASS_TYPE_FIELD_OFFSET).load::<bool>() {
-                trace!("... yes");
-                Self::copy_scalar(from, tib, rvm_type, allocator, tls)
-            } else {
-                trace!("... no");
-                Self::copy_array(from, tib, rvm_type, allocator, tls)
-            }
+        trace!("Is it a class?");
+        if unsafe { (rvm_type + IS_CLASS_TYPE_FIELD_OFFSET).load::<bool>() } {
+            trace!("... yes");
+            Self::copy_scalar(from, tib, rvm_type, allocator, tls)
+        } else {
+            trace!("... no");
+            Self::copy_array(from, tib, rvm_type, allocator, tls)
         }
     }
 
     #[inline(always)]
     fn copy_to(from: ObjectReference, to: ObjectReference, region: Address) -> Address {
         trace!("ObjectModel.copy_to");
-        unsafe {
-            let tib = Address::from_usize((from.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
-            let mut bytes: usize = 0;
+        let tib = Self::load_tib(from);
+        let rvm_type = Self::load_rvm_type(from);
+        let mut bytes: usize = 0;
 
-            let copy = from != to;
+        let copy = from != to;
 
-            if copy {
-                bytes = Self::bytes_required_when_copied(from, rvm_type);
-                Self::move_object(Address::zero(), from, to, bytes, rvm_type);
-            } else {
-                bytes = Self::bytes_used(from, rvm_type);
-            }
-
-            let start = Self::object_start_ref(to);
-            fill_alignment_gap(region, start);
-
-            start + bytes
+        if copy {
+            bytes = Self::bytes_required_when_copied(from, rvm_type);
+            Self::move_object(unsafe { Address::zero() }, from, to, bytes, rvm_type);
+        } else {
+            bytes = Self::bytes_used(from, rvm_type);
         }
+
+        let start = Self::object_start_ref(to);
+        fill_alignment_gap(region, start);
+
+        start + bytes
     }
 
     fn get_reference_when_copied_to(from: ObjectReference, to: Address) -> ObjectReference {
@@ -111,54 +117,38 @@ impl ObjectModel<JikesRVM> for VMObjectModel {
 
     fn get_size_when_copied(object: ObjectReference) -> usize {
         trace!("ObjectModel.get_size_when_copied");
-        unsafe {
-            let tib = Address::from_usize((object.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+        let rvm_type = Self::load_rvm_type(object);
 
-            Self::bytes_required_when_copied(object, rvm_type)
-        }
+        Self::bytes_required_when_copied(object, rvm_type)
     }
 
     fn get_align_when_copied(object: ObjectReference) -> usize {
         trace!("ObjectModel.get_align_when_copied");
-        unsafe {
-            let tib = Address::from_usize((object.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+        let rvm_type = Self::load_rvm_type(object);
 
-            if (rvm_type + IS_ARRAY_TYPE_FIELD_OFFSET).load::<bool>() {
-                Self::get_alignment_array(rvm_type)
-            } else {
-                Self::get_alignment_class(rvm_type)
-            }
+        if unsafe { (rvm_type + IS_ARRAY_TYPE_FIELD_OFFSET).load::<bool>() } {
+            Self::get_alignment_array(rvm_type)
+        } else {
+            Self::get_alignment_class(rvm_type)
         }
     }
 
     fn get_align_offset_when_copied(object: ObjectReference) -> isize {
         trace!("ObjectModel.get_align_offset_when_copied");
-        unsafe {
-            let tib = Address::from_usize((object.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+        let rvm_type = Self::load_rvm_type(object);
 
-            if (rvm_type + IS_ARRAY_TYPE_FIELD_OFFSET).load::<bool>() {
-                Self::get_offset_for_alignment_array(object, rvm_type)
-            } else {
-                Self::get_offset_for_alignment_class(object, rvm_type)
-            }
+        if unsafe { (rvm_type + IS_ARRAY_TYPE_FIELD_OFFSET).load::<bool>() } {
+            Self::get_offset_for_alignment_array(object, rvm_type)
+        } else {
+            Self::get_offset_for_alignment_class(object, rvm_type)
         }
     }
 
     fn get_current_size(object: ObjectReference) -> usize {
         trace!("ObjectModel.get_current_size");
-        unsafe {
-            let tib = Address::from_usize((object.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+        let rvm_type = Self::load_rvm_type(object);
 
-            Self::bytes_used(object, rvm_type)
-        }
+        Self::bytes_used(object, rvm_type)
     }
 
     fn get_next_object(object: ObjectReference) -> ObjectReference {
@@ -184,9 +174,7 @@ impl ObjectModel<JikesRVM> for VMObjectModel {
     fn get_object_end_address(object: ObjectReference) -> Address {
         trace!("ObjectModel.get_object_end_address");
         unsafe {
-            let tib = Address::from_usize((object.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+            let rvm_type = Self::load_rvm_type(object);
 
             let mut size = if (rvm_type + IS_CLASS_TYPE_FIELD_OFFSET).load::<bool>() {
                 (rvm_type + INSTANCE_SIZE_FIELD_OFFSET).load::<usize>()
@@ -216,9 +204,7 @@ impl ObjectModel<JikesRVM> for VMObjectModel {
     fn is_array(object: ObjectReference) -> bool {
         trace!("ObjectModel.is_array");
         unsafe {
-            let tib = Address::from_usize((object.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+            let rvm_type = Self::load_rvm_type(object);
             (rvm_type + IS_ARRAY_TYPE_FIELD_OFFSET).load::<bool>()
         }
     }
@@ -322,9 +308,7 @@ impl ObjectModel<JikesRVM> for VMObjectModel {
     fn is_acyclic(typeref: ObjectReference) -> bool {
         trace!("ObjectModel.is_acyclic");
         unsafe {
-            let tib = Address::from_usize((typeref.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+            let rvm_type = Self::load_rvm_type(typeref);
 
             let is_array = (rvm_type + IS_ARRAY_TYPE_FIELD_OFFSET).load::<bool>();
             let is_class = (rvm_type + IS_CLASS_TYPE_FIELD_OFFSET).load::<bool>();

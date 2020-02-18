@@ -99,7 +99,7 @@ pub unsafe fn report_delayed_root_edge<VM: VMBinding>(_: &MMTK<VM>, trace_local:
 unsafe fn report_delayed_root_edge_inner<T: TraceLocal>(trace_local: *mut c_void, addr: *mut c_void) {
     trace!("report_delayed_root_edge with trace_local={:?}", trace_local);
     let local = &mut *(trace_local as *mut T);
-    local.report_delayed_root_edge(Address::from_usize(addr as usize));
+    local.report_delayed_root_edge(Address::from_mut_ptr(addr));
     trace!("report_delayed_root_edge returned with trace_local={:?}", trace_local);
 }
 
@@ -119,7 +119,7 @@ pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(_: &MMTK<VM>, t
 unsafe fn will_not_move_in_current_collection_inner<T: TraceLocal>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
     trace!("will_not_move_in_current_collection({:?}, {:?})", trace_local, obj);
     let local = &mut *(trace_local as *mut T);
-    let ret = local.will_not_move_in_current_collection(Address::from_usize(obj as usize).to_object_reference());
+    let ret = local.will_not_move_in_current_collection(Address::from_mut_ptr(obj).to_object_reference());
     trace!("will_not_move_in_current_collection returned with trace_local={:?}", trace_local);
     ret
 }
@@ -141,8 +141,8 @@ pub unsafe fn process_interior_edge<VM: VMBinding>(_: &MMTK<VM>, trace_local: *m
 unsafe fn process_interior_edge_inner<T: TraceLocal>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
     trace!("process_interior_edge with trace_local={:?}", trace_local);
     let local = &mut *(trace_local as *mut T);
-    local.process_interior_edge(Address::from_usize(target as usize).to_object_reference(),
-                                Address::from_usize(slot as usize), root);
+    local.process_interior_edge(Address::from_mut_ptr(target).to_object_reference(),
+                                Address::from_mut_ptr(slot), root);
     trace!("process_interior_root_edge returned with trace_local={:?}", trace_local);
 }
 
