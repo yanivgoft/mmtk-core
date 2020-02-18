@@ -62,13 +62,13 @@ impl Mmapper for ByteMapMmapper {
 //          trace!(mmapStart);
             // might have become MAPPED here
             if self.mapped[chunk].load(Ordering::Relaxed) == UNMAPPED {
-                let mmap_ret = unsafe {
-                    mmap(mmap_start.as_usize() as *mut c_void, MMAP_CHUNK_BYTES,
+                let mmap_ret = Address::from_mut_ptr(unsafe {
+                    mmap(mmap_start.to_ptr_mut(), MMAP_CHUNK_BYTES,
                          PROT_READ | PROT_WRITE | PROT_EXEC,
                          MAP_ANON | MAP_PRIVATE | MAP_FIXED, -1, 0)
-                } as usize;
+                });
 
-                if mmap_ret != mmap_start.as_usize() {
+                if mmap_ret != mmap_start {
                     drop(guard);
                     panic!("ensureMapped failed on address {}\n\
                            Can't get more space with mmap()", mmap_start);

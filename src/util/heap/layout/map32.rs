@@ -230,7 +230,7 @@ impl Map32 {
     }
 
     fn get_chunk_index(&self, address: Address) -> usize {
-        address.0 >> LOG_BYTES_IN_CHUNK
+        address.as_usize() >> LOG_BYTES_IN_CHUNK
     }
 
     fn address_for_chunk_index(&self, chunk: usize) -> Address {

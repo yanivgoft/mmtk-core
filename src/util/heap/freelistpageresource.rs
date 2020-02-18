@@ -245,7 +245,7 @@ impl<VM: VMBinding, S: Space<VM, PR = FreeListPageResource<VM, S>>> FreeListPage
     fn reserve_metadata(&mut self, extent: usize) {
         let _highwater_mark = 0;
         if self.meta_data_pages_per_region > 0 {
-            debug_assert!(((self.start.0 >> LOG_BYTES_IN_REGION) << LOG_BYTES_IN_REGION) == self.start.0);
+            debug_assert!(self.start.is_aligned_to(BYTES_IN_REGION));
             let size = (extent >> LOG_BYTES_IN_REGION) << LOG_BYTES_IN_REGION;
             let mut cursor = self.start + size;
             while cursor > self.start {

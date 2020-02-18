@@ -15,7 +15,7 @@ pub type ByteOffset = isize;
 /// High-level Low-level Programming (VEE09) and JikesRVM.
 #[repr(transparent)]
 #[derive(Copy, Clone, Eq, Hash)]
-pub struct Address(pub usize);
+pub struct Address(usize);
 
 /// Address + ByteSize (positive)
 impl Add<ByteSize> for Address {
@@ -137,8 +137,14 @@ impl Address {
 
     /// aligns up the address to the given alignment
     #[inline(always)]
-    pub fn align_up(&self, align: ByteSize) -> Address {
+    pub const fn align_up(&self, align: ByteSize) -> Address {
         Address((self.0 + align - 1) & !(align - 1))
+    }
+
+    /// aligns down the address to the given alignment
+    #[inline(always)]
+    pub const fn align_down(&self, align: ByteSize) -> Address {
+        Address((self.0) & !(align - 1))
     }
 
     /// is this address aligned to the given alignment
@@ -219,6 +225,39 @@ impl fmt::Display for Address {
 impl fmt::Debug for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:#x}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use util::Address;
+
+    #[test]
+    fn align_up() {
+        unsafe {
+            assert_eq!(Address::from_usize(0x10).align_up(0x10), Address::from_usize(0x10));
+            assert_eq!(Address::from_usize(0x11).align_up(0x10), Address::from_usize(0x20));
+            assert_eq!(Address::from_usize(0x20).align_up(0x10), Address::from_usize(0x20));
+        }
+    }
+
+    #[test]
+    fn align_down() {
+        unsafe {
+            assert_eq!(Address::from_usize(0x10).align_down(0x10), Address::from_usize(0x10));
+            assert_eq!(Address::from_usize(0x11).align_down(0x10), Address::from_usize(0x10));
+            assert_eq!(Address::from_usize(0x20).align_down(0x10), Address::from_usize(0x20));
+        }
+    }
+
+    #[test]
+    fn is_aligned_to() {
+        unsafe {
+            assert_eq!(Address::from_usize(0x10).is_aligned_to(0x10), true);
+            assert_eq!(Address::from_usize(0x11).is_aligned_to(0x10), false);
+            assert_eq!(Address::from_usize(0x10).is_aligned_to(0x8), true);
+            assert_eq!(Address::from_usize(0x10).is_aligned_to(0x20), false);
+        }
     }
 }
 

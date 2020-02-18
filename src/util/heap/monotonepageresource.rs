@@ -79,16 +79,15 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> PageResource
              * to the next chunk.
              */
             if sync.current_chunk > sync.cursor
-                || (chunk_align(sync.cursor, true).as_usize() != sync.current_chunk.as_usize()
-                    && chunk_align(sync.cursor, true).as_usize() != sync.current_chunk.as_usize()
+                || (chunk_align(sync.cursor, true) != sync.current_chunk
+                    && chunk_align(sync.cursor, true) != sync.current_chunk
                         + BYTES_IN_CHUNK) {
                 self.log_chunk_fields("MonotonePageResource.alloc_pages:fail");
             }
             assert!(sync.current_chunk <= sync.cursor);
             assert!(sync.cursor.is_zero() ||
-                chunk_align(sync.cursor, true).as_usize() == sync.current_chunk.as_usize() ||
-                chunk_align(sync.cursor, true).as_usize() == (sync.current_chunk + BYTES_IN_CHUNK)
-                    .as_usize());
+                chunk_align(sync.cursor, true) == sync.current_chunk ||
+                chunk_align(sync.cursor, true) == (sync.current_chunk + BYTES_IN_CHUNK));
         }
 
         if self.meta_data_pages_per_region != 0 {
@@ -181,7 +180,7 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> MonotonePage
             meta_data_pages_per_region,
             sync: Mutex::new(MonotonePageResourceSync {
                 cursor: start,
-                current_chunk: unsafe{Address::from_usize(chunk_align!(start.as_usize(), true))},
+                current_chunk: chunk_align(start, true),
                 sentinel,
                 conditional: MonotonePageResourceConditional::Contiguous {
                     start,
