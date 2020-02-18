@@ -45,6 +45,10 @@ pub const fn raw_align_down(val: usize, align: usize) -> usize {
     val & !(align - 1)
 }
 
+pub const fn raw_is_aligned(val: usize, align: usize) -> bool {
+    val % align == 0
+}
+
 pub fn pages_to_bytes(pages: usize) -> usize {
     pages << LOG_BYTES_IN_PAGE
 }

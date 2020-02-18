@@ -209,7 +209,8 @@ impl Address {
 
     /// is this address aligned to the given alignment
     pub fn is_aligned_to(&self, align: usize) -> bool {
-        self.0 % align == 0
+        use util::conversions;
+        conversions::raw_is_aligned(self.0, align)
     }
 
     /// converts the Address into an ObjectReference
