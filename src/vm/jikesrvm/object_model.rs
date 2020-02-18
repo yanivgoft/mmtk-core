@@ -550,9 +550,9 @@ impl VMObjectModel {
         let dst_end = dst + cnt;
         let overlap = !(src_end <= dst) && !(dst_end <= src);
         if overlap {
-            memmove(dst.to_ptr_mut(), src.to_ptr_mut(), cnt);
+            memmove(dst.to_mut_ptr(), src.to_mut_ptr(), cnt);
         } else {
-            memcpy(dst.to_ptr_mut(), src.to_ptr_mut(), cnt);
+            memcpy(dst.to_mut_ptr(), src.to_mut_ptr(), cnt);
         }
     }
 

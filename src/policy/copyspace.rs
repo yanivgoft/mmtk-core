@@ -123,7 +123,7 @@ impl<VM: VMBinding> CopySpace<VM> {
         let start = self.common().start;
         let extent = self.common().extent;
         unsafe {
-            mprotect(start.to_ptr_mut(), extent, PROT_NONE);
+            mprotect(start.to_mut_ptr(), extent, PROT_NONE);
         }
         trace!("Protect {:x} {:x}", start, start + extent);
     }
@@ -135,7 +135,7 @@ impl<VM: VMBinding> CopySpace<VM> {
         let start = self.common().start;
         let extent = self.common().extent;
         unsafe {
-            mprotect(start.to_ptr_mut(), extent, PROT_READ | PROT_WRITE | PROT_EXEC);
+            mprotect(start.to_mut_ptr(), extent, PROT_READ | PROT_WRITE | PROT_EXEC);
         }
         trace!("Unprotect {:x} {:x}", start, start + extent);
     }

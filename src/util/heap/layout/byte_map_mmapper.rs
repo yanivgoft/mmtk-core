@@ -63,7 +63,7 @@ impl Mmapper for ByteMapMmapper {
             // might have become MAPPED here
             if self.mapped[chunk].load(Ordering::Relaxed) == UNMAPPED {
                 let mmap_ret = Address::from_mut_ptr(unsafe {
-                    mmap(mmap_start.to_ptr_mut(), MMAP_CHUNK_BYTES,
+                    mmap(mmap_start.to_mut_ptr(), MMAP_CHUNK_BYTES,
                          PROT_READ | PROT_WRITE | PROT_EXEC,
                          MAP_ANON | MAP_PRIVATE | MAP_FIXED, -1, 0)
                 });
@@ -81,7 +81,7 @@ impl Mmapper for ByteMapMmapper {
             }
 
             if self.mapped[chunk].load(Ordering::Relaxed) == PROTECTED {
-                if unsafe { mprotect(mmap_start.to_ptr_mut(), MMAP_CHUNK_BYTES,
+                if unsafe { mprotect(mmap_start.to_mut_ptr(), MMAP_CHUNK_BYTES,
                                      PROT_READ | PROT_WRITE | PROT_EXEC) != 0 } {
                     drop(guard);
                     panic!("Mmapper.ensureMapped (unprotect) failed");
@@ -118,7 +118,7 @@ impl Mmapper for ByteMapMmapper {
         for chunk in start_chunk .. end_chunk {
             if self.mapped[chunk].load(Ordering::Relaxed) == MAPPED {
                 let mmap_start = Self::mmap_chunks_to_address(chunk);
-                if unsafe{mprotect(mmap_start.to_ptr_mut(), MMAP_CHUNK_BYTES,
+                if unsafe{mprotect(mmap_start.to_mut_ptr(), MMAP_CHUNK_BYTES,
                                    PROT_NONE) != 0} {
                     drop(guard);
                     panic!("Mmapper.mprotect failed");

@@ -161,6 +161,9 @@ impl Address {
         self + mem::size_of::<T>() as isize * offset
     }
 
+    // These const functions are duplicated with the operator traits. But we need them,
+    // as we need them to declare constants.
+
     #[inline(always)]
     pub const fn get_extent(self, other: Address) -> ByteSize {
         self.0 - other.0
@@ -255,7 +258,7 @@ impl Address {
 
     /// converts the Address to a mutable pointer
     #[inline(always)]
-    pub fn to_ptr_mut<T>(&self) -> *mut T {
+    pub fn to_mut_ptr<T>(&self) -> *mut T {
         unsafe { mem::transmute(self.0) }
     }
 

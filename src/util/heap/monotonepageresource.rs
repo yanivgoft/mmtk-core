@@ -140,7 +140,7 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> PageResource
 
             // FIXME: concurrent zeroing
             if zeroed {
-                unsafe {memset(old.to_ptr_mut() as *mut c_void, 0, bytes);}
+                unsafe {memset(old.to_mut_ptr() as *mut c_void, 0, bytes);}
             }
             /*
             if zeroed {

@@ -51,14 +51,14 @@ pub fn bind_mutator<VM: VMBinding>(mmtk: &MMTK<VM>, tls: OpaquePointer) -> *mut 
 pub unsafe fn alloc<VM: VMBinding>(mutator: *mut c_void, size: usize,
              align: usize, offset: isize, allocator: Allocator) -> *mut c_void {
     let local = &mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT);
-    local.alloc(size, align, offset, allocator).to_ptr_mut()
+    local.alloc(size, align, offset, allocator).to_mut_ptr()
 }
 
 #[inline(never)]
 pub unsafe fn alloc_slow<VM: VMBinding>(mutator: *mut c_void, size: usize,
                   align: usize, offset: isize, allocator: Allocator) -> *mut c_void {
     let local = &mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT);
-    local.alloc_slow(size, align, offset, allocator).to_ptr_mut()
+    local.alloc_slow(size, align, offset, allocator).to_mut_ptr()
 }
 
 pub fn post_alloc<VM: VMBinding>(mutator: *mut c_void, refer: ObjectReference, type_refer: ObjectReference,
@@ -178,12 +178,12 @@ pub fn free_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
 
 #[no_mangle]
 pub extern fn starting_heap_address() -> *mut c_void {
-    HEAP_START.to_ptr_mut()
+    HEAP_START.to_mut_ptr()
 }
 
 #[no_mangle]
 pub extern fn last_heap_address() -> *mut c_void {
-    HEAP_END.to_ptr_mut()
+    HEAP_END.to_mut_ptr()
 }
 
 pub fn total_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
