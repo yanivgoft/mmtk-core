@@ -289,7 +289,7 @@ impl<VM: VMBinding, S: Space<VM, PR = FreeListPageResource<VM, S>>> FreeListPage
         
         if self.meta_data_pages_per_region > 0 {       // can only be a single chunk
             if pages_freed == (PAGES_IN_CHUNK - self.meta_data_pages_per_region) {
-                self.free_contiguous_chunk(conversions::chunk_align(freed_page, true));
+                self.free_contiguous_chunk(conversions::chunk_align_down(freed_page));
             }
         } else {                                // may be multiple chunks
             if pages_freed % PAGES_IN_CHUNK == 0 {    // necessary, but not sufficient condition

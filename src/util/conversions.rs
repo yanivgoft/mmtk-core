@@ -2,11 +2,13 @@ use ::util::Address;
 use ::util::heap::layout::vm_layout_constants::*;
 use ::util::constants::*;
 
+/* Alignment */
+
 pub fn is_address_aligned(addr: Address) -> bool {
     addr.is_aligned_to(BYTES_IN_ADDRESS)
 }
 
-pub fn page_align(address: Address) -> Address {
+pub fn page_align_down(address: Address) -> Address {
     address.align_down(BYTES_IN_PAGE)
 }
 
@@ -24,30 +26,20 @@ pub const fn chunk_align_down(addr: Address) -> Address {
     addr.align_down(BYTES_IN_CHUNK)
 }
 
-pub fn chunk_align(addr: Address, down: bool) -> Address {
-    if down {
-        chunk_align_down(addr)
-    } else {
-        chunk_align_up(addr)
-    }
-}
-
-pub fn raw_chunk_align(immut_addr: usize, down: bool) -> usize {
-    let addr = if !down { immut_addr + BYTES_IN_CHUNK - 1 } else { immut_addr };
-    (addr >> LOG_BYTES_IN_CHUNK) << LOG_BYTES_IN_CHUNK
-}
-
 pub const fn raw_align_up(val: usize, align: usize) -> usize {
-    (val + align - 1) & !(align - 1)
+    // See https://github.com/rust-lang/rust/blob/e620d0f337d0643c757bab791fc7d88d63217704/src/libcore/alloc.rs#L192
+    val.wrapping_add(align).wrapping_sub(1) & !align.wrapping_sub(1)
 }
 
 pub const fn raw_align_down(val: usize, align: usize) -> usize {
-    val & !(align - 1)
+    val & !align.wrapping_sub(1)
 }
 
 pub const fn raw_is_aligned(val: usize, align: usize) -> bool {
-    val % align == 0
+    val & align.wrapping_sub(1) == 0
 }
+
+/* Conversion */
 
 pub fn pages_to_bytes(pages: usize) -> usize {
     pages << LOG_BYTES_IN_PAGE
@@ -80,15 +72,15 @@ mod tests {
     #[test]
     fn test_page_align() {
         let addr = unsafe { Address::from_usize(0x123456789) };
-        assert_eq!(page_align(addr), unsafe { Address::from_usize(0x123456000) });
+        assert_eq!(page_align_down(addr), unsafe { Address::from_usize(0x123456000) });
         assert!(!is_page_aligned(addr));
-        assert!(is_page_aligned(page_align(addr)));
+        assert!(is_page_aligned(page_align_down(addr)));
     }
 
     #[test]
     fn test_chunk_align() {
         let addr = unsafe { Address::from_usize(0x123456789) };
-        assert_eq!(chunk_align(addr, true),  unsafe { Address::from_usize(0x123400000) });
-        assert_eq!(chunk_align(addr, false), unsafe { Address::from_usize(0x123800000) });
+        assert_eq!(chunk_align_down(addr),  unsafe { Address::from_usize(0x123400000) });
+        assert_eq!(chunk_align_up(addr), unsafe { Address::from_usize(0x123800000) });
     }
 }

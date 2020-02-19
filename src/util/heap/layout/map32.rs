@@ -100,7 +100,7 @@ impl Map32 {
     }
 
     pub fn get_next_contiguous_region(&self, start: Address) -> Address {
-        debug_assert!(start == conversions::chunk_align(start, true));
+        debug_assert!(start == conversions::chunk_align_down(start));
         let chunk = self.get_chunk_index(start);
         if chunk == 0 {
             unsafe { Address::zero() }
@@ -113,7 +113,7 @@ impl Map32 {
     }
 
     pub fn get_contiguous_region_chunks(&self, start: Address) -> usize {
-        debug_assert!(start == conversions::chunk_align(start, true));
+        debug_assert!(start == conversions::chunk_align_down(start));
         let chunk = self.get_chunk_index(start);
         self.region_map.size(chunk as i32) as _
     }
@@ -124,7 +124,7 @@ impl Map32 {
 
     pub fn free_all_chunks(&self, any_chunk: Address) {
         let sync = self.sync.lock().unwrap();
-        debug_assert!(any_chunk == conversions::chunk_align(any_chunk, true));
+        debug_assert!(any_chunk == conversions::chunk_align_down(any_chunk));
         if !any_chunk.is_zero() {
             let chunk = self.get_chunk_index(any_chunk);
             while self.next_link[chunk] != 0 {
@@ -141,7 +141,7 @@ impl Map32 {
 
     pub fn free_contiguous_chunks(&self, start: Address) -> usize {
         let sync = self.sync.lock().unwrap();
-        debug_assert!(start == conversions::chunk_align(start, true));
+        debug_assert!(start == conversions::chunk_align_down(start));
         let chunk = self.get_chunk_index(start);
         self.free_contiguous_chunks_no_lock(chunk as _)
     }

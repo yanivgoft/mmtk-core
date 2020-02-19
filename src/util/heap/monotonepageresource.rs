@@ -79,15 +79,15 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> PageResource
              * to the next chunk.
              */
             if sync.current_chunk > sync.cursor
-                || (chunk_align(sync.cursor, true) != sync.current_chunk
-                    && chunk_align(sync.cursor, true) != sync.current_chunk
+                || (chunk_align_down(sync.cursor) != sync.current_chunk
+                    && chunk_align_down(sync.cursor) != sync.current_chunk
                         + BYTES_IN_CHUNK) {
                 self.log_chunk_fields("MonotonePageResource.alloc_pages:fail");
             }
             assert!(sync.current_chunk <= sync.cursor);
             assert!(sync.cursor.is_zero() ||
-                chunk_align(sync.cursor, true) == sync.current_chunk ||
-                chunk_align(sync.cursor, true) == (sync.current_chunk + BYTES_IN_CHUNK));
+                chunk_align_down(sync.cursor) == sync.current_chunk ||
+                chunk_align_down(sync.cursor) == (sync.current_chunk + BYTES_IN_CHUNK));
         }
 
         if self.meta_data_pages_per_region != 0 {
@@ -130,8 +130,8 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> PageResource
             sync.cursor = tmp;
 
             /* In a contiguous space we can bump along into the next chunk, so preserve the currentChunk invariant */
-            if self.common().contiguous && chunk_align(sync.cursor, true) != sync.current_chunk {
-                sync.current_chunk = chunk_align(sync.cursor, true);
+            if self.common().contiguous && chunk_align_down(sync.cursor) != sync.current_chunk {
+                sync.current_chunk = chunk_align_down(sync.cursor);
             }
             self.commit_pages(reserved_pages, required_pages, tls);
             self.common().space.unwrap().grow_space(old, bytes, new_chunk);
@@ -180,7 +180,7 @@ impl<VM: VMBinding, S: Space<VM, PR = MonotonePageResource<VM, S>>> MonotonePage
             meta_data_pages_per_region,
             sync: Mutex::new(MonotonePageResourceSync {
                 cursor: start,
-                current_chunk: chunk_align(start, true),
+                current_chunk: chunk_align_down(start),
                 sentinel,
                 conditional: MonotonePageResourceConditional::Contiguous {
                     start,
