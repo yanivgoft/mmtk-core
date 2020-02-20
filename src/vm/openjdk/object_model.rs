@@ -11,7 +11,7 @@ use plan::collector_context::CollectorContext;
 pub struct VMObjectModel {}
 
 impl ObjectModel for VMObjectModel {
-    fn copy(from: ObjectReference, allocator: Allocator, tls: *mut c_void) -> ObjectReference {
+    fn copy(from: ObjectReference, allocator: Allocator, tls: OpaquePointer) -> ObjectReference {
         let bytes = unsafe { ((*UPCALLS).get_object_size)(from) };
         let context = unsafe { VMActivePlan::collector(tls) };
         let dst = context.alloc_copy(from, bytes, 1, 0, allocator);

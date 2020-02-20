@@ -7,7 +7,7 @@ use libc::c_void;
 pub struct VMActivePlan<> {}
 
 impl ActivePlan for VMActivePlan {
-    unsafe fn collector(tls: *mut c_void) -> &'static mut <SelectedPlan as Plan>::CollectorT {
+    unsafe fn collector(tls: OpaquePointer) -> &'static mut <SelectedPlan as Plan>::CollectorT {
         let c = ((*UPCALLS).active_collector)(tls);
         assert!(c != 0 as *mut c_void);
         unsafe { ::std::mem::transmute(c) }

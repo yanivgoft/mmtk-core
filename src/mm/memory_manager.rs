@@ -55,15 +55,15 @@ pub unsafe extern fn jikesrvm_gc_init(_jtoc: *mut c_void, _heap_size: usize) {
 
 #[repr(C)]
 pub struct OpenJDK_Upcalls {
-    pub stop_all_mutators: extern "C" fn(tls: *mut c_void),
-    pub resume_mutators: extern "C" fn(tls: *mut c_void),
-    pub spawn_collector_thread: extern "C" fn(tls: *mut c_void, ctx: *mut c_void),
+    pub stop_all_mutators: extern "C" fn(tls: OpaquePointer),
+    pub resume_mutators: extern "C" fn(tls: OpaquePointer),
+    pub spawn_collector_thread: extern "C" fn(tls: OpaquePointer, ctx: *mut c_void),
     pub block_for_gc: extern "C" fn(),
-    pub active_collector: extern "C" fn(tls: *mut c_void) -> *mut c_void,
+    pub active_collector: extern "C" fn(tls: OpaquePointer) -> *mut c_void,
     pub get_next_mutator: extern "C" fn() -> *mut c_void,
     pub reset_mutator_iterator: extern "C" fn(),
-    pub compute_thread_roots: extern "C" fn(trace: *mut c_void, tls: *mut c_void),
-    pub scan_object: extern "C" fn(trace: *mut c_void, object: *mut c_void, tls: *mut c_void),
+    pub compute_thread_roots: extern "C" fn(trace: *mut c_void, tls: OpaquePointer),
+    pub scan_object: extern "C" fn(trace: *mut c_void, object: *mut c_void, tls: OpaquePointer),
     pub dump_object: extern "C" fn(object: *mut c_void),
     pub get_object_size: extern "C" fn(object: ObjectReference) -> usize,
 }
@@ -246,12 +246,11 @@ pub unsafe extern fn enable_collection(tls: OpaquePointer) {
 
 #[no_mangle]
 #[cfg(not(feature = "jikesrvm"))]
-pub unsafe extern fn enable_collection(tls: *mut c_void) {
-    debug_assert!(tls == 0 as *mut c_void);
-    (&mut *CONTROL_COLLECTOR_CONTEXT.workers.get()).init_group(tls);
+pub unsafe extern fn enable_collection(tls: OpaquePointer) {
+    debug_assert!(tls.is_null());
+    (&mut *SINGLETON.plan.common().control_collector_context.workers.get()).init_group(&SINGLETON, tls);
     VMCollection::spawn_worker_thread::<<SelectedPlan as Plan>::CollectorT>(tls, null_mut()); // spawn controller thread
-    ::plan::plan::INITIALIZED.store(true, Ordering::SeqCst);
-    // panic!("Cannot call enable_collection when not building for JikesRVM");
+    SINGLETON.plan.common().initialized.store(true, Ordering::SeqCst);
 }
 
 #[no_mangle]

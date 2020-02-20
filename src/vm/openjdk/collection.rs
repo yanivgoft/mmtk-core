@@ -3,7 +3,6 @@ use ::plan::{MutatorContext, ParallelCollector};
 use ::util::OpaquePointer;
 use plan::{Plan, SelectedPlan};
 use plan::collector_context::CollectorContext;
-use plan::plan::CONTROL_COLLECTOR_CONTEXT;
 
 use super::UPCALLS;
 
@@ -30,14 +29,14 @@ impl Collection for VMCollection {
         // }
     }
 
-    fn block_for_gc(tls: *mut c_void) {
+    fn block_for_gc(tls: OpaquePointer) {
         println!("Block for GC");
         unsafe {
             ((*UPCALLS).block_for_gc)();
         }
     }
 
-    unsafe fn spawn_worker_thread<T: ParallelCollector>(tls: *mut c_void, ctx: *mut T) {
+    unsafe fn spawn_worker_thread<T: ParallelCollector>(tls: OpaquePointer, ctx: *mut T) {
         // if ctx == 0 as *mut T {
         ((*UPCALLS).spawn_collector_thread)(tls, ctx as usize as _);
         // } else {
@@ -51,7 +50,7 @@ impl Collection for VMCollection {
         // }
     }
 
-    fn prepare_mutator<T: MutatorContext>(tls: *mut c_void, m: &T) {
+    fn prepare_mutator<T: MutatorContext>(tls: OpaquePointer, m: &T) {
         // unimplemented!()
     }
 }
