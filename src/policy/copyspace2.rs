@@ -97,10 +97,14 @@ impl CopySpace {
 struct ForwardingWord;
 
 impl ForwardingWord {
-    const FORWARDING_MASK: usize = 0b11 << 62;
-    const FORWARDING_NOT_TRIGGERED_YET: usize = 0b00 << 62;
-    const BEING_FORWARDED: usize = 0b10 << 62;
-    const FORWARDED: usize = 0b11 << 62;
+    #[cfg(feature = "openjdk")]
+    const BIT_SHIFT: usize = 62;
+    #[cfg(feature = "jikesrvm")]
+    const BIT_SHIFT: usize = 0;
+    const FORWARDING_MASK: usize = 0b11 << Self::BIT_SHIFT;
+    const FORWARDING_NOT_TRIGGERED_YET: usize = 0b00 << Self::BIT_SHIFT;
+    const BEING_FORWARDED: usize = 0b10 << Self::BIT_SHIFT;
+    const FORWARDED: usize = 0b11 << Self::BIT_SHIFT;
 
     fn header(o: ObjectReference) -> &'static AtomicUsize {
         unsafe { ::std::mem::transmute(o) }
