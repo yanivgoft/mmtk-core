@@ -12,7 +12,6 @@ use ::plan::MutatorContext;
 use ::plan::TraceLocal;
 use ::plan::CollectorContext;
 use ::plan::ParallelCollectorGroup;
-use ::plan::plan::CONTROL_COLLECTOR_CONTEXT;
 use ::plan::transitive_closure::TransitiveClosure;
 
 use ::vm::{Collection, VMCollection};
@@ -97,7 +96,7 @@ pub extern fn start_control_collector(tls: OpaquePointer) {
 
 #[no_mangle]
 pub extern fn request_gc() {
-    CONTROL_COLLECTOR_CONTEXT.request();
+    SINGLETON.plan.common().control_collector_context.request();
 }
 
 #[no_mangle]

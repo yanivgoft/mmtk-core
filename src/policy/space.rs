@@ -56,8 +56,6 @@ pub trait Space: Sized + Debug + 'static {
             let rtn = pr.get_new_pages(pages_reserved, pages, self.common().zeroed, tls);
             if rtn.is_zero() {
                 if !allow_poll {
-                    println!("VMActivePlan::is_mutator(tls) {:?}", unsafe { VMActivePlan::is_mutator(tls) });
-                    println!("PLAN.is_initialized() {:?}", PLAN.is_initialized());
                     panic!("Physical allocation failed when polling not allowed!");
                 }
 
