@@ -43,7 +43,7 @@ impl Allocator<FreeListPageResource<LargeObjectSpace>> for LargeObjectAllocator 
         let header = 0; // HashSet is used instead of DoublyLinkedList
         let maxbytes = allocator::get_maximum_aligned_size(size + header, align, allocator::MIN_ALIGNMENT);
         let pages = ::util::conversions::bytes_to_pages_up(maxbytes);
-        let sp = self.space.unwrap().acquire(self.tls, pages);
+        let sp = self.space.unwrap().allocate_pages(self.tls, pages);
         if sp.is_zero() {
             sp
         } else {

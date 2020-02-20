@@ -56,7 +56,7 @@ pub fn align_allocation(
     debug_assert!((
         (region.as_usize() as isize) & ((MIN_ALIGNMENT - 1) as isize)
     ) == 0);
-    // debug_assert!((alignment & (MIN_ALIGNMENT - 1)) == 0, "Invalid alignment {:?}. known_a={:?}", alignment, known_alignment);
+    debug_assert!((alignment & (MIN_ALIGNMENT - 1)) == 0);
     debug_assert!((offset & (MIN_ALIGNMENT - 1) as isize) == 0);
 
     // No alignment ever required.
