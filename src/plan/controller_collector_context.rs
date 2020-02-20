@@ -53,10 +53,10 @@ impl ControllerCollectorContext {
         let workers = unsafe { &*self.workers.get() };
 
         loop {
-            trace!("[STWController: Waiting for request...]");
+            debug!("[STWController: Waiting for request...]");
             self.wait_for_request();
-            trace!("[STWController: Request recieved.]");
-            trace!("[STWController: Stopping the world...]");
+            debug!("[STWController: Request recieved.]");
+            debug!("[STWController: Stopping the world...]");
             VMCollection::stop_all_mutators(tls);
 
             // For heap growth logic
@@ -66,12 +66,12 @@ impl ControllerCollectorContext {
 
             self.clear_request();
 
-            trace!("[STWController: Triggering worker threads...]");
+            debug!("[STWController: Triggering worker threads...]");
             workers.trigger_cycle();
 
             workers.wait_for_cycle();
-            trace!("[STWController: Worker threads complete!]");
-            trace!("[STWController: Resuming mutators...]");
+            debug!("[STWController: Worker threads complete!]");
+            debug!("[STWController: Resuming mutators...]");
             VMCollection::resume_mutators(tls);
         }
     }

@@ -264,7 +264,7 @@ impl<S: Space<PR = FreeListPageResource<S>>> FreeListPageResource<S> {
         }
     }
 
-    pub fn release_pages(&mut self, first: Address) -> usize {
+    pub fn release_pages(&mut self, first: Address) {
         debug_assert!(conversions::is_page_aligned(first));
         let page_offset = conversions::bytes_to_pages(first - self.start);
         let pages = self.free_list.size(page_offset as _);
@@ -283,7 +283,6 @@ impl<S: Space<PR = FreeListPageResource<S>>> FreeListPageResource<S> {
         if !self.common.contiguous { // only discontiguous spaces use chunks
             me.release_free_chunks(first, freed as _);
         }
-        freed as usize
     }
 
 
