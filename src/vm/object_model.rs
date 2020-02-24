@@ -1,11 +1,13 @@
 use ::util::{Address, ObjectReference};
 use ::plan::Allocator;
 use ::util::OpaquePointer;
-
+use std::sync::atomic::AtomicU8;
 use libc::c_void;
 
 /// https://github.com/JikesRVM/JikesRVM/blob/master/MMTk/src/org/mmtk/vm/ObjectModel.java
 pub trait ObjectModel {
+    const GC_BYTE_OFFSET: usize;
+    fn get_gc_byte(o: ObjectReference) -> &'static AtomicU8;
     fn copy(from: ObjectReference, allocator: Allocator, tls: OpaquePointer) -> ObjectReference;
     fn copy_to(from: ObjectReference, to: ObjectReference, region: Address) -> Address;
     fn get_reference_when_copied_to(from: ObjectReference, to: Address) -> ObjectReference;

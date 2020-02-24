@@ -28,11 +28,15 @@ impl Scanning for VMScanning {
     }
 
     fn compute_static_roots<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-        // Do nothing
+        unsafe {
+            ((*UPCALLS).compute_static_roots)(::std::mem::transmute(trace), tls);
+        }
     }
 
     fn compute_global_roots<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-        // Do nothing
+        unsafe {
+            ((*UPCALLS).compute_global_roots)(::std::mem::transmute(trace), tls);
+        }
     }
 
     fn compute_thread_roots<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
@@ -46,7 +50,6 @@ impl Scanning for VMScanning {
     }
 
     fn compute_bootimage_roots<T: TraceLocal>(trace: &mut T, tls: OpaquePointer) {
-        // unimplemented!()
         // Do nothing
     }
 

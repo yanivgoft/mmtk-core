@@ -100,10 +100,14 @@ typedef struct {
     void* (*active_collector) (void* tls);
     void* (*get_next_mutator) ();
     void (*reset_mutator_iterator) ();
+    void (*compute_static_roots) (void* trace, void* tls);
+    void (*compute_global_roots) (void* trace, void* tls);
     void (*compute_thread_roots) (void* trace, void* tls);
     void (*scan_object) (void* trace, void* object, void* tls);
     void (*dump_object) (void* object);
     size_t (*get_object_size) (void* object);
+    void* (*get_mmtk_mutator) (void* tls);
+    bool (*is_mutator) (void* tls);
 } OpenJDK_Upcalls;
 
 extern void openjdk_gc_init(OpenJDK_Upcalls *calls, size_t heap_size);

@@ -3,7 +3,7 @@ use ::util::{Address, ObjectReference};
 use ::vm::ObjectModel;
 use ::vm::VMObjectModel;
 use ::util::OpaquePointer;
-
+use std::sync::atomic::Ordering;
 use libc::c_void;
 
 use ::plan::Allocator;
@@ -18,61 +18,72 @@ const FORWARDED: u8 = 3;
 const FORWARDING_MASK: u8 = 3;
 const FORWARDING_BITS: usize = 2;
 
-pub fn attempt_to_forward(object: ObjectReference) -> usize {
-    let mut old_value: usize = 0;
-    old_value = VMObjectModel::prepare_available_bits(object);
-    if (old_value as u8) & FORWARDING_MASK != FORWARDING_NOT_TRIGGERED_YET {
+pub fn attempt_to_forward(object: ObjectReference) -> u8 {
+    let gc_byte = VMObjectModel::get_gc_byte(object);
+    let mut old_value = gc_byte.load(Ordering::SeqCst);
+    if old_value & FORWARDING_MASK != FORWARDING_NOT_TRIGGERED_YET {
         return old_value;
     }
-    while !VMObjectModel::attempt_available_bits(object, old_value, old_value | BEING_FORWARDED as usize) {
-        old_value = VMObjectModel::prepare_available_bits(object);
-        if (old_value as u8) & FORWARDING_MASK != FORWARDING_NOT_TRIGGERED_YET {
+    while old_value != gc_byte.compare_and_swap(old_value, old_value | BEING_FORWARDED, Ordering::SeqCst) {
+        old_value = gc_byte.load(Ordering::SeqCst);
+        if old_value & FORWARDING_MASK != FORWARDING_NOT_TRIGGERED_YET {
             return old_value;
         }
     }
     return old_value;
 }
 
-pub fn spin_and_get_forwarded_object(object: ObjectReference, status_word: usize) -> ObjectReference {
-    let mut status_word = status_word;
-    while (status_word as u8) & FORWARDING_MASK == BEING_FORWARDED {
-        status_word = VMObjectModel::read_available_bits_word(object);
+pub fn spin_and_get_forwarded_object(object: ObjectReference, gc_byte: u8) -> ObjectReference {
+    let mut gc_byte = gc_byte;
+    let gc_byte_slot = VMObjectModel::get_gc_byte(object);
+    while gc_byte & FORWARDING_MASK == BEING_FORWARDED {
+        gc_byte = gc_byte_slot.load(Ordering::SeqCst);
     }
-    if (status_word as u8) & FORWARDING_MASK == FORWARDED {
-        unsafe { Address::from_usize(status_word & !(FORWARDING_MASK as usize)).to_object_reference() }
-    } else { object }
+    if gc_byte & FORWARDING_MASK == FORWARDED {
+        let status_word = VMObjectModel::read_available_bits_word(object);
+        let a = status_word & !((FORWARDING_MASK as usize) << VMObjectModel::GC_BYTE_OFFSET);
+        unsafe { Address::from_usize(a).to_object_reference() }
+    } else {
+        panic!("Invalid header value 0x{:x} 0x{:x}", gc_byte, VMObjectModel::read_available_bits_word(object));
+        object
+    }
 }
 
 pub fn forward_object(object: ObjectReference, allocator: Allocator, tls: OpaquePointer) -> ObjectReference {
     let new_object = VMObjectModel::copy(object, allocator, tls);
-    VMObjectModel::write_available_bits_word(object, new_object.to_address().as_usize() | FORWARDED as usize);
+    let f = ((FORWARDED as usize) << VMObjectModel::GC_BYTE_OFFSET);
+    assert!(f != 0);
+    VMObjectModel::write_available_bits_word(object, new_object.to_address().as_usize() | f);
+    // let gc_byte = VMObjectModel::get_gc_byte(object);
+    // gc_byte.store(gc_byte.load(Ordering::SeqCst) | FORWARDED, Ordering::SeqCst);
     new_object
 }
 
-pub fn set_forwarding_pointer(object: ObjectReference, ptr: ObjectReference) {
-    VMObjectModel::write_available_bits_word(object, ptr.to_address().as_usize() | FORWARDED as usize);
-}
+// pub fn set_forwarding_pointer(object: ObjectReference, ptr: ObjectReference) {
+//     VMObjectModel::write_available_bits_word(object, ptr.to_address().as_usize() | FORWARDED as usize);
+// }
 
 pub fn is_forwarded(object: ObjectReference) -> bool {
-    VMObjectModel::read_available_byte(object) & FORWARDING_MASK == FORWARDED
+    VMObjectModel::get_gc_byte(object).load(Ordering::Relaxed) & FORWARDING_MASK == FORWARDED
 }
 
 pub fn is_forwarded_or_being_forwarded(object: ObjectReference) -> bool {
-    VMObjectModel::read_available_byte(object) & FORWARDING_MASK != 0
+    VMObjectModel::get_gc_byte(object).load(Ordering::Relaxed) & FORWARDING_MASK != 0
 }
 
-pub fn state_is_forwarded_or_being_forwarded(header: usize) -> bool {
-    header as u8 & FORWARDING_MASK != 0
+pub fn state_is_forwarded_or_being_forwarded(gc_byte: u8) -> bool {
+    gc_byte & FORWARDING_MASK != 0
 }
 
-pub fn state_is_being_forwarded(header: usize) -> bool {
-    header as u8 & FORWARDING_MASK == BEING_FORWARDED
+pub fn state_is_being_forwarded(gc_byte: u8) -> bool {
+    gc_byte & FORWARDING_MASK == BEING_FORWARDED
 }
 
 pub fn clear_forwarding_bits(object: ObjectReference) {
-    VMObjectModel::write_available_byte(object, VMObjectModel::read_available_byte(object) & !FORWARDING_MASK);
+    let gc_byte = VMObjectModel::get_gc_byte(object);
+    gc_byte.store(gc_byte.load(Ordering::SeqCst) & !FORWARDING_MASK, Ordering::SeqCst);
 }
 
-pub fn extract_forwarding_pointer(forwarding_word: usize) -> ObjectReference {
-    unsafe { Address::from_usize(forwarding_word & (!(FORWARDING_MASK as usize))).to_object_reference() }
-}
+// pub fn extract_forwarding_pointer(forwarding_word: usize) -> ObjectReference {
+//     unsafe { Address::from_usize(forwarding_word & (!(FORWARDING_MASK as usize))).to_object_reference() }
+// }

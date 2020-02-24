@@ -62,10 +62,14 @@ pub struct OpenJDK_Upcalls {
     pub active_collector: extern "C" fn(tls: OpaquePointer) -> *mut c_void,
     pub get_next_mutator: extern "C" fn() -> *mut c_void,
     pub reset_mutator_iterator: extern "C" fn(),
+    pub compute_static_roots: extern "C" fn(trace: *mut c_void, tls: OpaquePointer),
+    pub compute_global_roots: extern "C" fn(trace: *mut c_void, tls: OpaquePointer),
     pub compute_thread_roots: extern "C" fn(trace: *mut c_void, tls: OpaquePointer),
     pub scan_object: extern "C" fn(trace: *mut c_void, object: *mut c_void, tls: OpaquePointer),
     pub dump_object: extern "C" fn(object: *mut c_void),
     pub get_object_size: extern "C" fn(object: ObjectReference) -> usize,
+    pub get_mmtk_mutator: extern "C" fn(tls: OpaquePointer) -> *mut c_void,
+    pub is_mutator: extern "C" fn(tls: OpaquePointer) -> bool,
 }
 
 #[no_mangle]

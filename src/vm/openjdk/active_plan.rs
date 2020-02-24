@@ -3,6 +3,7 @@ use super::super::ActivePlan;
 use ::util::OpaquePointer;
 use super::UPCALLS;
 use libc::c_void;
+use std::sync::Mutex;
 
 pub struct VMActivePlan<> {}
 
@@ -14,12 +15,12 @@ impl ActivePlan for VMActivePlan {
     }
 
     unsafe fn is_mutator(tls: OpaquePointer) -> bool {
-        // FIXME
-        true
+        ((*UPCALLS).is_mutator)(tls)
     }
 
     unsafe fn mutator(tls: OpaquePointer) -> &'static mut <SelectedPlan as Plan>::MutatorT {
-        unimplemented!()
+        let m = ((*UPCALLS).get_mmtk_mutator)(tls);
+        ::std::mem::transmute(m)
     }
 
     fn collector_count() -> usize {
@@ -33,9 +34,14 @@ impl ActivePlan for VMActivePlan {
     }
 
     fn get_next_mutator() -> Option<&'static mut <SelectedPlan as Plan>::MutatorT> {
+        let _guard = MUTATOR_ITERATOR_LOCK.lock().unwrap();
         unsafe {
             let c = ((*UPCALLS).get_next_mutator)();
             ::std::mem::transmute(c)
         }
     }
+}
+
+lazy_static! {
+    pub static ref MUTATOR_ITERATOR_LOCK: Mutex<()> = Mutex::new(());
 }

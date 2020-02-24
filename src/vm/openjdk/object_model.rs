@@ -7,14 +7,21 @@ use super::UPCALLS;
 use libc::c_void;
 use ::vm::*;
 use plan::collector_context::CollectorContext;
+use std::sync::atomic::AtomicU8;
 
 pub struct VMObjectModel {}
 
 impl ObjectModel for VMObjectModel {
+    const GC_BYTE_OFFSET: usize = 56;
+    fn get_gc_byte(o: ObjectReference) -> &'static AtomicU8 {
+        unsafe {
+            &*(o.to_address() + Self::GC_BYTE_OFFSET / 8).to_ptr::<AtomicU8>()
+        }
+    }
     fn copy(from: ObjectReference, allocator: Allocator, tls: OpaquePointer) -> ObjectReference {
         let bytes = unsafe { ((*UPCALLS).get_object_size)(from) };
         let context = unsafe { VMActivePlan::collector(tls) };
-        let dst = context.alloc_copy(from, bytes, 1, 0, allocator);
+        let dst = context.alloc_copy(from, bytes, ::std::mem::size_of::<usize>(), 0, allocator);
         // Copy
         let src = from.to_address();
         for i in 0..bytes {
@@ -97,11 +104,18 @@ impl ObjectModel for VMObjectModel {
     }
 
     fn write_available_bits_word(object: ObjectReference, val: usize) {
-        unimplemented!()
+        let loc = unsafe {
+            &*(object.to_address().as_usize() as *const AtomicUsize)
+        };
+        loc.store(val, Ordering::SeqCst);
     }
 
     fn read_available_bits_word(object: ObjectReference) -> usize {
-        unimplemented!()
+        let loc = unsafe {
+            &*(object.to_address().as_usize() as *const AtomicUsize)
+        };
+        loc.load(Ordering::SeqCst)
+        // unsafe { object.to_address().load() }
     }
 
     fn GC_HEADER_OFFSET() -> isize {
