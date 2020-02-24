@@ -1,8 +1,30 @@
 #include <stdio.h>
 #include "mmtk.h"
 
+static bool mmtk_is_mutator(void* tls) {
+    return true;
+}
+
+OpenJDK_Upcalls mmtk_upcalls = {
+    NULL, // stop_all_mutators
+    NULL, // resume_mutators
+    NULL, // spawn_collector_thread
+    NULL, // block_for_gc
+    NULL, // active_collector
+    NULL, // get_next_mutator
+    NULL, // reset_mutator_iterator
+    NULL, // compute_static_roots
+    NULL, // compute_global_roots
+    NULL, // compute_thread_roots
+    NULL, // scan_object
+    NULL, // dump_object
+    NULL, // get_object_size
+    NULL, // get_mmtk_mutator
+    mmtk_is_mutator,
+};
+
 int main(int argc, char* argv[]){
-    openjdk_gc_init(NULL, 1024*1024);
+    openjdk_gc_init(&mmtk_upcalls, 1024*1024);
 
     MMTk_Mutator handle = bind_mutator(0);
     
