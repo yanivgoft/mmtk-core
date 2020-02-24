@@ -173,7 +173,6 @@ impl Map32 {
         let first_chunk = self.get_chunk_index(start_address);
         let last_chunk = self.get_chunk_index(to);
         let unavail_start_chunk = last_chunk + 1;
-        println!("BITS_IN_ADDRESS {}", BITS_IN_ADDRESS);
         let trailing_chunks = MAX_CHUNKS - unavail_start_chunk;
         let pages = (1 + last_chunk - first_chunk) * PAGES_IN_CHUNK;
         // start_address=0xb0000000, first_chunk=704, last_chunk=703, unavail_start_chunk=704, trailing_chunks=320, pages=0
