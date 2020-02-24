@@ -174,13 +174,11 @@ pub fn free_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
     mmtk.plan.get_free_pages() << LOG_BYTES_IN_PAGE
 }
 
-#[no_mangle]
-pub extern fn starting_heap_address() -> *mut c_void {
+pub fn starting_heap_address() -> *mut c_void {
     HEAP_START.to_mut_ptr()
 }
 
-#[no_mangle]
-pub extern fn last_heap_address() -> *mut c_void {
+pub fn last_heap_address() -> *mut c_void {
     HEAP_END.to_mut_ptr()
 }
 
