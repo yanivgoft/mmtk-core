@@ -13,7 +13,7 @@ macro_rules! jtoc_call {
 macro_rules! jikesrvm_instance_call {
     ($obj:expr, $offset:expr, $tls:expr $(, $arg:ident)*) => ({
         use java_header::TIB_OFFSET;
-        let tib = Address::from_usize(($obj + TIB_OFFSET).load::<usize>());
+        let tib = ($obj + TIB_OFFSET).load::<Address>();
         let call_addr = (tib + $offset).load::<fn()>();
         jikesrvm_call!(call_addr, $tls $(, $arg)*)
     });

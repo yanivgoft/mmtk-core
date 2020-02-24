@@ -23,9 +23,10 @@ use libc::c_void;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
 use util::heap::HeapMeta;
-use util::heap::space_descriptor::{SpaceDescriptor, UNINITIALIZED_SPACE_DESCRIPTOR};
+use util::heap::space_descriptor::SpaceDescriptor;
 use vm::VMBinding;
 use std::marker::PhantomData;
+use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
 
 pub trait Space<VM: VMBinding>: Sized + 'static {
     type PR: PageResource<VM, Space = Self>;
@@ -35,7 +36,7 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
     fn acquire(&self, tls: OpaquePointer, pages: usize) -> Address {
         trace!("Space.acquire, tls={:?}", tls);
         // debug_assert!(tls != 0);
-        let allow_poll = unsafe { VM::VMActivePlan::is_mutator(tls) };
+        let allow_poll = unsafe { VM::VMActivePlan::is_mutator(tls) } && VM::VMActivePlan::global().is_initialized();
 
         trace!("Reserving pages");
         let pr = self.common().pr.as_ref().unwrap();
@@ -76,8 +77,8 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
         if !self.common().descriptor.is_contiguous() {
             self.common().vm_map().get_descriptor_for_address(start) == self.common().descriptor
         } else {
-            start.as_usize() >= self.common().start.as_usize()
-                && start.as_usize() < self.common().start.as_usize() + self.common().extent
+            start >= self.common().start
+                && start < self.common().start + self.common().extent
         }
     }
 
@@ -126,7 +127,7 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
     fn is_movable(&self) -> bool;
 
     fn release_discontiguous_chunks(&mut self, chunk: Address) {
-        debug_assert!(chunk == conversions::chunk_align(chunk, true));
+        debug_assert!(chunk == conversions::chunk_align_down(chunk));
         if chunk == self.common().head_discontiguous_region {
             self.common_mut().head_discontiguous_region = self.common().vm_map().get_next_contiguous_region(chunk);
         }
@@ -210,7 +211,7 @@ impl<VM: VMBinding, PR: PageResource<VM>> CommonSpace<VM, PR> {
         let mut rtn = CommonSpace {
             name,
             name_length: name.len(),
-            descriptor: UNINITIALIZED_SPACE_DESCRIPTOR,
+            descriptor: SpaceDescriptor::UNINITIALIZED,
             index: heap.new_space_index(),
             vmrequest,
             immortal,
@@ -241,15 +242,15 @@ impl<VM: VMBinding, PR: PageResource<VM>> CommonSpace<VM, PR> {
             _                                                             => unreachable!(),
         };
 
-        if extent != raw_chunk_align(extent, false) {
+        if extent != raw_align_up(extent, BYTES_IN_CHUNK) {
             panic!("{} requested non-aligned extent: {} bytes", name, extent);
         }
 
         let start: Address;
         if let VMRequest::RequestFixed{start: _start, extent: _, top: _} = vmrequest {
             start = _start;
-            if start.as_usize() != chunk_align(start, false).as_usize() {
-                panic!("{} starting on non-aligned boundary: {} bytes", name, start.as_usize());
+            if start != chunk_align_up(start) {
+                panic!("{} starting on non-aligned boundary: {}", name, start);
             }
         } else {
             // FIXME
@@ -285,12 +286,12 @@ fn get_frac_available(frac: f32) -> usize {
     let mb = bytes >> LOG_BYTES_IN_MBYTE;
     let rtn = mb << LOG_BYTES_IN_MBYTE;
     trace!("rtn={}", rtn);
-    let aligned_rtn = raw_chunk_align(rtn, false);
+    let aligned_rtn = raw_align_up(rtn, BYTES_IN_CHUNK);
     trace!("aligned_rtn={}", aligned_rtn);
     aligned_rtn
 }
 
 pub fn required_chunks(pages: usize) -> usize {
-    let extent = raw_chunk_align(pages_to_bytes(pages), false);
+    let extent = raw_align_up(pages_to_bytes(pages), BYTES_IN_CHUNK);
     extent >> LOG_BYTES_IN_CHUNK
 }

@@ -12,7 +12,6 @@ use libc::c_void;
 
 use ::util::{Address, ObjectReference};
 use util::OpaquePointer;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use plan::phase::PhaseManager;
 use mmtk::MMTK;
 use vm::VMBinding;
@@ -29,7 +28,7 @@ pub struct NoGCCollector<VM: VMBinding> {
 impl<VM: VMBinding> CollectorContext<VM> for NoGCCollector<VM> {
     fn new(_: &'static MMTK<VM>) -> Self {
         NoGCCollector {
-            tls: UNINITIALIZED_OPAQUE_POINTER,
+            tls: OpaquePointer::UNINITIALIZED,
             trace: NoGCTraceLocal::new(),
 
             last_trigger_count: 0,

@@ -4,6 +4,7 @@
 #![feature(drain_filter)]
 #![feature(nll)]
 #![feature(box_syntax)]
+#![feature(repr_transparent)]
 
 #[macro_use]
 extern crate custom_derive;
@@ -19,6 +20,7 @@ extern crate crossbeam_deque;
 extern crate num_cpus;
 #[macro_use]
 extern crate derivative;
+extern crate atomic_traits;
 
 #[macro_use]
 pub mod util;
@@ -32,4 +34,4 @@ pub use mm::memory_manager;
 pub use plan::{TransitiveClosure, TraceLocal, Allocator, MutatorContext, CollectorContext, ParallelCollector, Plan};
 pub use plan::selected_plan::{SelectedPlan, SelectedConstraints};
 pub use mmtk::MMTK;
-pub use mmtk::{VM_MAP, MMAPPER, OPTIONS_PROCESSOR};
+pub use mmtk::{VM_MAP, MMAPPER};

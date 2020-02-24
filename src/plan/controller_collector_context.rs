@@ -11,7 +11,6 @@ use ::plan::selected_plan::SelectedPlan;
 
 use libc::c_void;
 use util::OpaquePointer;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use vm::VMBinding;
 
 struct RequestSync {
@@ -34,7 +33,7 @@ impl<VM: VMBinding> ControllerCollectorContext<VM> {
     pub fn new() -> Self {
         ControllerCollectorContext {
             request_sync: Mutex::new(RequestSync {
-                tls: UNINITIALIZED_OPAQUE_POINTER,
+                tls: OpaquePointer::UNINITIALIZED,
                 request_count: 0,
                 last_request_count: -1,
             }),

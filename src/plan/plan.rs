@@ -6,32 +6,31 @@ use std::sync::atomic::{self, AtomicUsize, AtomicBool, Ordering};
 use ::util::OpaquePointer;
 use ::policy::space::Space;
 use ::util::heap::PageResource;
-use ::vm::Collection;
+use ::vm::{Collection, ActivePlan, ObjectModel};
 use super::controller_collector_context::ControllerCollectorContext;
 use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
 use util::constants::LOG_BYTES_IN_MBYTE;
 use util::heap::{VMRequest, HeapMeta};
 use policy::immortalspace::ImmortalSpace;
-use util::Address;
+use util::{Address, conversions};
 use util::statistics::stats::Stats;
 use util::statistics::counter::{Counter, LongCounter};
 use util::statistics::counter::MonotoneNanoTime;
 use util::heap::layout::heap_layout::VMMap;
 use util::heap::layout::heap_layout::Mmapper;
 use util::heap::layout::Mmapper as IMmapper;
-use util::heap::layout::ByteMapMmapper;
-use util::options::Options;
-use std::sync::Mutex;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
-use vm::{ObjectModel, VMBinding};
+use util::options::{Options, UnsafeOptionsWrapper};
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
+use mmtk::MMTK;
+use vm::VMBinding;
 
 // FIXME: Move somewhere more appropriate
 pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta, boot_segment_bytes: usize) -> ImmortalSpace<VM> {
 //    let boot_segment_bytes = BOOT_IMAGE_END - BOOT_IMAGE_DATA_START;
     debug_assert!(boot_segment_bytes > 0);
 
-    let boot_segment_mb = unsafe{Address::from_usize(boot_segment_bytes)}
-        .align_up(BYTES_IN_CHUNK).as_usize() >> LOG_BYTES_IN_MBYTE;
+    let boot_segment_mb = conversions::raw_align_up(boot_segment_bytes, BYTES_IN_CHUNK) >> LOG_BYTES_IN_MBYTE;
 
     ImmortalSpace::new("boot", false, VMRequest::fixed_size(boot_segment_mb), vm_map, mmapper, heap)
 }
@@ -41,13 +40,13 @@ pub trait Plan<VM: VMBinding>: Sized {
     type TraceLocalT: TraceLocal;
     type CollectorT: ParallelCollector<VM>;
 
-    fn new(vm_map: &'static VMMap, mmapper: &'static ByteMapMmapper, options: &'static Options) -> Self;
+    fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self;
     fn common(&self) -> &CommonPlan<VM>;
     fn mmapper(&self) -> &'static Mmapper {
         self.common().mmapper
     }
-    fn options(&self) -> &'static Options {
-        self.common().options
+    fn options(&self) -> &Options {
+        &self.common().options
     }
     // unsafe because this can only be called once by the init thread
     fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
@@ -190,13 +189,13 @@ pub trait Plan<VM: VMBinding>: Sized {
 
     fn determine_collection_attempts(&self) -> usize {
         if !self.common().allocation_success.load(Ordering::Relaxed) {
-            self.common().collection_attempts.fetch_add(1, Ordering::Relaxed);
+            self.common().max_collection_attempts.fetch_add(1, Ordering::Relaxed);
         } else {
             self.common().allocation_success.store(false, Ordering::Relaxed);
-            self.common().collection_attempts.store(1, Ordering::Relaxed);
+            self.common().max_collection_attempts.store(1, Ordering::Relaxed);
         }
 
-        self.common().collection_attempts.load(Ordering::Relaxed)
+        self.common().max_collection_attempts.load(Ordering::Relaxed)
     }
 
     fn is_mapped_object(&self, object: ObjectReference) -> bool {
@@ -235,7 +234,7 @@ pub enum GcStatus {
 pub struct CommonPlan<VM: VMBinding> {
     pub vm_map: &'static VMMap,
     pub mmapper: &'static Mmapper,
-    pub options: &'static Options,
+    pub options: Arc<UnsafeOptionsWrapper>,
     pub stats: Stats,
     pub heap: HeapMeta,
 
@@ -245,8 +244,13 @@ pub struct CommonPlan<VM: VMBinding> {
     pub stacks_prepared: AtomicBool,
     pub emergency_collection: AtomicBool,
     pub user_triggered_collection: AtomicBool,
+    // Has an allocation succeeded since the emergency collection?
     pub allocation_success: AtomicBool,
-    pub collection_attempts: AtomicUsize,
+    // Maximum number of failed attempts by a single thread
+    pub max_collection_attempts: AtomicUsize,
+    // Current collection attempt
+    pub cur_collection_attempts: AtomicUsize,
+    // Lock used for out of memory handling
     pub oom_lock: Mutex<()>,
 
     pub control_collector_context: ControllerCollectorContext<VM>,
@@ -256,7 +260,7 @@ pub struct CommonPlan<VM: VMBinding> {
 }
 
 impl<VM: VMBinding> CommonPlan<VM> {
-    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: &'static Options, mut heap: HeapMeta) -> CommonPlan<VM> {
+    pub fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>, heap: HeapMeta) -> CommonPlan<VM> {
         CommonPlan {
             vm_map, mmapper, options, heap,
             stats: Stats::new(),
@@ -267,7 +271,8 @@ impl<VM: VMBinding> CommonPlan<VM> {
             emergency_collection: AtomicBool::new(false),
             user_triggered_collection: AtomicBool::new(false),
             allocation_success: AtomicBool::new(false),
-            collection_attempts: AtomicUsize::new(0),
+            max_collection_attempts: AtomicUsize::new(0),
+            cur_collection_attempts: AtomicUsize::new(0),
             oom_lock: Mutex::new(()),
             control_collector_context: ControllerCollectorContext::new(),
 

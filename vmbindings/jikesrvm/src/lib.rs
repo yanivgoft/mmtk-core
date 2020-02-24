@@ -11,7 +11,7 @@ use mmtk::util::address::Address;
 use mmtk::TraceLocal;
 use mmtk::vm::VMBinding;
 use mmtk::MMTK;
-use mmtk::{VM_MAP, MMAPPER, OPTIONS_PROCESSOR};
+use mmtk::{VM_MAP, MMAPPER};
 
 use entrypoint::*;
 use collection::BOOT_THREAD;
@@ -38,7 +38,7 @@ pub mod scan_sanity;
 pub mod reference_glue;
 pub mod api;
 
-pub static mut JTOC_BASE: Address = Address(0);
+pub static mut JTOC_BASE: Address = Address::ZERO;
 
 pub struct JikesRVM;
 
@@ -81,5 +81,5 @@ impl JikesRVM {
 }
 
 lazy_static! {
-    pub static ref SINGLETON: MMTK<JikesRVM> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+    pub static ref SINGLETON: MMTK<JikesRVM> = MMTK::new(&VM_MAP, &MMAPPER);
 }

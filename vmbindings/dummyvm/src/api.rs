@@ -168,7 +168,7 @@ pub extern fn harness_end(tls: OpaquePointer) {
 
 #[no_mangle]
 pub extern fn process(name: *const c_char, value: *const c_char) -> bool {
-    memory_manager::process(name, value)
+    memory_manager::process(&SINGLETON, name, value)
 }
 
 #[no_mangle]

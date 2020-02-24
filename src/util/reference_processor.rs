@@ -179,7 +179,7 @@ impl ReferenceProcessor {
         sync.unforwarded_references = None;
     }
 
-    pub fn scan<VM: VMBinding, T: TraceLocal>(&self, trace: &mut T, nursery: bool, retain: bool, tls: OpaquePointer) {
+    fn scan<VM: VMBinding, T: TraceLocal>(&self, trace: &mut T, nursery: bool, retain: bool, tls: OpaquePointer) {
         let sync = unsafe { self.sync_mut() };
         sync.unforwarded_references = Some(sync.references.clone());
         let references: &mut Vec<Address> = &mut sync.references;

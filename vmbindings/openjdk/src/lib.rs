@@ -8,7 +8,7 @@ use std::ptr::null_mut;
 use mmtk::vm::VMBinding;
 use mmtk::util::OpaquePointer;
 use mmtk::MMTK;
-use mmtk::{VM_MAP, MMAPPER, OPTIONS_PROCESSOR};
+use mmtk::{VM_MAP, MMAPPER};
 
 pub mod scanning;
 pub mod collection;
@@ -36,5 +36,5 @@ impl VMBinding for OpenJDK {
 }
 
 lazy_static! {
-    pub static ref SINGLETON: MMTK<OpenJDK> = MMTK::new(&VM_MAP, &MMAPPER, &OPTIONS_PROCESSOR);
+    pub static ref SINGLETON: MMTK<OpenJDK> = MMTK::new(&VM_MAP, &MMAPPER);
 }

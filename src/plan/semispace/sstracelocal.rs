@@ -7,7 +7,6 @@ use ::vm::Scanning;
 use libc::c_void;
 use super::ss;
 use util::OpaquePointer;
-use util::opaque_pointer::UNINITIALIZED_OPAQUE_POINTER;
 use plan::semispace::SemiSpace;
 use vm::VMBinding;
 
@@ -173,7 +172,7 @@ impl<VM: VMBinding> SSTraceLocal<VM> {
     pub fn new(ss: &'static SemiSpace<VM>) -> Self {
         let ss_trace = ss.get_sstrace();
         SSTraceLocal {
-            tls: UNINITIALIZED_OPAQUE_POINTER,
+            tls: OpaquePointer::UNINITIALIZED,
             values: ss_trace.values.spawn_local(),
             root_locations: ss_trace.root_locations.spawn_local(),
             plan: ss,

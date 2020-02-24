@@ -12,13 +12,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use ::policy::space::Space;
 use ::util::generic_freelist::GenericFreeList;
 use std::mem;
-use util::heap::space_descriptor::{SpaceDescriptor, UNINITIALIZED_SPACE_DESCRIPTOR};
+use util::heap::space_descriptor::SpaceDescriptor;
 
 // use ::util::free::IntArrayFreeList;
 
 const NON_MAP_FRACTION: f64 = 1.0 - 8.0 / 4096.0;
 #[cfg(target_pointer_width = "32")]
-const MAP_BASE_ADDRESS: Address = Address(0);
+const MAP_BASE_ADDRESS: Address = Address::ZERO;
 
 pub struct Map32 {
     prev_link: Vec<i32>,
@@ -33,8 +33,9 @@ pub struct Map32 {
     descriptor_map: Vec<SpaceDescriptor>,
 
     // TODO: Is this the right place for this field?
-    // This used to be a global variable, now we need to put it somewhere.
-    // This is supposed to be a per-instance data.
+    // This used to be a global variable. When we remove global states, this needs to be put somewhere.
+    // Currently I am putting it here, as for where this variable is used, we already have
+    // references to vm_map - so it is convenient to put it here.
     cumulative_committed_pages: AtomicUsize,
 }
 
@@ -50,7 +51,7 @@ impl Map32 {
             total_available_discontiguous_chunks: 0,
             finalized: false,
             sync: Mutex::new(()),
-            descriptor_map: vec![UNINITIALIZED_SPACE_DESCRIPTOR; MAX_CHUNKS],
+            descriptor_map: vec![SpaceDescriptor::UNINITIALIZED; MAX_CHUNKS],
             cumulative_committed_pages: AtomicUsize::new(0),
         }
     }
@@ -99,7 +100,7 @@ impl Map32 {
     }
 
     pub fn get_next_contiguous_region(&self, start: Address) -> Address {
-        debug_assert!(start == conversions::chunk_align(start, true));
+        debug_assert!(start == conversions::chunk_align_down(start));
         let chunk = self.get_chunk_index(start);
         if chunk == 0 {
             unsafe { Address::zero() }
@@ -112,7 +113,7 @@ impl Map32 {
     }
 
     pub fn get_contiguous_region_chunks(&self, start: Address) -> usize {
-        debug_assert!(start == conversions::chunk_align(start, true));
+        debug_assert!(start == conversions::chunk_align_down(start));
         let chunk = self.get_chunk_index(start);
         self.region_map.size(chunk as i32) as _
     }
@@ -123,7 +124,7 @@ impl Map32 {
 
     pub fn free_all_chunks(&self, any_chunk: Address) {
         let sync = self.sync.lock().unwrap();
-        debug_assert!(any_chunk == conversions::chunk_align(any_chunk, true));
+        debug_assert!(any_chunk == conversions::chunk_align_down(any_chunk));
         if !any_chunk.is_zero() {
             let chunk = self.get_chunk_index(any_chunk);
             while self.next_link[chunk] != 0 {
@@ -140,7 +141,7 @@ impl Map32 {
 
     pub fn free_contiguous_chunks(&self, start: Address) -> usize {
         let sync = self.sync.lock().unwrap();
-        debug_assert!(start == conversions::chunk_align(start, true));
+        debug_assert!(start == conversions::chunk_align_down(start));
         let chunk = self.get_chunk_index(start);
         self.free_contiguous_chunks_no_lock(chunk as _)
     }
@@ -157,7 +158,7 @@ impl Map32 {
         self_mut.prev_link[chunk as usize] = 0;
         self_mut.next_link[chunk as usize] = 0;
         for offset in 0..chunks {
-            self_mut.descriptor_map[(chunk + offset) as usize] = UNINITIALIZED_SPACE_DESCRIPTOR;
+            self_mut.descriptor_map[(chunk + offset) as usize] = SpaceDescriptor::UNINITIALIZED;
             // VM.barriers.objectArrayStoreNoGCBarrier(spaceMap, chunk + offset, null);
         }
         chunks as _
@@ -175,7 +176,7 @@ impl Map32 {
         let pages = (1 + last_chunk - first_chunk) * PAGES_IN_CHUNK;
         // start_address=0xb0000000, first_chunk=704, last_chunk=703, unavail_start_chunk=704, trailing_chunks=320, pages=0
         // startAddress=0x68000000 firstChunk=416 lastChunk=703 unavailStartChunk=704 trailingChunks=320 pages=294912
-        self_mut.global_page_map.resize_parent_freelist(pages, pages as _);
+        self_mut.global_page_map.resize_freelist(pages, pages as _);
         for fl in &mut self_mut.shared_fl_map {
             if let Some(fl) = fl {
                 let fl_mut: &mut CommonFreeListPageResource = unsafe { mem::transmute(fl) };
@@ -229,7 +230,7 @@ impl Map32 {
     }
 
     fn get_chunk_index(&self, address: Address) -> usize {
-        address.0 >> LOG_BYTES_IN_CHUNK
+        address >> LOG_BYTES_IN_CHUNK
     }
 
     fn address_for_chunk_index(&self, chunk: usize) -> Address {
