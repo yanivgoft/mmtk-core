@@ -172,7 +172,7 @@ impl ByteMapMmapper {
 #[cfg(test)]
 mod tests {
     use util::heap::layout::{ByteMapMmapper, Mmapper};
-    use util::Address;
+    use util::{Address, conversions};
     use util::heap::layout::vm_layout_constants::HEAP_START;
     use util::conversions::pages_to_bytes;
     use std::sync::atomic::Ordering;
@@ -182,9 +182,9 @@ mod tests {
 
     const MEGABYTE: usize = 1 << 20;
     #[cfg(target_os="linux")]
-    const FIXED_ADDRESS: Address = unsafe{Address::from_usize(chunk_align!(0x60000000, true))};
+    const FIXED_ADDRESS: Address = unsafe{ conversions::chunk_align_down(Address::from_usize(0x60000000)) };
     #[cfg(target_os="macos")]
-    const FIXED_ADDRESS: Address = unsafe{Address::from_usize(chunk_align!(0x135000000, true))};
+    const FIXED_ADDRESS: Address = unsafe{ conversions::chunk_align_down(Address::from_usize(0x135000000)) };
 
     #[test]
     fn address_to_mmap_chunks() {
