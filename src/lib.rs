@@ -20,6 +20,7 @@ extern crate crossbeam_deque;
 extern crate num_cpus;
 #[macro_use]
 extern crate derivative;
+extern crate atomic_traits;
 
 #[macro_use]
 pub mod util;
@@ -28,6 +29,3 @@ mod policy;
 mod plan;
 mod mm;
 mod mmtk;
-
-pub use mm::memory_manager::*;
-pub use mm::test::*;

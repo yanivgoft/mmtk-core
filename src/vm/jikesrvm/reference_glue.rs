@@ -7,10 +7,11 @@ use ::util::reference_processor::*;
 use ::util::OpaquePointer;
 
 use libc::c_void;
+use vm::jikesrvm::JikesRVM;
 
 pub struct VMReferenceGlue {}
 
-impl ReferenceGlue for VMReferenceGlue {
+impl ReferenceGlue<JikesRVM> for VMReferenceGlue {
     fn set_referent(reff: ObjectReference, referent: ObjectReference) {
         unsafe {
             (reff.to_address() + REFERENCE_REFERENT_FIELD_OFFSET).store(referent.value());
@@ -20,8 +21,7 @@ impl ReferenceGlue for VMReferenceGlue {
     fn get_referent(object: ObjectReference) -> ObjectReference {
         debug_assert!(!object.is_null());
         unsafe {
-            Address::from_usize((object.to_address() + REFERENCE_REFERENT_FIELD_OFFSET)
-                .load::<usize>()).to_object_reference()
+            (object.to_address() + REFERENCE_REFERENT_FIELD_OFFSET).load::<ObjectReference>()
         }
     }
 

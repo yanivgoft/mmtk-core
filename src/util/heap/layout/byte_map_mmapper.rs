@@ -6,7 +6,6 @@ use std::fmt;
 use std::sync::Mutex;
 use std::sync::atomic::AtomicU8;
 use std::sync::atomic::Ordering;
-use vm::{ObjectModel, VMObjectModel};
 use util::heap::layout::vm_layout_constants::*;
 use util::conversions::pages_to_bytes;
 
@@ -158,7 +157,7 @@ impl ByteMapMmapper {
     }
 
     fn address_to_mmap_chunks_down(addr: Address) -> usize {
-        addr.as_usize() >> LOG_MMAP_CHUNK_BYTES
+        addr >> LOG_MMAP_CHUNK_BYTES
     }
 
     fn mmap_chunks_to_address(chunk: usize) -> Address {
@@ -166,7 +165,7 @@ impl ByteMapMmapper {
     }
 
     fn address_to_mmap_chunks_up(addr: Address) -> usize {
-        (addr + MMAP_CHUNK_BYTES - 1).as_usize() >> LOG_MMAP_CHUNK_BYTES
+        (addr + MMAP_CHUNK_BYTES - 1) >> LOG_MMAP_CHUNK_BYTES
     }
 }
 
