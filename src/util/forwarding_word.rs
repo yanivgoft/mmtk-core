@@ -51,9 +51,8 @@ pub fn spin_and_get_forwarded_object(object: ObjectReference, gc_byte: u8) -> Ob
 
 pub fn forward_object(object: ObjectReference, allocator: Allocator, tls: OpaquePointer) -> ObjectReference {
     let new_object = VMObjectModel::copy(object, allocator, tls);
-    let f = ((FORWARDED as usize) << VMObjectModel::GC_BYTE_OFFSET);
-    assert!(f != 0);
-    VMObjectModel::write_available_bits_word(object, new_object.to_address().as_usize() | f);
+    let forwarded = (FORWARDED as usize) << VMObjectModel::GC_BYTE_OFFSET;
+    VMObjectModel::write_available_bits_word(object, new_object.to_address().as_usize() | forwarded);
     // let gc_byte = VMObjectModel::get_gc_byte(object);
     // gc_byte.store(gc_byte.load(Ordering::SeqCst) | FORWARDED, Ordering::SeqCst);
     new_object

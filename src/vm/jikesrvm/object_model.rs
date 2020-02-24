@@ -48,7 +48,7 @@ impl ObjectModel for VMObjectModel {
     const GC_BYTE_OFFSET: usize = 0;
     fn get_gc_byte(o: ObjectReference) -> &'static AtomicU8 {
         unsafe {
-            &*(o.to_address() + AVAILABLE_BITS_OFFSET).to_ptr::<AtomucU8>()
+            &*(o.to_address() + AVAILABLE_BITS_OFFSET).to_ptr::<AtomicU8>()
         }
     }
     #[inline(always)]
