@@ -47,32 +47,24 @@ pub fn bind_mutator<VM: VMBinding>(mmtk: &'static MMTK<VM>, tls: OpaquePointer) 
     SelectedPlan::bind_mutator(&mmtk.plan, tls)
 }
 
-pub unsafe fn alloc<VM: VMBinding>(mutator: *mut c_void, size: usize,
-             align: usize, offset: isize, allocator: Allocator) -> *mut c_void {
-    let local = &mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT);
-    local.alloc(size, align, offset, allocator).to_mut_ptr()
+pub fn alloc<VM: VMBinding>(mutator: *mut c_void, size: usize,
+             align: usize, offset: isize, allocator: Allocator) -> Address {
+    let local = unsafe { &mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT) };
+    local.alloc(size, align, offset, allocator)
 }
 
 #[inline(never)]
-pub unsafe fn alloc_slow<VM: VMBinding>(mutator: *mut c_void, size: usize,
-                  align: usize, offset: isize, allocator: Allocator) -> *mut c_void {
-    let local = &mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT);
-    local.alloc_slow(size, align, offset, allocator).to_mut_ptr()
+pub fn alloc_slow<VM: VMBinding>(mutator: *mut c_void, size: usize,
+                  align: usize, offset: isize, allocator: Allocator) -> Address {
+    let local = unsafe { &mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT) };
+    local.alloc_slow(size, align, offset, allocator)
 }
 
 pub fn post_alloc<VM: VMBinding>(mutator: *mut c_void, refer: ObjectReference, type_refer: ObjectReference,
                          bytes: usize, allocator: Allocator) {
-    let local = unsafe {&mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT)};
+    let local = unsafe { &mut *(mutator as *mut <SelectedPlan<VM> as Plan<VM>>::MutatorT) };
     local.post_alloc(refer, type_refer, bytes, allocator);
 }
-
-// TODO: I dont think this works. The null pointer will get de-referenced.
-//pub unsafe fn mmtk_malloc<VM: VMBinding>(size: usize) -> *mut c_void {
-//    alloc::<VM>(null_mut(), size, 1, 0, Allocator::Default)
-//}
-
-//#[no_mangle]
-//pub extern fn mmtk_free(_ptr: *const c_void) {}
 
 pub fn will_never_move<VM: VMBinding>(mmtk: &MMTK<VM>, object: ObjectReference) -> bool {
     mmtk.plan.will_never_move(object)
@@ -83,7 +75,7 @@ pub fn is_valid_ref<VM: VMBinding>(mmtk: &MMTK<VM>, val: ObjectReference) -> boo
 }
 
 #[cfg(feature = "sanity")]
-pub unsafe fn report_delayed_root_edge<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, addr: *mut c_void) {
+pub fn report_delayed_root_edge<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, addr: Address) {
     use ::util::sanity::sanity_checker::SanityChecker;
     if mmtk.plan.common().is_in_sanity() {
         report_delayed_root_edge_inner::<SanityChecker<VM>>(trace_local, addr)
@@ -92,18 +84,18 @@ pub unsafe fn report_delayed_root_edge<VM: VMBinding>(mmtk: &MMTK<VM>, trace_loc
     }
 }
 #[cfg(not(feature = "sanity"))]
-pub unsafe fn report_delayed_root_edge<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, addr: *mut c_void) {
+pub fn report_delayed_root_edge<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, addr: Address) {
     report_delayed_root_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, addr)
 }
-unsafe fn report_delayed_root_edge_inner<T: TraceLocal>(trace_local: *mut c_void, addr: *mut c_void) {
+fn report_delayed_root_edge_inner<T: TraceLocal>(trace_local: *mut c_void, addr: Address) {
     trace!("report_delayed_root_edge with trace_local={:?}", trace_local);
-    let local = &mut *(trace_local as *mut T);
-    local.report_delayed_root_edge(Address::from_mut_ptr(addr));
+    let local = unsafe { &mut *(trace_local as *mut T) };
+    local.report_delayed_root_edge(addr);
     trace!("report_delayed_root_edge returned with trace_local={:?}", trace_local);
 }
 
 #[cfg(feature = "sanity")]
-pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, obj: *mut c_void) -> bool {
+pub fn will_not_move_in_current_collection<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, obj: ObjectReference) -> bool {
     use ::util::sanity::sanity_checker::SanityChecker;
     if mmtk.plan.common().is_in_sanity() {
         will_not_move_in_current_collection_inner::<SanityChecker<VM>>(trace_local, obj)
@@ -112,19 +104,19 @@ pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(mmtk: &MMTK<VM>
     }
 }
 #[cfg(not(feature = "sanity"))]
-pub unsafe fn will_not_move_in_current_collection<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, obj: *mut c_void) -> bool {
+pub fn will_not_move_in_current_collection<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, obj: ObjectReference) -> bool {
     will_not_move_in_current_collection_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, obj)
 }
-unsafe fn will_not_move_in_current_collection_inner<T: TraceLocal>(trace_local: *mut c_void, obj: *mut c_void) -> bool {
+fn will_not_move_in_current_collection_inner<T: TraceLocal>(trace_local: *mut c_void, obj: ObjectReference) -> bool {
     trace!("will_not_move_in_current_collection({:?}, {:?})", trace_local, obj);
-    let local = &mut *(trace_local as *mut T);
-    let ret = local.will_not_move_in_current_collection(Address::from_mut_ptr(obj).to_object_reference());
+    let local = unsafe { &mut *(trace_local as *mut T) };
+    let ret = local.will_not_move_in_current_collection(obj);
     trace!("will_not_move_in_current_collection returned with trace_local={:?}", trace_local);
     ret
 }
 
 #[cfg(feature = "sanity")]
-pub unsafe fn process_interior_edge<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
+pub fn process_interior_edge<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local: *mut c_void, target: ObjectReference, slot: Address, root: bool) {
     use ::util::sanity::sanity_checker::SanityChecker;
     if mmtk.plan.common().is_in_sanity() {
         process_interior_edge_inner::<SanityChecker<VM>>(trace_local, target, slot, root)
@@ -134,27 +126,28 @@ pub unsafe fn process_interior_edge<VM: VMBinding>(mmtk: &MMTK<VM>, trace_local:
     trace!("process_interior_root_edge returned with trace_local={:?}", trace_local);
 }
 #[cfg(not(feature = "sanity"))]
-pub unsafe fn process_interior_edge<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
+pub fn process_interior_edge<VM: VMBinding>(_: &MMTK<VM>, trace_local: *mut c_void, target: ObjectReference, slot: Address, root: bool) {
     process_interior_edge_inner::<<SelectedPlan<VM> as Plan<VM>>::TraceLocalT>(trace_local, target, slot, root)
 }
-unsafe fn process_interior_edge_inner<T: TraceLocal>(trace_local: *mut c_void, target: *mut c_void, slot: *mut c_void, root: bool) {
+fn process_interior_edge_inner<T: TraceLocal>(trace_local: *mut c_void, target: ObjectReference, slot: Address, root: bool) {
     trace!("process_interior_edge with trace_local={:?}", trace_local);
-    let local = &mut *(trace_local as *mut T);
-    local.process_interior_edge(Address::from_mut_ptr(target).to_object_reference(),
-                                Address::from_mut_ptr(slot), root);
+    let local = unsafe { &mut *(trace_local as *mut T) };
+    local.process_interior_edge(target, slot, root);
     trace!("process_interior_root_edge returned with trace_local={:?}", trace_local);
 }
 
-pub unsafe fn start_worker<VM: VMBinding>(tls: OpaquePointer, worker: *mut c_void) {
-    let worker_instance = &mut *(worker as *mut <SelectedPlan<VM> as Plan<VM>>::CollectorT);
+pub fn start_worker<VM: VMBinding>(tls: OpaquePointer, worker: *mut c_void) {
+    let worker_instance = unsafe { &mut *(worker as *mut <SelectedPlan<VM> as Plan<VM>>::CollectorT) };
     worker_instance.init(tls);
     worker_instance.run(tls);
 }
 
 pub fn enable_collection<VM: VMBinding>(mmtk: &'static MMTK<VM>, tls: OpaquePointer) {
-    unsafe { (&mut *mmtk.plan.common().control_collector_context.workers.get()) }.init_group(mmtk, tls);
-    unsafe { VM::VMCollection::spawn_worker_thread::<<SelectedPlan<VM> as Plan<VM>>::CollectorT>(tls, null_mut()); }// spawn controller thread
-    mmtk.plan.common().initialized.store(true, Ordering::SeqCst);
+    unsafe {
+        { (&mut *mmtk.plan.common().control_collector_context.workers.get()) }.init_group(mmtk, tls);
+        { VM::VMCollection::spawn_worker_thread::<<SelectedPlan<VM> as Plan<VM>>::CollectorT>(tls, null_mut()); }// spawn controller thread
+        mmtk.plan.common().initialized.store(true, Ordering::SeqCst);
+    }
 }
 
 pub fn process<VM: VMBinding>(mmtk: &'static MMTK<VM>, name: *const c_char, value: *const c_char) -> bool {
@@ -174,12 +167,12 @@ pub fn free_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
     mmtk.plan.get_free_pages() << LOG_BYTES_IN_PAGE
 }
 
-pub fn starting_heap_address() -> *mut c_void {
-    HEAP_START.to_mut_ptr()
+pub fn starting_heap_address() -> Address {
+    HEAP_START
 }
 
-pub fn last_heap_address() -> *mut c_void {
-    HEAP_END.to_mut_ptr()
+pub fn last_heap_address() -> Address {
+    HEAP_END
 }
 
 pub fn total_bytes<VM: VMBinding>(mmtk: &MMTK<VM>) -> usize {
@@ -191,23 +184,23 @@ pub fn scan_region<VM: VMBinding>(mmtk: &MMTK<VM>){
     ::util::sanity::memory_scan::scan_region(&mmtk.plan);
 }
 
-pub unsafe fn trace_get_forwarded_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
-    let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
+pub fn trace_get_forwarded_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference {
+    let local = unsafe { &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT) };
     local.get_forwarded_reference(object)
 }
 
-pub unsafe fn trace_get_forwarded_reference<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
-    let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
+pub fn trace_get_forwarded_reference<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference {
+    let local = unsafe { &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT) };
     local.get_forwarded_reference(object)
 }
 
-pub unsafe fn trace_is_live<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> bool{
-    let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
+pub fn trace_is_live<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> bool{
+    let local = unsafe { &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT) };
     local.is_live(object)
 }
 
-pub unsafe fn trace_retain_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
-    let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
+pub fn trace_retain_referent<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference {
+    let local = unsafe { &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT) };
     local.retain_referent(object)
 }
 
@@ -227,22 +220,16 @@ pub fn modify_check<VM: VMBinding>(mmtk: &MMTK<VM>, object: ObjectReference) {
     mmtk.plan.modify_check(object);
 }
 
-pub unsafe fn add_weak_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: *mut c_void, referent: *mut c_void) {
-    mmtk.reference_processors.add_weak_candidate::<VM>(
-        Address::from_mut_ptr(reff).to_object_reference(),
-        Address::from_mut_ptr(referent).to_object_reference());
+pub fn add_weak_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: ObjectReference, referent: ObjectReference) {
+    mmtk.reference_processors.add_weak_candidate::<VM>(reff, referent);
 }
 
-pub unsafe fn add_soft_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: *mut c_void, referent: *mut c_void) {
-    mmtk.reference_processors.add_soft_candidate::<VM>(
-        Address::from_mut_ptr(reff).to_object_reference(),
-        Address::from_mut_ptr(referent).to_object_reference());
+pub fn add_soft_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: ObjectReference, referent: ObjectReference) {
+    mmtk.reference_processors.add_soft_candidate::<VM>(reff, referent);
 }
 
-pub unsafe fn add_phantom_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: *mut c_void, referent: *mut c_void) {
-    mmtk.reference_processors.add_phantom_candidate::<VM>(
-        Address::from_mut_ptr(reff).to_object_reference(),
-        Address::from_mut_ptr(referent).to_object_reference());
+pub fn add_phantom_candidate<VM: VMBinding>(mmtk: &MMTK<VM>, reff: ObjectReference, referent: ObjectReference) {
+    mmtk.reference_processors.add_phantom_candidate::<VM>(reff, referent);
 }
 
 pub fn harness_begin<VM: VMBinding>(mmtk: &MMTK<VM>, tls: OpaquePointer) {
