@@ -23,6 +23,9 @@ pub mod opaque_pointer;
 pub mod memory;
 pub mod bitmap;
 
+#[cfg(test)]
+pub mod test_util;
+
 pub use self::opaque_pointer::OpaquePointer;
 pub use self::address::Address;
 pub use self::address::ObjectReference;

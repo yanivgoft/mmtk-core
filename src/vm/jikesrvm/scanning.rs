@@ -8,9 +8,12 @@ use ::util::{ObjectReference, Address, SynchronizedCounter};
 use ::vm::jikesrvm::entrypoint::*;
 use super::JTOC_BASE;
 use super::super::unboxed_size_constants::LOG_BYTES_IN_ADDRESS;
-use super::super::{ObjectModel, VMObjectModel};
-use super::super::{ActivePlan, VMActivePlan};
-use super::collection::VMCollection;
+use vm::jikesrvm::object_model::VMObjectModel;
+use vm::ObjectModel;
+use vm::jikesrvm::active_plan::VMActivePlan;
+use vm::ActivePlan;
+use vm::jikesrvm::collection::VMCollection;
+use vm::Collection;
 use std::mem::size_of;
 use std::slice;
 use ::vm::jikesrvm::java_header::TIB_OFFSET;
@@ -19,6 +22,7 @@ use ::vm::unboxed_size_constants::BYTES_IN_ADDRESS;
 use ::util::OpaquePointer;
 
 use libc::c_void;
+use vm::jikesrvm::JikesRVM;
 
 static COUNTER: SynchronizedCounter = SynchronizedCounter::new(0);
 
@@ -26,7 +30,7 @@ pub struct VMScanning {}
 
 const DUMP_REF: bool = false;
 
-impl Scanning for VMScanning {
+impl Scanning<JikesRVM> for VMScanning {
     fn scan_object<T: TransitiveClosure>(trace: &mut T, object: ObjectReference, tls: OpaquePointer) {
         if DUMP_REF {
             let obj_ptr = object.value();
@@ -34,9 +38,7 @@ impl Scanning for VMScanning {
         }
         trace!("Getting reference array");
         let elt0_ptr: usize = unsafe {
-            let tib = Address::from_usize((object.to_address() + TIB_OFFSET).load::<usize>());
-            let rvm_type = Address::from_usize((tib + TIB_TYPE_INDEX * BYTES_IN_ADDRESS)
-                .load::<usize>());
+            let rvm_type = VMObjectModel::load_rvm_type(object);
             (rvm_type + REFERENCE_OFFSETS_FIELD_OFFSET).load::<usize>()
         };
         trace!("elt0_ptr: {}", elt0_ptr);
@@ -84,7 +86,7 @@ impl Scanning for VMScanning {
         unsafe {
             let cc = VMActivePlan::collector(tls);
 
-            let jni_functions = Address::from_usize((JTOC_BASE + JNI_FUNCTIONS_FIELD_OFFSET).load::<usize>());
+            let jni_functions = (JTOC_BASE + JNI_FUNCTIONS_FIELD_OFFSET).load::<Address>();
             trace!("jni_functions: {:?}", jni_functions);
 
             let threads = cc.parallel_worker_count();
@@ -113,16 +115,14 @@ impl Scanning for VMScanning {
                 }
             }
 
-            let linkage_triplets = Address::from_usize(
-                (JTOC_BASE + LINKAGE_TRIPLETS_FIELD_OFFSET).load::<usize>());
+            let linkage_triplets = (JTOC_BASE + LINKAGE_TRIPLETS_FIELD_OFFSET).load::<Address>();
             if !linkage_triplets.is_zero() {
                 for i in start..end {
                     trace.process_root_edge(linkage_triplets + i * 4, true);
                 }
             }
 
-            let jni_global_refs = Address::from_usize(
-                (JTOC_BASE + JNI_GLOBAL_REFS_FIELD2_OFFSET).load::<usize>());
+            let jni_global_refs = (JTOC_BASE + JNI_GLOBAL_REFS_FIELD2_OFFSET).load::<Address>();
             trace!("jni_global_refs address: {:?}", jni_global_refs);
             size = (jni_global_refs - 4).load::<usize>();
             trace!("jni_global_refs size: {:?}", size);

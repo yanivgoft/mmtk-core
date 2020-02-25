@@ -3,12 +3,17 @@ use super::super::ActivePlan;
 use ::util::OpaquePointer;
 use super::UPCALLS;
 use libc::c_void;
+use vm::openjdk::OpenJDK;
 use std::sync::Mutex;
 
 pub struct VMActivePlan<> {}
 
-impl ActivePlan for VMActivePlan {
-    unsafe fn collector(tls: OpaquePointer) -> &'static mut <SelectedPlan as Plan>::CollectorT {
+impl ActivePlan<OpenJDK> for VMActivePlan {
+    fn global() -> &'static SelectedPlan<OpenJDK> {
+        &::mmtk::SINGLETON.plan
+    }
+
+    unsafe fn collector(tls: OpaquePointer) -> &'static mut <SelectedPlan<OpenJDK> as Plan<OpenJDK>>::CollectorT {
         let c = ((*UPCALLS).active_collector)(tls);
         assert!(c != 0 as *mut c_void);
         unsafe { ::std::mem::transmute(c) }
@@ -18,7 +23,7 @@ impl ActivePlan for VMActivePlan {
         ((*UPCALLS).is_mutator)(tls)
     }
 
-    unsafe fn mutator(tls: OpaquePointer) -> &'static mut <SelectedPlan as Plan>::MutatorT {
+    unsafe fn mutator(tls: OpaquePointer) -> &'static mut <SelectedPlan<OpenJDK> as Plan<OpenJDK>>::MutatorT {
         let m = ((*UPCALLS).get_mmtk_mutator)(tls);
         ::std::mem::transmute(m)
     }
@@ -33,7 +38,7 @@ impl ActivePlan for VMActivePlan {
         }
     }
 
-    fn get_next_mutator() -> Option<&'static mut <SelectedPlan as Plan>::MutatorT> {
+    fn get_next_mutator() -> Option<&'static mut <SelectedPlan<OpenJDK> as Plan<OpenJDK>>::MutatorT> {
         let _guard = MUTATOR_ITERATOR_LOCK.lock().unwrap();
         unsafe {
             let c = ((*UPCALLS).get_next_mutator)();

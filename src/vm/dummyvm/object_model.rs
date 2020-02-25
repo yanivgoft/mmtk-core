@@ -2,38 +2,21 @@ use ::vm::object_model::ObjectModel;
 use ::util::{Address, ObjectReference};
 use ::plan::Allocator;
 use ::util::OpaquePointer;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use super::UPCALLS;
 use libc::c_void;
-use ::vm::*;
-use plan::collector_context::CollectorContext;
 use std::sync::atomic::AtomicU8;
-use vm::openjdk::OpenJDK;
+use vm::dummyvm::DummyVM;
 
 pub struct VMObjectModel {}
 
-impl ObjectModel<OpenJDK> for VMObjectModel {
-    #[cfg(target_pointer_width = "64")]
-    const GC_BYTE_OFFSET: usize = 56;
-    #[cfg(target_pointer_width = "32")]
+impl ObjectModel<DummyVM> for VMObjectModel {
     const GC_BYTE_OFFSET: usize = 0;
+
     fn get_gc_byte(o: ObjectReference) -> &'static AtomicU8 {
-        unsafe {
-            &*(o.to_address() + Self::GC_BYTE_OFFSET / 8).to_ptr::<AtomicU8>()
-        }
+        unimplemented!()
     }
+
     fn copy(from: ObjectReference, allocator: Allocator, tls: OpaquePointer) -> ObjectReference {
-        let bytes = unsafe { ((*UPCALLS).get_object_size)(from) };
-        let context = unsafe { <OpenJDK as VMBinding>::VMActivePlan::collector(tls) };
-        let dst = context.alloc_copy(from, bytes, ::std::mem::size_of::<usize>(), 0, allocator);
-        // Copy
-        let src = from.to_address();
-        for i in 0..bytes {
-            unsafe { (dst + i).store((src + i).load::<u8>()) };
-        }
-        let to_obj = unsafe { dst.to_object_reference() };
-        context.post_copy(to_obj, unsafe { Address::zero() }, bytes, allocator);
-        to_obj
+        unimplemented!()
     }
 
     fn copy_to(from: ObjectReference, to: ObjectReference, region: Address) -> Address {
@@ -89,14 +72,11 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
     }
 
     fn attempt_available_bits(object: ObjectReference, old: usize, new: usize) -> bool {
-        let mark_slot: AtomicUsize = unsafe { ::std::mem::transmute(object) };
-        mark_slot.compare_and_swap(old, new, Ordering::SeqCst) == old
+        unimplemented!()
     }
 
     fn prepare_available_bits(object: ObjectReference) -> usize {
-        // println!("Object = {:?}", object);
-        unsafe { object.to_address().load() }
-        // unimplemented!()
+        unimplemented!()
     }
 
     fn write_available_byte(object: ObjectReference, val: u8) {
@@ -108,18 +88,11 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
     }
 
     fn write_available_bits_word(object: ObjectReference, val: usize) {
-        let loc = unsafe {
-            &*(object.to_address().as_usize() as *const AtomicUsize)
-        };
-        loc.store(val, Ordering::SeqCst);
+        unimplemented!()
     }
 
     fn read_available_bits_word(object: ObjectReference) -> usize {
-        let loc = unsafe {
-            &*(object.to_address().as_usize() as *const AtomicUsize)
-        };
-        loc.load(Ordering::SeqCst)
-        // unsafe { object.to_address().load() }
+        unimplemented!()
     }
 
     fn GC_HEADER_OFFSET() -> isize {
@@ -127,11 +100,11 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
     }
 
     fn object_start_ref(object: ObjectReference) -> Address {
-        object.to_address()
+        unimplemented!()
     }
 
     fn ref_to_address(object: ObjectReference) -> Address {
-        object.to_address()
+        unimplemented!()
     }
 
     fn is_acyclic(typeref: ObjectReference) -> bool {
@@ -139,9 +112,7 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
     }
 
     fn dump_object(object: ObjectReference) {
-        unsafe {
-            ((*UPCALLS).dump_object)(::std::mem::transmute(object));
-        }
+        unimplemented!()
     }
 
     fn get_array_base_offset() -> isize {

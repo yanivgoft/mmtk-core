@@ -2,7 +2,7 @@ use ::util::Address;
 use ::util::ObjectReference;
 use ::util::conversions::*;
 
-use ::vm::{ActivePlan, VMActivePlan, Collection, VMCollection, ObjectModel, VMObjectModel};
+use ::vm::{ActivePlan, Collection, ObjectModel};
 use ::util::heap::{VMRequest, PageResource};
 use ::util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END, AVAILABLE_BYTES, LOG_BYTES_IN_CHUNK};
 use ::util::heap::layout::vm_layout_constants::{AVAILABLE_START, AVAILABLE_END};
@@ -25,16 +25,19 @@ use util::heap::layout::heap_layout::Mmapper;
 use plan::selected_plan::SelectedPlan;
 use util::heap::HeapMeta;
 use util::heap::space_descriptor::SpaceDescriptor;
+use vm::VMBinding;
+use std::marker::PhantomData;
+use util::heap::layout::vm_layout_constants::BYTES_IN_CHUNK;
 
-pub trait Space: Sized + Debug + 'static {
-    type PR: PageResource<Space = Self>;
+pub trait Space<VM: VMBinding>: Sized + 'static {
+    type PR: PageResource<VM, Space = Self>;
 
     fn init(&mut self, vm_map: &'static VMMap);
 
     fn acquire(&self, tls: OpaquePointer, pages: usize) -> Address {
         trace!("Space.acquire, tls={:?}", tls);
         // debug_assert!(tls != 0);
-        let allow_poll = unsafe { VMActivePlan::is_mutator(tls) } && VMActivePlan::global().is_initialized();
+        let allow_poll = unsafe { VM::VMActivePlan::is_mutator(tls) } && VM::VMActivePlan::global().is_initialized();
 
         trace!("Reserving pages");
         let pr = self.common().pr.as_ref().unwrap();
@@ -46,10 +49,10 @@ pub trait Space: Sized + Debug + 'static {
 
         trace!("Polling ..");
 
-        if allow_poll && VMActivePlan::global().poll::<Self::PR>(false, me) {
+        if allow_poll && VM::VMActivePlan::global().poll::<Self::PR>(false, me) {
             trace!("Collection required");
             pr.clear_request(pages_reserved);
-            VMCollection::block_for_gc(tls);
+            VM::VMCollection::block_for_gc(tls);
             unsafe { Address::zero() }
         } else {
             trace!("Collection not required");
@@ -59,10 +62,10 @@ pub trait Space: Sized + Debug + 'static {
                     panic!("Physical allocation failed when polling not allowed!");
                 }
 
-                let gc_performed = VMActivePlan::global().poll::<Self::PR>(true, me);
+                let gc_performed = VM::VMActivePlan::global().poll::<Self::PR>(true, me);
                 debug_assert!(gc_performed, "GC not performed when forced.");
                 pr.clear_request(pages_reserved);
-                VMCollection::block_for_gc(tls);
+                VM::VMCollection::block_for_gc(tls);
                 unsafe { Address::zero() }
             } else {
                 rtn
@@ -71,12 +74,12 @@ pub trait Space: Sized + Debug + 'static {
     }
 
     fn in_space(&self, object: ObjectReference) -> bool {
-        let start = VMObjectModel::ref_to_address(object);
+        let start = VM::VMObjectModel::ref_to_address(object);
         if !self.common().descriptor.is_contiguous() {
             self.common().vm_map().get_descriptor_for_address(start) == self.common().descriptor
         } else {
-            start.as_usize() >= self.common().start.as_usize()
-                && start.as_usize() < self.common().start.as_usize() + self.common().extent
+            start >= self.common().start
+                && start < self.common().start + self.common().extent
         }
     }
 
@@ -111,21 +114,21 @@ pub trait Space: Sized + Debug + 'static {
         self.common().name
     }
 
-    fn common(&self) -> &CommonSpace<Self::PR>;
-    fn common_mut(&mut self) -> &mut CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace<VM, Self::PR>;
+    fn common_mut(&mut self) -> &mut CommonSpace<VM, Self::PR> {
         // SAFE: Reference is exclusive
         unsafe {self.unsafe_common_mut()}
     }
 
     // UNSAFE: This get's a mutable reference from self
     // (i.e. make sure their are no concurrent accesses through self when calling this)_
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR>;
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<VM, Self::PR>;
 
     fn is_live(&self, object: ObjectReference) -> bool;
     fn is_movable(&self) -> bool;
 
     fn release_discontiguous_chunks(&mut self, chunk: Address) {
-        debug_assert!(chunk == conversions::chunk_align(chunk, true));
+        debug_assert!(chunk == conversions::chunk_align_down(chunk));
         if chunk == self.common().head_discontiguous_region {
             self.common_mut().head_discontiguous_region = self.common().vm_map().get_next_contiguous_region(chunk);
         }
@@ -178,8 +181,7 @@ pub trait Space: Sized + Debug + 'static {
     }
 }
 
-#[derive(Debug)]
-pub struct CommonSpace<PR: PageResource> {
+pub struct CommonSpace<VM: VMBinding, PR: PageResource<VM>> {
     pub name: &'static str,
     name_length: usize,
     pub descriptor: SpaceDescriptor,
@@ -197,12 +199,14 @@ pub struct CommonSpace<PR: PageResource> {
     pub head_discontiguous_region: Address,
 
     pub vm_map: &'static VMMap,
-    pub mmapper: &'static Mmapper
+    pub mmapper: &'static Mmapper,
+
+    p: PhantomData<VM>,
 }
 
 const DEBUG: bool = false;
 
-impl<PR: PageResource> CommonSpace<PR> {
+impl<VM: VMBinding, PR: PageResource<VM>> CommonSpace<VM, PR> {
     pub fn new(name: &'static str, movable: bool, immortal: bool, zeroed: bool,
                vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         let mut rtn = CommonSpace {
@@ -221,6 +225,7 @@ impl<PR: PageResource> CommonSpace<PR> {
             head_discontiguous_region: unsafe{Address::zero()},
             vm_map,
             mmapper,
+            p: PhantomData,
         };
 
         if vmrequest.is_discontiguous() {
@@ -238,15 +243,15 @@ impl<PR: PageResource> CommonSpace<PR> {
             _                                                             => unreachable!(),
         };
 
-        if extent != raw_chunk_align(extent, false) {
+        if extent != raw_align_up(extent, BYTES_IN_CHUNK) {
             panic!("{} requested non-aligned extent: {} bytes", name, extent);
         }
 
         let start: Address;
         if let VMRequest::RequestFixed{start: _start, extent: _, top: _} = vmrequest {
             start = _start;
-            if start.as_usize() != chunk_align(start, false).as_usize() {
-                panic!("{} starting on non-aligned boundary: {} bytes", name, start.as_usize());
+            if start != chunk_align_up(start) {
+                panic!("{} starting on non-aligned boundary: {}", name, start);
             }
         } else {
             // FIXME
@@ -282,12 +287,12 @@ fn get_frac_available(frac: f32) -> usize {
     let mb = bytes >> LOG_BYTES_IN_MBYTE;
     let rtn = mb << LOG_BYTES_IN_MBYTE;
     trace!("rtn={}", rtn);
-    let aligned_rtn = raw_chunk_align(rtn, false);
+    let aligned_rtn = raw_align_up(rtn, BYTES_IN_CHUNK);
     trace!("aligned_rtn={}", aligned_rtn);
     aligned_rtn
 }
 
 pub fn required_chunks(pages: usize) -> usize {
-    let extent = raw_chunk_align(pages_to_bytes(pages), false);
+    let extent = raw_align_up(pages_to_bytes(pages), BYTES_IN_CHUNK);
     extent >> LOG_BYTES_IN_CHUNK
 }

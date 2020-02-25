@@ -10,29 +10,28 @@ use ::util::{Address, ObjectReference};
 use ::plan::TransitiveClosure;
 use ::util::forwarding_word as ForwardingWord;
 use ::vm::ObjectModel;
-use ::vm::VMObjectModel;
 use ::plan::Allocator;
 
 use std::cell::UnsafeCell;
 use libc::{c_void, mprotect, PROT_NONE, PROT_EXEC, PROT_WRITE, PROT_READ};
 use util::heap::layout::heap_layout::{VMMap, Mmapper};
 use util::heap::HeapMeta;
+use vm::VMBinding;
 
 const META_DATA_PAGES_PER_REGION: usize = CARD_META_PAGES_PER_REGION;
 
-#[derive(Debug)]
-pub struct CopySpace {
-    common: UnsafeCell<CommonSpace<MonotonePageResource<CopySpace>>>,
+pub struct CopySpace<VM: VMBinding> {
+    common: UnsafeCell<CommonSpace<VM, MonotonePageResource<VM, CopySpace<VM>>>>,
     from_space: bool,
 }
 
-impl Space for CopySpace {
-    type PR = MonotonePageResource<CopySpace>;
+impl<VM: VMBinding> Space<VM> for CopySpace<VM> {
+    type PR = MonotonePageResource<VM, CopySpace<VM>>;
 
-    fn common(&self) -> &CommonSpace<Self::PR> {
+    fn common(&self) -> &CommonSpace<VM, Self::PR> {
         unsafe { &*self.common.get() }
     }
-    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<Self::PR> {
+    unsafe fn unsafe_common_mut(&self) -> &mut CommonSpace<VM, Self::PR> {
         &mut *self.common.get()
     }
 
@@ -54,7 +53,7 @@ impl Space for CopySpace {
     }
 
     fn is_live(&self, object: ObjectReference) -> bool {
-        ForwardingWord::is_forwarded(object)
+        ForwardingWord::is_forwarded::<VM>(object)
     }
 
     fn is_movable(&self) -> bool {
@@ -66,7 +65,7 @@ impl Space for CopySpace {
     }
 }
 
-impl CopySpace {
+impl<VM: VMBinding> CopySpace<VM> {
     pub fn new(name: &'static str, from_space: bool, zeroed: bool, vmrequest: VMRequest, vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta) -> Self {
         CopySpace {
             common: UnsafeCell::new(CommonSpace::new(name, true, false, zeroed, vmrequest, vm_map, mmapper, heap)),
@@ -96,16 +95,16 @@ impl CopySpace {
             return object;
         }
         trace!("attempting to forward");
-        let forwarding_status = ForwardingWord::attempt_to_forward(object);
+        let forwarding_status = ForwardingWord::attempt_to_forward::<VM>(object);
         trace!("checking if object is being forwarded");
         if ForwardingWord::state_is_forwarded_or_being_forwarded(forwarding_status) {
             trace!("... yes it is");
-            let new_object = ForwardingWord::spin_and_get_forwarded_object(object, forwarding_status);
+            let new_object = ForwardingWord::spin_and_get_forwarded_object::<VM>(object, forwarding_status);
             trace!("Returning");
             return new_object;
         } else {
             trace!("... no it isn't. Copying");
-            let new_object = ForwardingWord::forward_object(object, allocator, tls);
+            let new_object = ForwardingWord::forward_object::<VM>(object, allocator, tls);
             trace!("Forwarding pointer");
             trace.process_node(new_object);
             trace!("Copying [{:?} -> {:?}]", object, new_object);
@@ -117,10 +116,10 @@ impl CopySpace {
         if !self.common().contiguous {
             panic!("Implement Options.protectOnRelease for MonotonePageResource.release_pages_extent")
         }
-        let start = self.common().start.as_usize();
+        let start = self.common().start;
         let extent = self.common().extent;
         unsafe {
-            mprotect(start as *mut c_void, extent, PROT_NONE);
+            mprotect(start.to_mut_ptr(), extent, PROT_NONE);
         }
         trace!("Protect {:x} {:x}", start, start + extent);
     }
@@ -129,10 +128,10 @@ impl CopySpace {
         if !self.common().contiguous {
             panic!("Implement Options.protectOnRelease for MonotonePageResource.release_pages_extent")
         }
-        let start = self.common().start.as_usize();
+        let start = self.common().start;
         let extent = self.common().extent;
         unsafe {
-            mprotect(start as *mut c_void, extent, PROT_READ | PROT_WRITE | PROT_EXEC);
+            mprotect(start.to_mut_ptr(), extent, PROT_READ | PROT_WRITE | PROT_EXEC);
         }
         trace!("Unprotect {:x} {:x}", start, start + extent);
     }

@@ -22,12 +22,12 @@ use super::vmrequest::HEAP_LAYOUT_64BIT;
 use super::layout::Mmapper;
 use super::PageResource;
 use util::heap::layout::heap_layout::VMMap;
+use vm::VMBinding;
 
 
 const SPACE_ALIGN: usize = 1 << 19;
 
 
-#[derive(Debug)]
 pub struct CommonFreeListPageResource {
     free_list: FreeList,
     start: Address,
@@ -36,27 +36,25 @@ pub struct CommonFreeListPageResource {
 impl CommonFreeListPageResource {
     pub fn resize_freelist(&mut self, start_address: Address) {
         // debug_assert!((HEAP_LAYOUT_64BIT || !contiguous) && !Plan.isInitialized());
-        self.start = conversions::align_up(start_address, LOG_BYTES_IN_REGION);
+        self.start = start_address.align_up(BYTES_IN_REGION);
         // self.free_list.resize_freelist();
     }
 }
 
-#[derive(Debug)]
-pub struct FreeListPageResource<S: Space<PR = FreeListPageResource<S>>> {
-    common: CommonPageResource<FreeListPageResource<S>>,
+pub struct FreeListPageResource<VM: VMBinding, S: Space<VM, PR = FreeListPageResource<VM, S>>> {
+    common: CommonPageResource<VM, FreeListPageResource<VM, S>>,
     common_flpr: Box<CommonFreeListPageResource>,
     /** Number of pages to reserve at the start of every allocation */
     meta_data_pages_per_region: usize,
     sync: Mutex<FreeListPageResourceSync>,
 }
 
-#[derive(Debug)]
 struct FreeListPageResourceSync {
     pages_currently_on_freelist: usize,
     highwater_mark: i32,
 }
 
-impl <S: Space<PR = FreeListPageResource<S>>> Deref for FreeListPageResource<S> {
+impl <VM: VMBinding, S: Space<VM, PR = FreeListPageResource<VM, S>>> Deref for FreeListPageResource<VM, S> {
     type Target = CommonFreeListPageResource;
 
     fn deref(&self) -> &CommonFreeListPageResource {
@@ -64,20 +62,20 @@ impl <S: Space<PR = FreeListPageResource<S>>> Deref for FreeListPageResource<S> 
     }
 }
 
-impl <S: Space<PR = FreeListPageResource<S>>> DerefMut for FreeListPageResource<S> {
+impl <VM: VMBinding, S: Space<VM, PR = FreeListPageResource<VM, S>>> DerefMut for FreeListPageResource<VM, S> {
     fn deref_mut(&mut self) -> &mut CommonFreeListPageResource {
         &mut self.common_flpr
     }
 }
 
 
-impl<S: Space<PR = FreeListPageResource<S>>> PageResource for FreeListPageResource<S> {
+impl<VM: VMBinding, S: Space<VM, PR = FreeListPageResource<VM, S>>> PageResource<VM> for FreeListPageResource<VM, S> {
     type Space = S;
 
-    fn common(&self) -> &CommonPageResource<Self> {
+    fn common(&self) -> &CommonPageResource<VM, Self> {
         &self.common
     }
-    fn common_mut(&mut self) -> &mut CommonPageResource<Self> {
+    fn common_mut(&mut self) -> &mut CommonPageResource<VM, Self> {
         &mut self.common
     }
 
@@ -124,7 +122,7 @@ impl<S: Space<PR = FreeListPageResource<S>>> PageResource for FreeListPageResour
     }
 }
 
-impl<S: Space<PR = FreeListPageResource<S>>> FreeListPageResource<S> {
+impl<VM: VMBinding, S: Space<VM, PR = FreeListPageResource<VM, S>>> FreeListPageResource<VM, S> {
     pub fn new_contiguous(space: &S, start: Address, bytes: usize, meta_data_pages_per_region: usize, vm_map: &'static VMMap) -> Self {
         let pages = conversions::bytes_to_pages(bytes);
         let common_flpr = unsafe {
@@ -247,7 +245,7 @@ impl<S: Space<PR = FreeListPageResource<S>>> FreeListPageResource<S> {
     fn reserve_metadata(&mut self, extent: usize) {
         let _highwater_mark = 0;
         if self.meta_data_pages_per_region > 0 {
-            debug_assert!(((self.start.0 >> LOG_BYTES_IN_REGION) << LOG_BYTES_IN_REGION) == self.start.0);
+            debug_assert!(self.start.is_aligned_to(BYTES_IN_REGION));
             let size = (extent >> LOG_BYTES_IN_REGION) << LOG_BYTES_IN_REGION;
             let mut cursor = self.start + size;
             while cursor > self.start {
@@ -291,7 +289,7 @@ impl<S: Space<PR = FreeListPageResource<S>>> FreeListPageResource<S> {
         
         if self.meta_data_pages_per_region > 0 {       // can only be a single chunk
             if pages_freed == (PAGES_IN_CHUNK - self.meta_data_pages_per_region) {
-                self.free_contiguous_chunk(conversions::chunk_align(freed_page, true));
+                self.free_contiguous_chunk(conversions::chunk_align_down(freed_page));
             }
         } else {                                // may be multiple chunks
             if pages_freed % PAGES_IN_CHUNK == 0 {    // necessary, but not sufficient condition

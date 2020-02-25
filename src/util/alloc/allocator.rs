@@ -8,11 +8,12 @@ use libc::c_void;
 
 use ::util::constants::*;
 use ::util::heap::PageResource;
-use ::vm::{ActivePlan, VMActivePlan, Collection, VMCollection};
+use ::vm::{ActivePlan, Collection};
 use ::plan::MutatorContext;
 use ::plan::selected_plan::SelectedPlan;
 use ::plan::Plan;
 use ::util::OpaquePointer;
+use vm::VMBinding;
 
 // FIXME: Put this somewhere more appropriate
 pub const ALIGNMENT_VALUE: usize = 0xdeadbeef;
@@ -53,9 +54,7 @@ pub fn align_allocation(
     debug_assert!(!(fillalignmentgap && region.is_zero()));
     debug_assert!(alignment <= MAX_ALIGNMENT);
     debug_assert!(offset >= 0);
-    debug_assert!((
-        (region.as_usize() as isize) & ((MIN_ALIGNMENT - 1) as isize)
-    ) == 0);
+    debug_assert!(region.is_aligned_to(MIN_ALIGNMENT));
     debug_assert!((alignment & (MIN_ALIGNMENT - 1)) == 0);
     debug_assert!((offset & (MIN_ALIGNMENT - 1) as isize) == 0);
 
@@ -113,11 +112,11 @@ pub fn get_maximum_aligned_size(size: usize, alignment: usize, known_alignment: 
     }
 }
 
-pub trait Allocator<PR: PageResource> {
+pub trait Allocator<VM: VMBinding, PR: PageResource<VM>> {
     fn get_tls(&self) -> OpaquePointer;
 
     fn get_space(&self) -> Option<&'static PR::Space>;
-    fn get_plan(&self) -> &'static SelectedPlan;
+    fn get_plan(&self) -> &'static SelectedPlan<VM>;
 
     fn alloc(&mut self, size: usize, align: usize, offset: isize) -> Address;
 
@@ -138,7 +137,7 @@ pub trait Allocator<PR: PageResource> {
             // Try to allocate using the slow path
             let result = self.alloc_slow_once(size, align, offset);
 
-            if unsafe { !VMActivePlan::is_mutator(tls) } {
+            if unsafe { !VM::VMActivePlan::is_mutator(tls) } {
                 debug_assert!(!result.is_zero());
                 return result;
             }
@@ -171,7 +170,7 @@ pub trait Allocator<PR: PageResource> {
                 drop(guard);
                 trace!("fail with oom={}", fail_with_oom);
                 if fail_with_oom {
-                    VMCollection::out_of_memory(tls);
+                    VM::VMCollection::out_of_memory(tls);
                     trace!("Not reached");
                 }
             }
