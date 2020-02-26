@@ -28,6 +28,7 @@ use util::heap::HeapMeta;
 use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 use std::sync::atomic::Ordering;
 use vm::VMBinding;
+use util::handle::MMTKHandle;
 
 pub type SelectedPlan<VM> = NoGC<VM>;
 
@@ -46,7 +47,7 @@ pub struct NoGCUnsync<VM: VMBinding> {
 
 impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
     type MutatorT = NoGCMutator<VM>;
-    type TraceLocalT = NoGCTraceLocal;
+    type TraceLocalT = NoGCTraceLocal<VM>;
     type CollectorT = NoGCCollector<VM>;
 
     fn new(vm_map: &'static VMMap, mmapper: &'static Mmapper, options: Arc<UnsafeOptionsWrapper>) -> Self {
@@ -84,8 +85,8 @@ impl<VM: VMBinding> Plan<VM> for NoGC<VM> {
         &self.common
     }
 
-    fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void {
-        Box::into_raw(Box::new(NoGCMutator::new(tls, self))) as *mut c_void
+    fn bind_mutator(&'static self, tls: OpaquePointer) -> MMTKHandle<NoGCMutator<VM>> {
+        MMTKHandle::new(NoGCMutator::new(tls, self))
     }
 
     fn will_never_move(&self, object: ObjectReference) -> bool {

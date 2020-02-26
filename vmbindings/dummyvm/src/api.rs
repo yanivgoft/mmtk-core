@@ -3,7 +3,9 @@ use libc::c_char;
 use std::ptr::null_mut;
 use mmtk::memory_manager;
 use mmtk::Allocator;
-use mmtk::util::{ObjectReference, OpaquePointer, Address};
+use mmtk::util::{ObjectReference, OpaquePointer, Address, MMTKHandle};
+use mmtk::{SelectedMutator, SelectedTraceLocal, SelectedCollector};
+use mmtk::Plan;
 use DummyVM;
 use SINGLETON;
 
@@ -18,24 +20,24 @@ pub extern "C" fn start_control_collector(tls: OpaquePointer) {
 }
 
 #[no_mangle]
-pub extern "C" fn bind_mutator(tls: OpaquePointer) -> *mut c_void {
+pub extern "C" fn bind_mutator(tls: OpaquePointer) -> MMTKHandle<SelectedMutator<DummyVM>> {
     memory_manager::bind_mutator(&SINGLETON, tls)
 }
 
 #[no_mangle]
-pub extern "C" fn alloc(mutator: *mut c_void, size: usize,
+pub extern "C" fn alloc(mutator: MMTKHandle<SelectedMutator<DummyVM>>, size: usize,
                     align: usize, offset: isize, allocator: Allocator) -> Address {
     memory_manager::alloc::<DummyVM>(mutator, size, align, offset, allocator)
 }
 
 #[no_mangle]
-pub extern "C" fn alloc_slow(mutator: *mut c_void, size: usize,
+pub extern "C" fn alloc_slow(mutator: MMTKHandle<SelectedMutator<DummyVM>>, size: usize,
                                         align: usize, offset: isize, allocator: Allocator) -> Address {
     memory_manager::alloc_slow::<DummyVM>(mutator, size, align, offset, allocator)
 }
 
 #[no_mangle]
-pub extern "C" fn post_alloc(mutator: *mut c_void, refer: ObjectReference, type_refer: ObjectReference,
+pub extern "C" fn post_alloc(mutator: MMTKHandle<SelectedMutator<DummyVM>>, refer: ObjectReference, type_refer: ObjectReference,
                                         bytes: usize, allocator: Allocator) {
     memory_manager::post_alloc::<DummyVM>(mutator, refer, type_refer, bytes, allocator)
 }
@@ -56,22 +58,22 @@ pub extern "C" fn is_valid_ref(val: ObjectReference) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn report_delayed_root_edge(trace_local: *mut c_void, addr: Address) {
+pub extern "C" fn report_delayed_root_edge(trace_local: MMTKHandle<SelectedTraceLocal<DummyVM>>, addr: Address) {
     memory_manager::report_delayed_root_edge(&SINGLETON, trace_local, addr)
 }
 
 #[no_mangle]
-pub extern "C" fn will_not_move_in_current_collection(trace_local: *mut c_void, obj: ObjectReference) -> bool {
+pub extern "C" fn will_not_move_in_current_collection(trace_local: MMTKHandle<SelectedTraceLocal<DummyVM>>, obj: ObjectReference) -> bool {
     memory_manager::will_not_move_in_current_collection(&SINGLETON, trace_local, obj)
 }
 
 #[no_mangle]
-pub extern "C" fn process_interior_edge(trace_local: *mut c_void, target: ObjectReference, slot: Address, root: bool) {
+pub extern "C" fn process_interior_edge(trace_local: MMTKHandle<SelectedTraceLocal<DummyVM>>, target: ObjectReference, slot: Address, root: bool) {
     memory_manager::process_interior_edge(&SINGLETON, trace_local, target, slot, root)
 }
 
 #[no_mangle]
-pub extern "C" fn start_worker(tls: OpaquePointer, worker: *mut c_void) {
+pub extern "C" fn start_worker(tls: OpaquePointer, worker: MMTKHandle<SelectedCollector<DummyVM>>) {
     memory_manager::start_worker::<DummyVM>(tls, worker)
 }
 
@@ -102,22 +104,22 @@ pub extern "C" fn scan_region() {
 }
 
 #[no_mangle]
-pub extern "C" fn trace_get_forwarded_referent(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
+pub extern "C" fn trace_get_forwarded_referent(trace_local: MMTKHandle<SelectedTraceLocal<DummyVM>>, object: ObjectReference) -> ObjectReference{
     memory_manager::trace_get_forwarded_referent::<DummyVM>(trace_local, object)
 }
 
 #[no_mangle]
-pub extern "C" fn trace_get_forwarded_reference(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
+pub extern "C" fn trace_get_forwarded_reference(trace_local: MMTKHandle<SelectedTraceLocal<DummyVM>>, object: ObjectReference) -> ObjectReference{
     memory_manager::trace_get_forwarded_reference::<DummyVM>(trace_local, object)
 }
 
 #[no_mangle]
-pub extern "C" fn trace_is_live(trace_local: *mut c_void, object: ObjectReference) -> bool{
+pub extern "C" fn trace_is_live(trace_local: MMTKHandle<SelectedTraceLocal<DummyVM>>, object: ObjectReference) -> bool{
     memory_manager::trace_is_live::<DummyVM>(trace_local, object)
 }
 
 #[no_mangle]
-pub extern "C" fn trace_retain_referent(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference{
+pub extern "C" fn trace_retain_referent(trace_local: MMTKHandle<SelectedTraceLocal<DummyVM>>, object: ObjectReference) -> ObjectReference{
     memory_manager::trace_retain_referent::<DummyVM>(trace_local, object)
 }
 

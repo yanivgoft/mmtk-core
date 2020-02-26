@@ -38,6 +38,7 @@ use std::sync::Arc;
 use util::heap::HeapMeta;
 use util::heap::layout::vm_layout_constants::{HEAP_START, HEAP_END};
 use vm::VMBinding;
+use util::handle::MMTKHandle;
 
 pub type SelectedPlan<VM> = SemiSpace<VM>;
 
@@ -108,8 +109,8 @@ impl<VM: VMBinding> Plan<VM> for SemiSpace<VM> {
         &self.common
     }
 
-    fn bind_mutator(&'static self, tls: OpaquePointer) -> *mut c_void {
-        Box::into_raw(Box::new(SSMutator::new(tls, self))) as *mut c_void
+    fn bind_mutator(&'static self, tls: OpaquePointer) -> MMTKHandle<SSMutator<VM>> {
+        MMTKHandle::new(SSMutator::new(tls, self))
     }
 
     fn will_never_move(&self, object: ObjectReference) -> bool {
