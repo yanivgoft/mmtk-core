@@ -1,7 +1,8 @@
 use libc::c_void;
 use libc::c_char;
+use std::ffi::CStr;
 use mmtk::memory_manager;
-use mmtk::util::{Address, OpaquePointer, ObjectReference, MMTKHandle};
+use mmtk::util::{Address, OpaquePointer, ObjectReference};
 use mmtk::Allocator;
 use mmtk::{SelectedMutator, SelectedTraceLocal, SelectedCollector};
 use mmtk::Plan;
@@ -30,32 +31,27 @@ pub extern "C" fn start_control_collector(tls: OpaquePointer) {
 }
 
 #[no_mangle]
-pub extern "C" fn bind_mutator(tls: OpaquePointer) -> MMTKHandle<SelectedMutator<JikesRVM>> {
-    memory_manager::bind_mutator(&SINGLETON, tls)
+pub extern "C" fn bind_mutator(tls: OpaquePointer) -> *mut SelectedMutator<JikesRVM> {
+    Box::into_raw(memory_manager::bind_mutator(&SINGLETON, tls))
 }
 
 #[no_mangle]
-pub extern "C" fn alloc(mutator: MMTKHandle<SelectedMutator<JikesRVM>>, size: usize,
+pub extern "C" fn alloc(mutator: *mut SelectedMutator<JikesRVM>, size: usize,
                            align: usize, offset: isize, allocator: Allocator) -> Address {
-    memory_manager::alloc::<JikesRVM>(mutator, size, align, offset, allocator)
+    memory_manager::alloc::<JikesRVM>(unsafe { &mut *mutator }, size, align, offset, allocator)
 }
 
 #[no_mangle]
-pub extern "C" fn alloc_slow(mutator: MMTKHandle<SelectedMutator<JikesRVM>>, size: usize,
+pub extern "C" fn alloc_slow(mutator: *mut SelectedMutator<JikesRVM>, size: usize,
                                 align: usize, offset: isize, allocator: Allocator) -> Address {
-    memory_manager::alloc_slow::<JikesRVM>(mutator, size, align, offset, allocator)
+    memory_manager::alloc_slow::<JikesRVM>(unsafe { &mut *mutator }, size, align, offset, allocator)
 }
 
 #[no_mangle]
-pub extern "C" fn post_alloc(mutator: MMTKHandle<SelectedMutator<JikesRVM>>, refer: ObjectReference, type_refer: ObjectReference,
+pub extern "C" fn post_alloc(mutator: *mut SelectedMutator<JikesRVM>, refer: ObjectReference, type_refer: ObjectReference,
                                 bytes: usize, allocator: Allocator) {
-    memory_manager::post_alloc::<JikesRVM>(mutator, refer, type_refer, bytes, allocator)
+    memory_manager::post_alloc::<JikesRVM>(unsafe { &mut *mutator }, refer, type_refer, bytes, allocator)
 }
-
-//#[no_mangle]
-//pub extern "C" fn mmtk_malloc(size: usize) -> *mut c_void {
-//    memory_manager::mmtk_malloc::<JikesRVM>(size)
-//}
 
 #[no_mangle]
 pub extern "C" fn will_never_move(object: ObjectReference) -> bool {
@@ -68,23 +64,23 @@ pub extern "C" fn is_valid_ref(val: ObjectReference) -> bool {
 }
 
 #[no_mangle]
-pub extern "C" fn report_delayed_root_edge(trace_local: MMTKHandle<SelectedTraceLocal<JikesRVM>>, addr: Address) {
-    memory_manager::report_delayed_root_edge(&SINGLETON, trace_local, addr)
+pub extern "C" fn report_delayed_root_edge(trace_local: *mut SelectedTraceLocal<JikesRVM>, addr: Address) {
+    memory_manager::report_delayed_root_edge(&SINGLETON, unsafe { &mut *trace_local }, addr)
 }
 
 #[no_mangle]
-pub extern "C" fn will_not_move_in_current_collection(trace_local: MMTKHandle<SelectedTraceLocal<JikesRVM>>, obj: ObjectReference) -> bool {
-    memory_manager::will_not_move_in_current_collection(&SINGLETON, trace_local, obj)
+pub extern "C" fn will_not_move_in_current_collection(trace_local: *mut SelectedTraceLocal<JikesRVM>, obj: ObjectReference) -> bool {
+    memory_manager::will_not_move_in_current_collection(&SINGLETON, unsafe { &mut *trace_local }, obj)
 }
 
 #[no_mangle]
-pub extern "C" fn process_interior_edge(trace_local: MMTKHandle<SelectedTraceLocal<JikesRVM>>, target: ObjectReference, slot: Address, root: bool) {
-    memory_manager::process_interior_edge(&SINGLETON, trace_local, target, slot, root)
+pub extern "C" fn process_interior_edge(trace_local: *mut SelectedTraceLocal<JikesRVM>, target: ObjectReference, slot: Address, root: bool) {
+    memory_manager::process_interior_edge(&SINGLETON, unsafe { &mut *trace_local }, target, slot, root)
 }
 
 #[no_mangle]
-pub extern "C" fn start_worker(tls: OpaquePointer, worker: MMTKHandle<SelectedCollector<JikesRVM>>) {
-    memory_manager::start_worker::<JikesRVM>(tls, worker)
+pub extern "C" fn start_worker(tls: OpaquePointer, worker: *mut SelectedCollector<JikesRVM>) {
+    memory_manager::start_worker::<JikesRVM>(tls, unsafe { worker.as_mut().unwrap() })
 }
 
 #[no_mangle]
@@ -114,23 +110,23 @@ pub extern "C" fn scan_region() {
 }
 
 #[no_mangle]
-pub extern "C" fn trace_get_forwarded_referent(trace_local: MMTKHandle<SelectedTraceLocal<JikesRVM>>, object: ObjectReference) -> ObjectReference{
-    memory_manager::trace_get_forwarded_referent::<JikesRVM>(trace_local, object)
+pub extern "C" fn trace_get_forwarded_referent(trace_local: *mut SelectedTraceLocal<JikesRVM>, object: ObjectReference) -> ObjectReference{
+    memory_manager::trace_get_forwarded_referent::<JikesRVM>(unsafe { &mut *trace_local }, object)
 }
 
 #[no_mangle]
-pub extern "C" fn trace_get_forwarded_reference(trace_local: MMTKHandle<SelectedTraceLocal<JikesRVM>>, object: ObjectReference) -> ObjectReference{
-    memory_manager::trace_get_forwarded_reference::<JikesRVM>(trace_local, object)
+pub extern "C" fn trace_get_forwarded_reference(trace_local: *mut SelectedTraceLocal<JikesRVM>, object: ObjectReference) -> ObjectReference{
+    memory_manager::trace_get_forwarded_reference::<JikesRVM>(unsafe { &mut *trace_local }, object)
 }
 
 #[no_mangle]
-pub extern "C" fn trace_is_live(trace_local: MMTKHandle<SelectedTraceLocal<JikesRVM>>, object: ObjectReference) -> bool{
-    memory_manager::trace_is_live::<JikesRVM>(trace_local, object)
+pub extern "C" fn trace_is_live(trace_local: *mut SelectedTraceLocal<JikesRVM>, object: ObjectReference) -> bool{
+    memory_manager::trace_is_live::<JikesRVM>(unsafe { &mut *trace_local }, object)
 }
 
 #[no_mangle]
-pub extern "C" fn trace_retain_referent(trace_local: MMTKHandle<SelectedTraceLocal<JikesRVM>>, object: ObjectReference) -> ObjectReference{
-    memory_manager::trace_retain_referent::<JikesRVM>(trace_local, object)
+pub extern "C" fn trace_retain_referent(trace_local: *mut SelectedTraceLocal<JikesRVM>, object: ObjectReference) -> ObjectReference{
+    memory_manager::trace_retain_referent::<JikesRVM>(unsafe { &mut *trace_local }, object)
 }
 
 #[no_mangle]
@@ -180,7 +176,9 @@ pub extern "C" fn harness_end(tls: OpaquePointer) {
 
 #[no_mangle]
 pub extern "C" fn process(name: *const c_char, value: *const c_char) -> bool {
-    memory_manager::process(&SINGLETON, name, value)
+    let name_str: &CStr = unsafe { CStr::from_ptr(name) };
+    let value_str: &CStr = unsafe { CStr::from_ptr(value) };
+    memory_manager::process(&SINGLETON, name_str.to_str().unwrap(), value_str.to_str().unwrap())
 }
 
 #[no_mangle]

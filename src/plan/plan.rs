@@ -24,7 +24,6 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use mmtk::MMTK;
 use vm::VMBinding;
-use util::handle::MMTKHandle;
 
 // FIXME: Move somewhere more appropriate
 pub fn create_vm_space<VM: VMBinding>(vm_map: &'static VMMap, mmapper: &'static Mmapper, heap: &mut HeapMeta, boot_segment_bytes: usize) -> ImmortalSpace<VM> {
@@ -51,7 +50,7 @@ pub trait Plan<VM: VMBinding>: Sized {
     }
     // unsafe because this can only be called once by the init thread
     fn gc_init(&self, heap_size: usize, vm_map: &'static VMMap);
-    fn bind_mutator(&'static self, tls: OpaquePointer) -> MMTKHandle<Self::MutatorT>;
+    fn bind_mutator(&'static self, tls: OpaquePointer) -> Box<Self::MutatorT>;
     fn will_never_move(&self, object: ObjectReference) -> bool;
     // unsafe because only the primary collector thread can call this
     unsafe fn collection_phase(&self, tls: OpaquePointer, phase: &Phase);

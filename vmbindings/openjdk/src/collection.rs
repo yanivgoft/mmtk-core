@@ -26,7 +26,7 @@ impl Collection<OpenJDK> for VMCollection {
         unimplemented!();
     }
 
-    unsafe fn spawn_worker_thread<T: ParallelCollector<OpenJDK>>(tls: OpaquePointer, ctx: *mut T) {
+    fn spawn_worker_thread<T: ParallelCollector<OpenJDK>>(tls: OpaquePointer, ctx: Option<&mut T>) {
         unimplemented!();
     }
 

@@ -21,7 +21,6 @@ pub mod int_array_freelist;
 pub mod treadmill;
 pub mod opaque_pointer;
 pub mod memory;
-pub mod handle;
 
 #[cfg(test)]
 pub mod test_util;
@@ -29,6 +28,5 @@ pub mod test_util;
 pub use self::opaque_pointer::OpaquePointer;
 pub use self::address::Address;
 pub use self::address::ObjectReference;
-pub use self::handle::MMTKHandle;
 pub use self::synchronized_counter::SynchronizedCounter;
 pub use self::reference_processor::ReferenceProcessor;
