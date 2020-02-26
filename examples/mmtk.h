@@ -1,3 +1,9 @@
+// This is an example of native API for the single instance MMTk.
+
+// Note: the mmtk core does not directly provide this API. However, it provides a similar multi-instance Rust API.
+// A VM binding should write their own C header file (possibly based on this example with their own extension and modification),
+// and expose the Rust API based on their native API.
+
 #ifndef MMTK_H
 #define MMTK_H
 
@@ -63,52 +69,13 @@ extern void start_control_collector(void *tls);
 extern void start_worker(void *tls, void* worker);
 
 /**
- * JikesRVM-specific
- */
-extern void jikesrvm_gc_init(void* jtoc, size_t heap_size);
-
-extern void enable_collection(void *tls);
-
-extern void* jikesrvm_alloc(MMTk_Mutator mutator, size_t size,
-    size_t align, ssize_t offset, int allocator);
-
-extern void* jikesrvm_alloc_slow(MMTk_Mutator mutator, size_t size,
-    size_t align, ssize_t offset, int allocator);
-
-extern void jikesrvm_handle_user_collection_request(void *tls);
-
-extern void jikesrvm_harness_begin(void *tls);
-
-/**
  * VM Accounting
  */
 extern size_t free_bytes();
 extern size_t total_bytes();
-
-/**
- * OpenJDK-specific
- */
-typedef struct {
-    void (*stop_all_mutators) (void *tls);
-    void (*resume_mutators) (void *tls);
-} OpenJDK_Upcalls;
-
-extern void openjdk_gc_init(OpenJDK_Upcalls *calls, size_t heap_size);
-
 extern size_t used_bytes();
 extern void* starting_heap_address();
 extern void* last_heap_address();
-extern void iterator(); // ???
-
-
-// (It is the total_space - capacity_of_to_space in Semispace )
-// PZ: It shouldn't be ...?
-extern size_t openjdk_max_capacity();
-extern size_t _noaccess_prefix();  // ???
-extern size_t _alignment();        // ???
-extern bool   executable();
-
-//  Last_gc_time();
 
 /**
  * Reference Processing
