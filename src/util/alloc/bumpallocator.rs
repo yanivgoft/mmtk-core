@@ -42,7 +42,7 @@ impl<VM: VMBinding, PR: PageResource<VM>> BumpAllocator<VM, PR> {
         self.limit = limit;
     }
 
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         self.cursor = unsafe { Address::zero() };
         self.limit = unsafe { Address::zero() };
     }

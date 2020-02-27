@@ -12,7 +12,6 @@ pub struct VMScanning {}
 
 impl Scanning<OpenJDK> for VMScanning {
     fn scan_object<T: TransitiveClosure>(trace: &mut T, object: ObjectReference, tls: OpaquePointer) {
-        // unimplemented!()
         unsafe {
             ((*UPCALLS).scan_object)(::std::mem::transmute(trace), ::std::mem::transmute(object), tls);
         }

@@ -92,9 +92,7 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
     }
 
     fn prepare_available_bits(object: ObjectReference) -> usize {
-        // println!("Object = {:?}", object);
         unsafe { object.to_address().load() }
-        // unimplemented!()
     }
 
     fn write_available_byte(object: ObjectReference, val: u8) {
@@ -117,7 +115,6 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
             &*(object.to_address().as_usize() as *const AtomicUsize)
         };
         loc.load(Ordering::SeqCst)
-        // unsafe { object.to_address().load() }
     }
 
     fn GC_HEADER_OFFSET() -> isize {

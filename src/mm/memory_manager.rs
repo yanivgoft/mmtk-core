@@ -33,10 +33,6 @@ pub fn start_control_collector<VM: VMBinding>(mmtk: &MMTK<VM>, tls: OpaquePointe
     mmtk.plan.common().control_collector_context.run(tls);
 }
 
-// pub fn request_gc() {
-//     SINGLETON.plan.common().control_collector_context.request();
-// }
-
 pub fn gc_init<VM: VMBinding>(mmtk: &MMTK<VM>, heap_size: usize) {
     ::util::logger::init().unwrap();
     mmtk.plan.gc_init(heap_size, &mmtk.vm_map);

@@ -143,7 +143,7 @@ pub trait Space<VM: VMBinding>: Sized + 'static {
 
     fn print_vm_map(&self) {
         let common = self.common();
-        print!("{:4} {:5}MB ", common.name, self.reserved_pages() * BYTES_IN_PAGE / BYTES_IN_MBYTE);
+        print!("{} ", common.name);
         if common.immortal {
             print!("I");
         } else {

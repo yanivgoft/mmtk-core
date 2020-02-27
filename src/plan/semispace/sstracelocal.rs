@@ -51,9 +51,7 @@ impl<VM: VMBinding> TraceLocal for SSTraceLocal<VM> {
     fn process_root_edge(&mut self, slot: Address, untraced: bool) {
         trace!("process_root_edge({:?}, {:?})", slot, untraced);
         let object: ObjectReference = unsafe { slot.load() };
-        trace!("process_root_edge({:?}, {:?}) -> {:?}", slot, untraced, object);
         let new_object = self.trace_object(object);
-        trace!("Overwrite to {:?}", new_object);
         if self.overwrite_reference_during_trace() {
             unsafe { slot.store(new_object) };
         }
@@ -89,7 +87,7 @@ impl<VM: VMBinding> TraceLocal for SSTraceLocal<VM> {
             return plan_unsync.los.trace_object(self, object);
         }
 
-        panic!("No special case for space in trace_object, object = {:?}", object);
+        panic!("No special case for space in trace_object");
     }
 
     fn complete_trace(&mut self) {
@@ -127,7 +125,7 @@ impl<VM: VMBinding> TraceLocal for SSTraceLocal<VM> {
     }
 
     fn report_delayed_root_edge(&mut self, slot: Address) {
-        trace!("report_delayed_root_edge {:?} -> {:?}", slot, unsafe { slot.load::<Address>() });
+        trace!("report_delayed_root_edge {:?}", slot);
         self.root_locations.enqueue(slot);
     }
 

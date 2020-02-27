@@ -21,7 +21,6 @@ pub mod int_array_freelist;
 pub mod treadmill;
 pub mod opaque_pointer;
 pub mod memory;
-pub mod bitmap;
 
 #[cfg(test)]
 pub mod test_util;

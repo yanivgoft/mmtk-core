@@ -53,8 +53,6 @@ pub fn forward_object<VM: VMBinding>(object: ObjectReference, allocator: Allocat
     let new_object = VM::VMObjectModel::copy(object, allocator, tls);
     let forwarded = (FORWARDED as usize) << VM::VMObjectModel::GC_BYTE_OFFSET;
     VM::VMObjectModel::write_available_bits_word(object, new_object.to_address().as_usize() | forwarded);
-    // let gc_byte = VMObjectModel::get_gc_byte(object);
-    // gc_byte.store(gc_byte.load(Ordering::SeqCst) | FORWARDED, Ordering::SeqCst);
     new_object
 }
 
