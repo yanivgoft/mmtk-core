@@ -205,8 +205,9 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
 
     fn attempt_gc_word(o: ObjectReference, old: usize, new: usize) -> bool {
         if USE_PRECEEDING_GC_HEADER {
-            let slot: &AtomicUsize = unsafe { &*(VM::VMObjectModel::object_start_ref(o) - PRECEEDING_GC_HEADER_BYTES).to_ptr::<AtomicUsize>() };
-            slot.compare_and_swap(old, new, Ordering::SeqCst) == old
+            unsafe {
+                (VM::VMObjectModel::object_start_ref(o) - PRECEEDING_GC_HEADER_BYTES).compare_exchange::<AtomicUsize>(old, new, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+            }
         } else {
             VM::VMObjectModel::attempt_available_bits(o, old, new)
         }

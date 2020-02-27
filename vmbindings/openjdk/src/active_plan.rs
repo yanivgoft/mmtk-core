@@ -16,8 +16,8 @@ impl ActivePlan<OpenJDK> for VMActivePlan {
 
     unsafe fn collector(tls: OpaquePointer) -> &'static mut <SelectedPlan<OpenJDK> as Plan<OpenJDK>>::CollectorT {
         let c = ((*UPCALLS).active_collector)(tls);
-        assert!(c != 0 as *mut c_void);
-        unsafe { ::std::mem::transmute(c) }
+        assert!(!c.is_null());
+        unsafe { &mut *c }
     }
 
     unsafe fn is_mutator(tls: OpaquePointer) -> bool {
@@ -26,7 +26,7 @@ impl ActivePlan<OpenJDK> for VMActivePlan {
 
     unsafe fn mutator(tls: OpaquePointer) -> &'static mut <SelectedPlan<OpenJDK> as Plan<OpenJDK>>::MutatorT {
         let m = ((*UPCALLS).get_mmtk_mutator)(tls);
-        ::std::mem::transmute(m)
+        unsafe { &mut *m }
     }
 
     fn collector_count() -> usize {
@@ -42,8 +42,12 @@ impl ActivePlan<OpenJDK> for VMActivePlan {
     fn get_next_mutator() -> Option<&'static mut <SelectedPlan<OpenJDK> as Plan<OpenJDK>>::MutatorT> {
         let _guard = MUTATOR_ITERATOR_LOCK.lock().unwrap();
         unsafe {
-            let c = ((*UPCALLS).get_next_mutator)();
-            ::std::mem::transmute(c)
+            let m = ((*UPCALLS).get_next_mutator)();
+            if m.is_null() {
+                None
+            } else {
+                Some(&mut *m)
+            }
         }
     }
 }

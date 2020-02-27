@@ -87,8 +87,9 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
     }
 
     fn attempt_available_bits(object: ObjectReference, old: usize, new: usize) -> bool {
-        let mark_slot: AtomicUsize = unsafe { ::std::mem::transmute(object) };
-        mark_slot.compare_and_swap(old, new, Ordering::SeqCst) == old
+        unsafe {
+            object.to_address().compare_exchange::<AtomicUsize>(old, new, Ordering::SeqCst, Ordering::SeqCst).is_ok()
+        }
     }
 
     fn prepare_available_bits(object: ObjectReference) -> usize {
@@ -104,17 +105,11 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
     }
 
     fn write_available_bits_word(object: ObjectReference, val: usize) {
-        let loc = unsafe {
-            &*(object.to_address().as_usize() as *const AtomicUsize)
-        };
-        loc.store(val, Ordering::SeqCst);
+        unsafe { object.to_address().atomic_store::<AtomicUsize>(val, Ordering::SeqCst) }
     }
 
     fn read_available_bits_word(object: ObjectReference) -> usize {
-        let loc = unsafe {
-            &*(object.to_address().as_usize() as *const AtomicUsize)
-        };
-        loc.load(Ordering::SeqCst)
+        unsafe { object.to_address().atomic_load::<AtomicUsize>(Ordering::SeqCst) }
     }
 
     fn GC_HEADER_OFFSET() -> isize {
@@ -135,7 +130,7 @@ impl ObjectModel<OpenJDK> for VMObjectModel {
 
     fn dump_object(object: ObjectReference) {
         unsafe {
-            ((*UPCALLS).dump_object)(::std::mem::transmute(object));
+            ((*UPCALLS).dump_object)(object);
         }
     }
 

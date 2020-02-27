@@ -208,9 +208,9 @@ pub unsafe fn trace_is_live<VM: VMBinding>(trace_local: *mut c_void, object: Obj
 }
 
 
-pub unsafe extern fn trace_root_object<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) {
+pub unsafe fn trace_root_object<VM: VMBinding>(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference {
     let local = &mut *(trace_local as *mut <SelectedPlan<VM> as Plan<VM>>::TraceLocalT);
-    local.trace_object(object);
+    local.trace_object(object)
 }
 
 pub unsafe extern fn process_edge<VM: VMBinding>(trace_local: *mut c_void, object: Address) {

@@ -123,7 +123,7 @@ pub unsafe extern fn trace_is_live(trace_local: *mut c_void, object: ObjectRefer
 }
 
 #[no_mangle]
-pub unsafe extern fn trace_root_object(trace_local: *mut c_void, object: ObjectReference) {
+pub unsafe extern fn trace_root_object(trace_local: *mut c_void, object: ObjectReference) -> ObjectReference {
     memory_manager::trace_root_object::<OpenJDK>(trace_local, object)
 }
 

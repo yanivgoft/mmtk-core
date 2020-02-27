@@ -21,12 +21,6 @@ impl Collection<OpenJDK> for VMCollection {
         }
     }
 
-    fn collect_work() {
-        // unsafe {
-        //     ((*UPCALLS).collect_work)();
-        // }
-    }
-
     fn block_for_gc(tls: OpaquePointer) {
         unsafe {
             ((*UPCALLS).block_for_gc)();

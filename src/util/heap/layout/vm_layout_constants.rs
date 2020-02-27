@@ -60,13 +60,8 @@ pub const HEAP_END: Address = chunk_align_up(unsafe{ Address::from_usize(0xb0000
  * HEAP_START and AVAILABLE_START comprises memory directly managed by the VM,
  * and not available to MMTk.
  */
-#[cfg(feature = "jikesrvm")]
 pub const AVAILABLE_START: Address = chunk_align_up(unsafe{ Address::from_usize(
     (0x67000000 + (0x64000000 - 0x60000000)/5)) });
-
-// FIXME: We assme that openjdk's bootimage size is 0
-#[cfg(not(feature = "jikesrvm"))]
-pub const AVAILABLE_START: Address = HEAP_START;    
 
 /**
  * Highest virtual address available for MMTk to manage.  The address space between
