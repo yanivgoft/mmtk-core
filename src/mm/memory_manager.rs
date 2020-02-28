@@ -65,6 +65,10 @@ pub fn bind_mutator<VM: VMBinding>(mmtk: &'static MMTK<VM>, tls: OpaquePointer) 
     SelectedPlan::bind_mutator(&mmtk.plan, tls)
 }
 
+pub fn destroy_mutator<VM: VMBinding>(mutator: Box<SelectedMutator<VM>>) {
+    drop(mutator);
+}
+
 pub fn alloc<VM: VMBinding>(mutator: &mut SelectedMutator<VM>, size: usize,
              align: usize, offset: isize, allocator: Allocator) -> Address {
     mutator.alloc(size, align, offset, allocator)

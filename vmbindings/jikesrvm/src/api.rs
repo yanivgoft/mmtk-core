@@ -36,6 +36,11 @@ pub extern "C" fn bind_mutator(tls: OpaquePointer) -> *mut SelectedMutator<Jikes
 }
 
 #[no_mangle]
+pub extern "C" fn destroy_mutator(mutator: *mut SelectedMutator<JikesRVM>) {
+    memory_manager::destroy_mutator(unsafe { Box::from_raw(mutator) })
+}
+
+#[no_mangle]
 pub extern "C" fn alloc(mutator: *mut SelectedMutator<JikesRVM>, size: usize,
                            align: usize, offset: isize, allocator: Allocator) -> Address {
     memory_manager::alloc::<JikesRVM>(unsafe { &mut *mutator }, size, align, offset, allocator)
