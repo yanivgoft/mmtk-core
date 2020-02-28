@@ -5,16 +5,16 @@ stages:
 build-core:
   stage: build
   script:
-    - cargo build --features nogc
-    - cargo build --features semispace
-    - cargo build --features nogc,sanity
-    - cargo build --features semispace,sanity
+    - cargo +nightly build --features nogc
+    - cargo +nightly build --features semispace
+    - cargo +nightly build --features nogc,sanity
+    - cargo +nightly build --features semispace,sanity
 
 build-dummyvm:
   stage: build
   script:
-    - cargo build --manifest-path vmbindings/dummyvm/Cargo.toml --features nogc
-    - cargo build --manifest-path vmbindings/dummyvm/Cargo.toml --features semispace
+    - cargo +nightly build --manifest-path vmbindings/dummyvm/Cargo.toml --features nogc
+    - cargo +nightly build --manifest-path vmbindings/dummyvm/Cargo.toml --features semispace
 
 cargo-test:
   stage: test
