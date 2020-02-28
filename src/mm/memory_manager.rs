@@ -12,6 +12,7 @@ use ::plan::MutatorContext;
 use ::plan::TraceLocal;
 use ::plan::CollectorContext;
 use ::plan::ParallelCollectorGroup;
+use ::plan::transitive_closure::TransitiveClosure;
 
 use ::vm::Collection;
 
@@ -188,6 +189,14 @@ pub fn trace_get_forwarded_referent<VM: VMBinding>(trace_local: &mut SelectedTra
 
 pub fn trace_get_forwarded_reference<VM: VMBinding>(trace_local: &mut SelectedTraceLocal<VM>, object: ObjectReference) -> ObjectReference {
     trace_local.get_forwarded_reference(object)
+}
+
+pub fn trace_root_object<VM: VMBinding>(trace_local: &mut SelectedTraceLocal<VM>, object: ObjectReference) -> ObjectReference {
+    trace_local.trace_object(object)
+}
+
+pub extern fn process_edge<VM: VMBinding>(trace_local: &mut SelectedTraceLocal<VM>, object: Address) {
+    trace_local.process_edge(object);
 }
 
 pub fn trace_is_live<VM: VMBinding>(trace_local: &mut SelectedTraceLocal<VM>, object: ObjectReference) -> bool{
