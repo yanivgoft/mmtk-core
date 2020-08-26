@@ -25,6 +25,9 @@ pub mod treadmill;
 
 #[cfg(test)]
 pub mod test_util;
+#[cfg(test)]
+#[macro_use]
+pub mod mock_vm;
 
 pub use self::address::Address;
 pub use self::address::ObjectReference;

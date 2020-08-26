@@ -453,3 +453,46 @@ pub fn required_chunks(pages: usize) -> usize {
     let extent = raw_align_up(pages_to_bytes(pages), BYTES_IN_CHUNK);
     extent >> LOG_BYTES_IN_CHUNK
 }
+
+#[cfg(test)]
+mod tests{
+    use crate::policy::space::Space;
+    use crate::util::Address;
+    use crate::util::heap::layout::vm_layout_constants::AVAILABLE_START;
+    use crate::memory_manager as mm;
+
+    #[test]
+    #[cfg(feature = "nogc")]
+    fn is_in_space() {
+        println!("immortal space");
+        SINGLETON.plan.get_immortal_space().print_vm_map();
+        
+        println!("start = {:?}", AVAILABLE_START);
+
+        assert_eq!(SINGLETON.plan.get_immortal_space().in_space(unsafe { AVAILABLE_START.to_object_reference() }), true);
+        assert_eq!(SINGLETON.plan.get_immortal_space().in_space(unsafe { (AVAILABLE_START - 8usize).to_object_reference() }), false);
+        assert_eq!(SINGLETON.plan.get_immortal_space().in_space(unsafe { (AVAILABLE_START + 8usize).to_object_reference() }), true);
+    }
+
+    #[test]
+    #[cfg(feature = "semispace")]
+    fn is_in_space() {
+        // should be true
+        // assert_eq!(SINGLETON.plan.fromspace().in_space(unsafe { AVAILABLE_START.to_object_reference() }), true);
+
+        let instance = mock_vm!(MockVM);
+
+        println!("fromspace");
+        instance.plan.fromspace().print_vm_map();
+        println!("tospace");
+        instance.plan.tospace().print_vm_map();
+
+        println!("start = {:?}", AVAILABLE_START);
+
+        assert_eq!(instance.plan.tospace().in_space(unsafe { (AVAILABLE_START - 8usize).to_object_reference() }), false);
+        assert_eq!(instance.plan.tospace().in_space(unsafe { AVAILABLE_START.to_object_reference() }), true);
+        assert_eq!(instance.plan.tospace().in_space(unsafe { (AVAILABLE_START + 8usize).to_object_reference() }), true);
+        // assert!(SINGLETON.plan.get_immortal_space().in_space(unsafe { (AVAILABLE_START - 8usize).to_object_reference() }), false);
+        // assert!(SINGLETON.plan.get_immortal_space().in_space(unsafe { (AVAILABLE_START + 8usize).to_object_reference() }), true);
+    }    
+}
