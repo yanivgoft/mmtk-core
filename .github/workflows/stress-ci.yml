@@ -8,6 +8,7 @@ on:
 jobs:
   jikesrvm-stress-test:
     runs-on: [self-hosted, Linux, freq-scaling-on]
+    timeout-minutes: 720
     steps:
       - name: Checkout MMTk Core
         uses: actions/checkout@v2
@@ -75,6 +76,7 @@ jobs:
 
   openjdk-stress-test:
     runs-on: [self-hosted, Linux, freq-scaling-on]
+    timeout-minutes: 720
     steps:
       - name: Checkout MMTk Core
         uses: actions/checkout@v2
