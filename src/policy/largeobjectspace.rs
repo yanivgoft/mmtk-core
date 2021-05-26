@@ -76,7 +76,7 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
         scope: SideMetadataScope::PolicySpecific,
         offset: LOCAL_SIDE_METADATA_BASE_ADDRESS.as_usize(),
         log_num_of_bits: 0,
-        log_min_obj_size: constants::LOG_MIN_OBJECT_SIZE as _,
+        log_min_obj_size: constants::LOG_BYTES_IN_PAGE as _,
     };
     const NURSERY_STATE: SideMetadataSpec = SideMetadataSpec {
         scope: SideMetadataScope::PolicySpecific,
