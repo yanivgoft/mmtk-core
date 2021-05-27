@@ -190,12 +190,12 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
 
     fn test_and_mark(&self, object: ObjectReference, value: u8) -> bool {
         let cell = self.get_cell(object);
-        let mut old_value = unsafe { side_metadata::load(Self::MARK_TABLE, cell) } as u8;
+        let mut old_value = side_metadata::load_atomic(Self::MARK_TABLE, cell) as u8;
         if old_value == value {
             return false;
         }
         while !side_metadata::compare_exchange_atomic(Self::MARK_TABLE, cell, old_value as _, value as _) {
-            old_value = unsafe { side_metadata::load(Self::MARK_TABLE, cell) } as u8;
+            old_value = side_metadata::load_atomic(Self::MARK_TABLE, cell) as u8;
             if old_value == value {
                 return false;
             }
@@ -204,11 +204,11 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
     }
 
     fn test_mark_bit(&self, object: ObjectReference, value: u8) -> bool {
-        unsafe { side_metadata::load(Self::MARK_TABLE, self.get_cell(object)) as u8 == value }
+        side_metadata::load_atomic(Self::MARK_TABLE, self.get_cell(object)) as u8 == value
     }
 
     fn is_in_nursery(&self, object: ObjectReference) -> bool {
-        unsafe { side_metadata::load(Self::NURSERY_STATE, self.get_cell(object)) == 1 }
+        side_metadata::load_atomic(Self::NURSERY_STATE, self.get_cell(object)) == 1
     }
 
     fn clear_nursery(&self, object: ObjectReference) {

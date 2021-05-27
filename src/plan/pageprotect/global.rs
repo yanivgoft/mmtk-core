@@ -24,7 +24,7 @@ use crate::{plan::global::BasePlan, vm::VMBinding};
 use std::sync::Arc;
 use enum_map::EnumMap;
 use crate::util::side_metadata::SideMetadataContext;
-
+use crate::util::side_metadata::sanity::SideMetadataSanity;
 
 
 pub struct PageProtect<VM: VMBinding> {
@@ -138,7 +138,7 @@ impl<VM: VMBinding> PageProtect<VM> {
         let mut heap = HeapMeta::new(HEAP_START, HEAP_END);
         let global_metadata_specs = SideMetadataContext::new_global_specs(&[]);
 
-        PageProtect {
+        let res = PageProtect {
             space: LargeObjectSpace::new(
                 "los",
                 true,
@@ -150,6 +150,16 @@ impl<VM: VMBinding> PageProtect<VM> {
                 &CONSTRAINTS,
             ),
             common: CommonPlan::new(vm_map, mmapper, options, heap, &CONSTRAINTS, global_metadata_specs.clone()),
+        };
+
+        {
+            let mut side_metadata_sanity_checker = SideMetadataSanity::new();
+            res.common
+                .verify_side_metadata_sanity(&mut side_metadata_sanity_checker);
+            res.space
+                .verify_side_metadata_sanity(&mut side_metadata_sanity_checker);
         }
+
+        res
     }
 }
