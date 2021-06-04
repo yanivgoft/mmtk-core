@@ -136,11 +136,6 @@ impl<VM: VMBinding> Space<VM> for MallocSpace<VM> {
         side_metadata_sanity_checker
             .verify_metadata_context(std::any::type_name::<Self>(), self.metadata.get_context())
     }
-
-    fn verify_side_metadata_sanity(&self, side_metadata_sanity_checker: &mut SideMetadataSanity) {
-        side_metadata_sanity_checker
-            .verify_metadata_context(std::any::type_name::<Self>(), self.metadata.get_context())
-    }
 }
 
 impl<VM: VMBinding> MallocSpace<VM> {

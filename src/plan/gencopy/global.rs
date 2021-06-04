@@ -244,10 +244,7 @@ impl<VM: VMBinding> GenCopy<VM> {
                 global_metadata_specs,
             ),
             in_nursery: AtomicBool::default(),
-<<<<<<< HEAD
-=======
             next_gc_full_heap: AtomicBool::new(false),
->>>>>>> mmapper-refactor
         };
 
         {
