@@ -19,6 +19,8 @@ use crate::util::opaque_pointer::*;
 use crate::vm::*;
 use std::marker::PhantomData;
 use std::mem::MaybeUninit;
+use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::Ordering;
 
 const UNINITIALIZED_WATER_MARK: i32 = -1;
 
@@ -46,6 +48,9 @@ pub struct FreeListPageResource<VM: VMBinding> {
     _p: PhantomData<VM>,
     /// Protect memory on release, and unprotect on re-allocate.
     pub(crate) protect_memory_on_release: bool,
+
+    protect_count: AtomicUsize,
+    protect_success: AtomicUsize,
 }
 
 struct FreeListPageResourceSync {
@@ -167,6 +172,8 @@ impl<VM: VMBinding> FreeListPageResource<VM> {
             }),
             _p: PhantomData,
             protect_memory_on_release: false,
+            protect_count: AtomicUsize::new(0),
+            protect_success: AtomicUsize::new(0)
         };
         if !flpr.common.growable {
             // For non-growable space, we just need to reserve metadata according to the requested size.
@@ -203,6 +210,8 @@ impl<VM: VMBinding> FreeListPageResource<VM> {
             }),
             _p: PhantomData,
             protect_memory_on_release: false,
+            protect_count: AtomicUsize::new(0),
+            protect_success: AtomicUsize::new(0)
         }
     }
 
@@ -214,13 +223,31 @@ impl<VM: VMBinding> FreeListPageResource<VM> {
         // > the total number of mappings with distinct attributes
         // > (e.g., read versus read/write protection) exceeding the
         // > allowed maximum.
-        let _ = memory::mprotect(start, pages << LOG_BYTES_IN_PAGE);
+        self.protect_count.fetch_add(1, Ordering::SeqCst);
+        match memory::mprotect(start, pages << LOG_BYTES_IN_PAGE) {
+            Ok(_) => { self.protect_success.fetch_add(1, Ordering::SeqCst); },
+            Err(e) => {
+                use crate::mmtk::MMAPPER;
+                use crate::util::heap::layout::Mmapper;
+
+                assert!(MMAPPER.is_mapped_address(start), "mprotect failed on an unmapped address: {}", start);
+                panic!("mprotect fail: {:?}", e);
+
+                // let count = self.protect_count.load(Ordering::SeqCst);
+                // if count % 10000 == 0 {
+                //     error!("protect success/total: {}/{}", self.protect_success.load(Ordering::SeqCst), self.protect_count.load(Ordering::SeqCst));
+                // }
+            }
+        }
     }
 
     /// Unprotect the memory
     fn munprotect(&self, start: Address, pages: usize) {
         // No `unwrap()` here. See explanation in `mprotect`.
-        let _ = memory::munprotect(start, pages << LOG_BYTES_IN_PAGE);
+        match memory::munprotect(start, pages << LOG_BYTES_IN_PAGE) {
+            Ok(_) => {}
+            Err(e) => panic!("Failed to unprotect memory {}: {:?}", start, e),
+        }
     }
 
     fn allocate_contiguous_chunks(
