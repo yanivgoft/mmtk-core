@@ -71,6 +71,7 @@ impl<VM: VMBinding> SFT for LargeObjectSpace<VM> {
 
         let cell = VM::VMObjectModel::object_start_ref(object);
         self.treadmill.add_to_treadmill(cell, alloc);
+        debug!("init LOS obj: cell={}", cell);
     }
 }
 
@@ -84,13 +85,16 @@ impl<VM: VMBinding> Space<VM> for LargeObjectSpace<VM> {
     fn get_page_resource(&self) -> &dyn PageResource<VM> {
         &self.pr
     }
-    fn init(&mut self, _vm_map: &'static VMMap) {}
+    fn init(&mut self, _vm_map: &'static VMMap) {
+        self.common().init(self.as_space());
+    }
 
     fn common(&self) -> &CommonSpace<VM> {
         &self.common
     }
 
     fn release_multiple_pages(&mut self, start: Address) {
+        assert!(false, "release_multiple_pages is called");
         self.pr.release_pages(start);
     }
 }
@@ -151,11 +155,13 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
     }
 
     pub fn release(&mut self, full_heap: bool) {
+        debug!("before release: {:?}", self.treadmill);
         self.sweep_large_pages(true);
         debug_assert!(self.treadmill.nursery_empty());
         if full_heap {
             self.sweep_large_pages(false);
         }
+        debug!("after release: {:?}", self.treadmill);
     }
     // Allow nested-if for this function to make it clear that test_and_mark() is only executed
     // for the outer condition is met.
@@ -166,6 +172,7 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
         object: ObjectReference,
     ) -> ObjectReference {
         let nursery_object = self.is_in_nursery(object);
+        debug!("before trace LOS: {:?}, nursery obj = {}", self.treadmill, nursery_object);
         if !self.in_nursery_gc || nursery_object {
             // Note that test_and_mark() has side effects
             if self.test_and_mark(object, self.mark_state) {
@@ -175,6 +182,7 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
                 trace.process_node(object);
             }
         }
+        debug!("after trace LOS: {:?}", self.treadmill);
         object
     }
 
@@ -186,11 +194,13 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
             for cell in self.treadmill.collect_nursery() {
                 // println!("- cn {}", cell);
                 self.pr.release_pages(get_super_page(cell));
+                trace!("LOS sweep object: {}", cell);
             }
         } else {
             for cell in self.treadmill.collect() {
                 // println!("- ts {}", cell);
                 self.pr.release_pages(get_super_page(cell));
+                trace!("LOS sweep object: {}", cell);
             }
         }
     }
@@ -201,6 +211,7 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
     }
 
     fn test_and_mark(&self, object: ObjectReference, value: usize) -> bool {
+        trace!("test_and_mark: object={}, mark_state={}", object, value);
         loop {
             let mask = if self.in_nursery_gc {
                 LOS_BIT_MASK
@@ -213,8 +224,12 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
                 None,
                 Some(Ordering::SeqCst),
             );
+            trace!("loaded value = {:b}", old_value);
+            trace!("mask = {:b}", mask);
             let mark_bit = old_value & mask;
+            trace!("mark bit = {:b}", mark_bit);
             if mark_bit == value {
+                trace!("not alive");
                 return false;
             }
             if compare_exchange_metadata::<VM>(
@@ -226,6 +241,8 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
                 Ordering::SeqCst,
                 Ordering::SeqCst,
             ) {
+                trace!("alive");
+                trace!("write bits: {:b} -> {:b}", old_value, old_value & !LOS_BIT_MASK | value);
                 break;
             }
         }
@@ -272,6 +289,7 @@ impl<VM: VMBinding> LargeObjectSpace<VM> {
                 Ordering::SeqCst,
                 Ordering::SeqCst,
             ) {
+                trace!("clear nursery: {:b} -> {:b}", old_val, new_val);
                 break;
             }
         }

@@ -232,6 +232,7 @@ impl<'a> SFTMap<'a> {
                 new
             );
         }
+        debug_assert!(vec!["immortal", "los", "nursery", "copyspace0", "copyspace1"].contains(&sft.name()), "set SFT for {}", sft.name());
         self_mut.sft[chunk] = sft;
     }
 
