@@ -94,6 +94,12 @@ impl FinalizableProcessor {
     pub fn get_ready_object(&mut self) -> Option<ObjectReference> {
         self.ready_for_finalize.pop()
     }
+
+    pub fn finalize_all_candidates(&mut self) {
+        for object in self.candidates.drain(0..) {
+            self.ready_for_finalize.push(object);
+        }
+    }
 }
 
 #[derive(Default)]

@@ -419,6 +419,14 @@ pub fn add_finalizer<VM: VMBinding>(mmtk: &'static MMTK<VM>, object: ObjectRefer
     mmtk.finalizable_processor.lock().unwrap().add(object);
 }
 
+pub fn finalize_all_candidates<VM: VMBinding>(mmtk: &'static MMTK<VM>) {
+    if mmtk.options.no_finalizer {
+        warn!("finalize_all_candidates() is called when no_finalizer = true");
+    }
+
+    mmtk.finalizable_processor.lock().unwrap().finalize_all_candidates();
+}
+
 /// Get an object that is ready for finalization. After each GC, if any registered object is not
 /// alive, this call will return one of the objects. MMTk will retain the liveness of those objects
 /// until they are popped through this call. Once an object is popped, it is the responsibility of
