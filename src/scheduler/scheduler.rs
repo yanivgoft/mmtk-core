@@ -11,8 +11,8 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 
-pub const FORCE_SINGLE_THREADED_BUCKETS: bool = true;
-pub const SINGLE_THREADED_BUCKETS: &[WorkBucketStage] = &[WorkBucketStage::Closure];
+pub const FORCE_BUCKETS_SINGLE_THREADED: bool = false;
+pub const FORCED_BUCKETS: &[WorkBucketStage] = &[WorkBucketStage::Closure];
 
 pub enum CoordinatorMessage<VM: VMBinding> {
     Work(Box<dyn CoordinatorWork<VM>>),
@@ -504,24 +504,49 @@ impl<VM: VMBinding> GCWorkScheduler<VM> {
         self.worker_monitor.1.notify_all();
     }
 
+    #[inline(always)]
+    fn should_force_single_threaded_work(stage: WorkBucketStage) -> bool {
+        FORCE_BUCKETS_SINGLE_THREADED && FORCED_BUCKETS.iter().any(|&x| x == stage)
+    }
+
     pub fn add_work<W: GCWork<VM>>(&self, stage: WorkBucketStage, packet: W) {
-        self.work_buckets[stage].add(packet);
+        if Self::should_force_single_threaded_work(stage) {
+            self.add_single_threaded_work(stage, packet);
+        } else {
+            self.work_buckets[stage].add(packet);
+        }
     }
 
     pub fn bulk_add_work(&self, stage: WorkBucketStage, work: Vec<Box<dyn GCWork<VM>>>) {
-        self.work_buckets[stage].bulk_add(work)
+        if Self::should_force_single_threaded_work(stage) {
+            self.bulk_add_single_threaded_work(stage, work);
+        } else {
+            self.work_buckets[stage].bulk_add(work);
+        }
     }
 
     pub fn add_work_with_priority(&self, stage: WorkBucketStage, priority: usize, packet: Box<dyn GCWork<VM>>) {
-        self.work_buckets[stage].add_with_priority(priority, packet);
+        if Self::should_force_single_threaded_work(stage) {
+            self.add_single_threaded_work_with_priority(stage, priority, packet);
+        } else {
+            self.work_buckets[stage].add_with_priority(priority, packet);
+        }
     }
 
     pub fn is_bucket_activated(&self, stage: WorkBucketStage) -> bool {
-        self.work_buckets[stage].is_activated()
+        if Self::should_force_single_threaded_work(stage) {
+            self.single_threaded_work_buckets[stage].is_activated()
+        } else {
+            self.work_buckets[stage].is_activated()
+        }
     }
 
     pub fn add_single_threaded_work<W: GCWork<VM>>(&self, stage: WorkBucketStage, packet: W) {
         self.single_threaded_work_buckets[stage].add(packet);
+    }
+
+    pub fn bulk_add_single_threaded_work(&self, stage: WorkBucketStage, work: Vec<Box<dyn GCWork<VM>>>) {
+        self.single_threaded_work_buckets[stage].bulk_add(work)
     }
 
     pub fn add_single_threaded_work_with_priority(&self, stage: WorkBucketStage, priority: usize, packet: Box<dyn GCWork<VM>>) {
