@@ -51,12 +51,10 @@ impl<VM: VMBinding> GCWork<VM> for UpdateReferences<VM> {
         // scheduler.work_buckets[WorkBucketStage::RefForwarding]
         //     .add(ScanStackRoots::<ForwardingProcessEdges<VM>>::new());
         for mutator in VM::VMActivePlan::mutators() {
-            mmtk.scheduler.work_buckets[WorkBucketStage::RefForwarding]
-                .add(ScanStackRoot::<ForwardingProcessEdges<VM>>(mutator));
+            mmtk.scheduler.add_work(WorkBucketStage::RefForwarding, ScanStackRoot::<ForwardingProcessEdges<VM>>(mutator));
         }
 
-        mmtk.scheduler.work_buckets[WorkBucketStage::RefForwarding]
-            .add(ScanVMSpecificRoots::<ForwardingProcessEdges<VM>>::new());
+        mmtk.scheduler.add_work(WorkBucketStage::RefForwarding, ScanVMSpecificRoots::<ForwardingProcessEdges<VM>>::new());
     }
 }
 

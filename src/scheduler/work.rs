@@ -19,8 +19,7 @@ pub trait GCWork<VM: VMBinding>: 'static + Send {
         mmtk: &'static MMTK<VM>,
     ) {
         self.do_work(worker, mmtk);
-        let bucket = &worker.scheduler().single_threaded_work_buckets[stage];
-        bucket.be_idle();
+        worker.scheduler().make_single_threaded_bucket_idle(stage);
     }
     #[inline]
     fn do_work_with_stat(&mut self, worker: &mut GCWorker<VM>, mmtk: &'static MMTK<VM>) {
@@ -38,10 +37,9 @@ pub trait GCWork<VM: VMBinding>: 'static + Send {
         stage: WorkBucketStage,
         mmtk: &'static MMTK<VM>,
     ) {
-        debug_assert!(worker.scheduler().single_threaded_work_buckets[stage].busy());
+        debug_assert!(worker.scheduler().is_single_threaded_bucket_busy(stage));
         self.do_work_with_stat(worker, mmtk);
-        let bucket = &worker.scheduler().single_threaded_work_buckets[stage];
-        bucket.be_idle();
+        worker.scheduler().make_single_threaded_bucket_idle(stage);
     }
 }
 

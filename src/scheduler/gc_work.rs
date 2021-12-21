@@ -46,8 +46,7 @@ impl<C: GCWorkContext + 'static> GCWork<C::VM> for Prepare<C> {
         plan_mut.prepare(worker.tls);
 
         for mutator in <C::VM as VMBinding>::VMActivePlan::mutators() {
-            mmtk.scheduler.work_buckets[WorkBucketStage::Prepare]
-                .add(PrepareMutator::<C::VM>::new(mutator));
+            mmtk.scheduler.add_work(WorkBucketStage::Prepare, PrepareMutator::<C::VM>::new(mutator));
         }
         for w in &mmtk.scheduler.worker_group().workers {
             w.local_work_bucket
@@ -120,8 +119,7 @@ impl<C: GCWorkContext + 'static> GCWork<C::VM> for Release<C> {
         plan_mut.release(worker.tls);
 
         for mutator in <C::VM as VMBinding>::VMActivePlan::mutators() {
-            mmtk.scheduler.work_buckets[WorkBucketStage::Release]
-                .add(ReleaseMutator::<C::VM>::new(mutator));
+            mmtk.scheduler.add_work(WorkBucketStage::Release, ReleaseMutator::<C::VM>::new(mutator));
         }
         for w in &mmtk.scheduler.worker_group().workers {
             w.local_work_bucket
@@ -212,16 +210,14 @@ impl<E: ProcessEdgesWork> GCWork<E::VM> for StopMutators<E> {
             }
             // Scan mutators
             if <E::VM as VMBinding>::VMScanning::SINGLE_THREAD_MUTATOR_SCANNING {
-                mmtk.scheduler.work_buckets[WorkBucketStage::Prepare]
-                    .add(ScanStackRoots::<E>::new());
+                mmtk.scheduler.add_work(WorkBucketStage::Prepare, ScanStackRoots::<E>::new());
             } else {
                 for mutator in <E::VM as VMBinding>::VMActivePlan::mutators() {
-                    mmtk.scheduler.work_buckets[WorkBucketStage::Prepare]
-                        .add(ScanStackRoot::<E>(mutator));
+                    mmtk.scheduler.add_work(WorkBucketStage::Prepare, ScanStackRoot::<E>(mutator));
                 }
             }
         }
-        mmtk.scheduler.work_buckets[WorkBucketStage::Prepare].add(ScanVMSpecificRoots::<E>::new());
+        mmtk.scheduler.add_work(WorkBucketStage::Prepare, ScanVMSpecificRoots::<E>::new());
     }
 }
 
@@ -440,7 +436,7 @@ pub trait ProcessEdgesWork:
             // Executing these work packets now can remarkably reduce the global synchronization time.
             self.worker().do_work(work_packet);
         } else {
-            self.mmtk.scheduler.work_buckets[WorkBucketStage::Closure].add(work_packet);
+            self.mmtk.scheduler.add_work(WorkBucketStage::Closure, work_packet);
         }
     }
 

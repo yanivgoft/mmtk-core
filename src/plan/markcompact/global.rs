@@ -109,26 +109,21 @@ impl<VM: VMBinding> Plan for MarkCompact<VM> {
         //     );
 
         // Stop & scan mutators (mutator scanning can happen before STW)
-        scheduler.work_buckets[WorkBucketStage::Unconstrained]
-            .add(StopMutators::<MarkingProcessEdges<VM>>::new());
+        scheduler.add_work(WorkBucketStage::Unconstrained, StopMutators::<MarkingProcessEdges<VM>>::new());
 
         // Prepare global/collectors/mutators
-        scheduler.work_buckets[WorkBucketStage::Prepare]
-            .add(Prepare::<MarkCompactGCWorkContext<VM>>::new(self));
+        scheduler.add_work(WorkBucketStage::Prepare, Prepare::<MarkCompactGCWorkContext<VM>>::new(self));
 
         // VM-specific weak ref processing
-        scheduler.work_buckets[WorkBucketStage::RefClosure]
-            .add(ProcessWeakRefs::<MarkingProcessEdges<VM>>::new());
+        scheduler.add_work(WorkBucketStage::RefClosure, ProcessWeakRefs::<MarkingProcessEdges<VM>>::new());
 
-        scheduler.work_buckets[WorkBucketStage::CalculateForwarding]
-            .add(CalculateForwardingAddress::<VM>::new(&self.mc_space));
+        scheduler.add_work(WorkBucketStage::CalculateForwarding, CalculateForwardingAddress::<VM>::new(&self.mc_space));
         // do another trace to update references
-        scheduler.work_buckets[WorkBucketStage::RefForwarding].add(UpdateReferences::<VM>::new());
-        scheduler.work_buckets[WorkBucketStage::Compact].add(Compact::<VM>::new(&self.mc_space));
+        scheduler.add_work(WorkBucketStage::RefForwarding, UpdateReferences::<VM>::new());
+        scheduler.add_work(WorkBucketStage::Compact, Compact::<VM>::new(&self.mc_space));
 
         // Release global/collectors/mutators
-        scheduler.work_buckets[WorkBucketStage::Release]
-            .add(Release::<MarkCompactGCWorkContext<VM>>::new(self));
+        scheduler.add_work(WorkBucketStage::Release, Release::<MarkCompactGCWorkContext<VM>>::new(self));
 
         // Finalization
         if !self.base().options.no_finalizer {
@@ -136,12 +131,10 @@ impl<VM: VMBinding> Plan for MarkCompact<VM> {
             // finalization
             // treat finalizable objects as roots and perform a closure (marking)
             // must be done before calculating forwarding pointers
-            scheduler.work_buckets[WorkBucketStage::RefClosure]
-                .add(Finalization::<MarkingProcessEdges<VM>>::new());
+            scheduler.add_work(WorkBucketStage::RefClosure, Finalization::<MarkingProcessEdges<VM>>::new());
             // update finalizable object references
             // must be done before compacting
-            scheduler.work_buckets[WorkBucketStage::RefForwarding]
-                .add(ForwardFinalization::<ForwardingProcessEdges<VM>>::new());
+            scheduler.add_work(WorkBucketStage::RefForwarding, ForwardFinalization::<ForwardingProcessEdges<VM>>::new());
         }
 
         // Analysis GC work

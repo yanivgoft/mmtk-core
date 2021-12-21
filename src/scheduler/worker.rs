@@ -104,13 +104,13 @@ impl<VM: VMBinding> GCWorker<VM> {
         // Single-threaded work should always be added to the global buckets
         // to avoid multiple workers working on works from a same bucket because the single-threaded property
         // is only maintained by the bucket through giving away one work at a time.
-        self.scheduler.single_threaded_work_buckets[stage].add_with_priority(1000, box work);
+        self.scheduler.add_single_threaded_work_with_priority(stage, 1000, box work);
     }
 
     #[inline]
     pub fn add_work(&mut self, stage: WorkBucketStage, work: impl GCWork<VM>) {
-        if !self.scheduler().work_buckets[stage].is_activated() {
-            self.scheduler.work_buckets[stage].add_with_priority(1000, box work);
+        if !self.scheduler().is_bucket_activated(stage) {
+            self.scheduler.add_work_with_priority(stage, 1000, box work);
             return;
         }
         self.local_work_buffer.push((stage, box work));
@@ -124,7 +124,7 @@ impl<VM: VMBinding> GCWorker<VM> {
         let mut buffer = Vec::with_capacity(LOCALLY_CACHED_WORKS);
         std::mem::swap(&mut buffer, &mut self.local_work_buffer);
         for (bucket, work) in buffer {
-            self.scheduler.work_buckets[bucket].add_with_priority(1000, work);
+            self.scheduler.add_work_with_priority(bucket, 1000, work);
         }
     }
 
@@ -164,7 +164,7 @@ impl<VM: VMBinding> GCWorker<VM> {
         self.parked.store(false, Ordering::SeqCst);
         loop {
             while let Some((stage, mut work)) = self.local_work_buffer.pop() {
-                debug_assert!(self.scheduler.work_buckets[stage].is_activated());
+                debug_assert!(self.scheduler.is_bucket_activated(stage));
                 work.do_work_with_stat(self, mmtk);
             }
             let (mut work, stage) = self.scheduler().poll(self);

@@ -232,7 +232,7 @@ impl<VM: VMBinding> ImmixSpace<VM> {
                     None
                 },
             });
-        self.scheduler().work_buckets[WorkBucketStage::Prepare].bulk_add(work_packets);
+        self.scheduler().bulk_add_work(WorkBucketStage::Prepare, work_packets);
         // Update line mark state
         if !super::BLOCK_ONLY {
             self.line_mark_state.fetch_add(1, Ordering::AcqRel);
@@ -264,7 +264,7 @@ impl<VM: VMBinding> ImmixSpace<VM> {
         // # Safety: ImmixSpace reference is always valid within this collection cycle.
         let space = unsafe { &*(self as *const Self) };
         let work_packets = self.chunk_map.generate_sweep_tasks(space);
-        self.scheduler().work_buckets[WorkBucketStage::Release].bulk_add(work_packets);
+        self.scheduler().bulk_add_work(WorkBucketStage::Release, work_packets);
         if super::DEFRAG {
             self.defrag.release(self);
         }

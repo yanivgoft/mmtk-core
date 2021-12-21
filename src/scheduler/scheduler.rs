@@ -11,6 +11,9 @@ use std::sync::atomic::Ordering;
 use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Condvar, Mutex, RwLock};
 
+pub const FORCE_SINGLE_THREADED_BUCKETS: bool = true;
+pub const SINGLE_THREADED_BUCKETS: &[WorkBucketStage] = &[WorkBucketStage::Closure];
+
 pub enum CoordinatorMessage<VM: VMBinding> {
     Work(Box<dyn CoordinatorWork<VM>>),
     AllWorkerParked,
@@ -18,9 +21,9 @@ pub enum CoordinatorMessage<VM: VMBinding> {
 }
 
 pub struct GCWorkScheduler<VM: VMBinding> {
-    pub work_buckets: EnumMap<WorkBucketStage, WorkBucket<VM>>,
+    work_buckets: EnumMap<WorkBucketStage, WorkBucket<VM>>,
     // TODO Support multiple buckets of one stage.
-    pub single_threaded_work_buckets: EnumMap<WorkBucketStage, WorkBucket<VM>>,
+    single_threaded_work_buckets: EnumMap<WorkBucketStage, WorkBucket<VM>>,
     /// Work for the coordinator thread
     pub coordinator_work: WorkBucket<VM>,
     /// workers
@@ -351,9 +354,11 @@ impl<VM: VMBinding> GCWorkScheduler<VM> {
         debug_assert!(
             !self.single_threaded_work_buckets[WorkBucketStage::RefClosure].is_activated()
         );
+        debug_assert!(!self.single_threaded_work_buckets[WorkBucketStage::CalculateForwarding].is_activated());
         debug_assert!(
             !self.single_threaded_work_buckets[WorkBucketStage::RefForwarding].is_activated()
         );
+        debug_assert!(!self.single_threaded_work_buckets[WorkBucketStage::Compact].is_activated());
         debug_assert!(!self.single_threaded_work_buckets[WorkBucketStage::Release].is_activated());
         debug_assert!(!self.single_threaded_work_buckets[WorkBucketStage::Final].is_activated());
     }
@@ -371,7 +376,9 @@ impl<VM: VMBinding> GCWorkScheduler<VM> {
         self.single_threaded_work_buckets[WorkBucketStage::Prepare].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::Closure].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::RefClosure].deactivate();
+        self.single_threaded_work_buckets[WorkBucketStage::CalculateForwarding].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::RefForwarding].deactivate();
+        self.single_threaded_work_buckets[WorkBucketStage::Compact].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::Release].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::Final].deactivate();
     }
@@ -388,7 +395,9 @@ impl<VM: VMBinding> GCWorkScheduler<VM> {
 
         self.single_threaded_work_buckets[WorkBucketStage::Closure].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::RefClosure].deactivate();
+        self.single_threaded_work_buckets[WorkBucketStage::CalculateForwarding].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::RefForwarding].deactivate();
+        self.single_threaded_work_buckets[WorkBucketStage::Compact].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::Release].deactivate();
         self.single_threaded_work_buckets[WorkBucketStage::Final].deactivate();
     }
@@ -493,5 +502,41 @@ impl<VM: VMBinding> GCWorkScheduler<VM> {
         self.single_threaded_work_buckets[WorkBucketStage::Prepare].activate();
         let _guard = self.worker_monitor.0.lock().unwrap();
         self.worker_monitor.1.notify_all();
+    }
+
+    pub fn add_work<W: GCWork<VM>>(&self, stage: WorkBucketStage, packet: W) {
+        self.work_buckets[stage].add(packet);
+    }
+
+    pub fn bulk_add_work(&self, stage: WorkBucketStage, work: Vec<Box<dyn GCWork<VM>>>) {
+        self.work_buckets[stage].bulk_add(work)
+    }
+
+    pub fn add_work_with_priority(&self, stage: WorkBucketStage, priority: usize, packet: Box<dyn GCWork<VM>>) {
+        self.work_buckets[stage].add_with_priority(priority, packet);
+    }
+
+    pub fn is_bucket_activated(&self, stage: WorkBucketStage) -> bool {
+        self.work_buckets[stage].is_activated()
+    }
+
+    pub fn add_single_threaded_work<W: GCWork<VM>>(&self, stage: WorkBucketStage, packet: W) {
+        self.single_threaded_work_buckets[stage].add(packet);
+    }
+
+    pub fn add_single_threaded_work_with_priority(&self, stage: WorkBucketStage, priority: usize, packet: Box<dyn GCWork<VM>>) {
+        self.single_threaded_work_buckets[stage].add_with_priority(priority, packet);
+    }
+
+    pub fn is_single_threaded_bucket_busy(&self, stage: WorkBucketStage) -> bool {
+        self.single_threaded_work_buckets[stage].busy()
+    }
+
+    pub fn make_single_threaded_bucket_busy(&self, stage: WorkBucketStage) {
+        self.single_threaded_work_buckets[stage].be_busy()
+    }
+
+    pub fn make_single_threaded_bucket_idle(&self, stage: WorkBucketStage) {
+        self.single_threaded_work_buckets[stage].be_idle()
     }
 }

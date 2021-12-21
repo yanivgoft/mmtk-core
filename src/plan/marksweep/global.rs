@@ -57,7 +57,7 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
         self.base().set_collection_kind::<Self>(self);
         self.base().set_gc_status(GcStatus::GcPrepare);
         scheduler.schedule_common_work::<MSGCWorkContext<VM>>(self);
-        scheduler.work_buckets[WorkBucketStage::Prepare].add(MSSweepChunks::<VM>::new(self));
+        scheduler.add_work(WorkBucketStage::Prepare, MSSweepChunks::<VM>::new(self));
     }
 
     fn get_allocator_mapping(&self) -> &'static EnumMap<AllocationSemantics, AllocatorSelector> {

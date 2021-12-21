@@ -94,13 +94,12 @@ impl<E: ProcessEdgesWork> Barrier for ObjectRememberingBarrier<E> {
         let mut modbuf = vec![];
         std::mem::swap(&mut modbuf, &mut self.modbuf);
         debug_assert!(
-            !self.mmtk.scheduler.work_buckets[WorkBucketStage::Final].is_activated(),
+            !self.mmtk.scheduler.is_bucket_activated(WorkBucketStage::Final),
             "{:?}",
             self as *const _
         );
         if !modbuf.is_empty() {
-            self.mmtk.scheduler.work_buckets[WorkBucketStage::Closure]
-                .add(ProcessModBuf::<E>::new(modbuf, self.meta));
+            self.mmtk.scheduler.add_work(WorkBucketStage::Closure, ProcessModBuf::<E>::new(modbuf, self.meta));
         }
     }
 

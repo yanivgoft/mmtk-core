@@ -460,7 +460,7 @@ pub fn add_work_packet<VM: VMBinding, W: GCWork<VM>>(
     stage: WorkBucketStage,
     packet: W,
 ) {
-    mmtk.scheduler.work_buckets[stage].add(packet);
+    mmtk.scheduler.add_work(stage, packet);
 }
 
 pub fn add_single_threaded_work_packet<VM: VMBinding, W: GCWork<VM>>(
@@ -468,7 +468,7 @@ pub fn add_single_threaded_work_packet<VM: VMBinding, W: GCWork<VM>>(
     stage: WorkBucketStage,
     packet: W,
 ) {
-    mmtk.scheduler.single_threaded_work_buckets[stage].add(packet);
+    mmtk.scheduler.add_single_threaded_work(stage, packet);
 }
 
 /// Bulk add a number of work packets to the given work bucket. Note that this simply adds the work packets
@@ -483,7 +483,7 @@ pub fn add_work_packets<VM: VMBinding>(
     bucket: WorkBucketStage,
     packets: Vec<Box<dyn GCWork<VM>>>,
 ) {
-    mmtk.scheduler.work_buckets[bucket].bulk_add(packets)
+    mmtk.scheduler.bulk_add_work(bucket, packets)
 }
 
 /// Add a callback to be notified after the transitive closure is finished.
