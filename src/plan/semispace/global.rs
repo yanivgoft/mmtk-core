@@ -103,7 +103,7 @@ impl<VM: VMBinding> Plan for SemiSpace<VM> {
         unsafe { worker.get_copy_context_mut().copy[0].assume_init_mut() }.rebind(self.tospace());
     }
 
-    unsafe fn release(&mut self, tls: VMWorkerThread) {
+    fn release(&mut self, tls: VMWorkerThread) {
         self.common.release(tls, true);
         // release the collected region
         self.fromspace().release();

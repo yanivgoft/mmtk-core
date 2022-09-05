@@ -63,7 +63,7 @@ impl<VM: VMBinding> Plan for PageProtect<VM> {
         self.space.prepare(true);
     }
 
-    unsafe fn release(&mut self, tls: VMWorkerThread) {
+    fn release(&mut self, tls: VMWorkerThread) {
         self.common.release(tls, true);
         self.space.release(true);
     }

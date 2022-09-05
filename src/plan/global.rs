@@ -208,7 +208,7 @@ pub trait Plan: 'static + Sync + Downcast {
 
     /// Release the plan after a GC. This is invoked at the end of a GC when most GC work is finished.
     /// This is invoked once per GC by one worker thread. 'tls' is the worker thread that executes this method.
-    unsafe fn release(&mut self, tls: VMWorkerThread);
+    fn release(&mut self, tls: VMWorkerThread);
 
     /// This method is called periodically by the allocation subsystem
     /// (by default, each time a page is consumed), and provides the

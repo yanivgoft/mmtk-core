@@ -60,7 +60,7 @@ impl<VM: VMBinding> Plan for NoGC<VM> {
         unreachable!()
     }
 
-    unsafe fn release(&mut self, _tls: VMWorkerThread) {
+    fn release(&mut self, _tls: VMWorkerThread) {
         unreachable!()
     }
 

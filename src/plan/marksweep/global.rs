@@ -31,7 +31,7 @@ use std::collections::HashMap;
 use std::fs::File;
 use crate::util::Address;
 use std::io::Write;
-
+use std::sync::Mutex;
 
 
 struct Maps{
@@ -55,13 +55,13 @@ static mut max_count_map :HashMap<Address, u32> = HashMap::with_capacity(10000);
 //static mut my_maps: Maps = Maps{count_map: HashMap::new(), max_count_map: /*HashMap::new()*/,gc_count: 0};
 
 lazy_static!{
-    static ref address_vec : Vec<Address> = vec![Address::default(); 10000];
+    static ref address_vec : Mutex<Vec<Address>> = Mutex::new(vec![Address::default(); 10000]);
 }
 lazy_static!{
-    static ref count_vec : Vec<u32> = vec![0; 10000];
+    static ref count_vec : Mutex<Vec<u32>> = Mutex::new(vec![0; 10000]);
 }
 lazy_static!{
-    static ref max_count_vec : Vec<u32> = vec![0;10000];
+    static ref max_count_vec : Mutex<Vec<u32>> = Mutex::new(vec![0;10000]);
 }
 
 
@@ -139,10 +139,11 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
         // Dont need to prepare for MallocSpace
     }
 
-    unsafe fn release(&mut self, tls: VMWorkerThread) {
+    fn release(&mut self, tls: VMWorkerThread) {
         trace!("Marksweep: Release");
         gc_count += 1;
         let mut output = File::create("/home/yaniv/mmtk-core/collectionStats.txt").unwrap();
+
         // for (k,v) in count_map.iter(){
         //     let result = max_count_map.get(&k);
         //     match result{
