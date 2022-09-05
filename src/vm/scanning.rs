@@ -6,12 +6,12 @@ use crate::vm::VMBinding;
 /// Callback trait of scanning functions that report edges.
 pub trait EdgeVisitor {
     /// Call this function for each edge.
-    unsafe fn visit_edge(&mut self, edge: Address);
+    fn visit_edge(&mut self, edge: Address);
 }
 
 /// This lets us use closures as EdgeVisitor.
 impl<F: FnMut(Address)> EdgeVisitor for F {
-    unsafe fn visit_edge(&mut self, edge: Address) {
+    fn visit_edge(&mut self, edge: Address) {
         self(edge)
     }
 }
