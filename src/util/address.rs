@@ -18,8 +18,14 @@ pub type ByteOffset = isize;
 /// (memory wise and time wise). The idea is from the paper
 /// High-level Low-level Programming (VEE09) and JikesRVM.
 #[repr(transparent)]
-#[derive(Copy, Clone, Eq, Hash, PartialOrd, Ord, PartialEq)]
+#[derive(Copy, Clone, Eq, Hash, PartialOrd, Ord, PartialEq, Default)]
 pub struct Address(usize);
+
+// impl Default for Address{
+//     fn default() -> Self{
+//         Self(0)
+//     }
+// }
 
 /// Address + ByteSize (positive)
 impl Add<ByteSize> for Address {

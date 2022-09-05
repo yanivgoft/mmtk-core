@@ -75,7 +75,7 @@ impl<VM: VMBinding> Plan for MarkCompact<VM> {
         self.mc_space.prepare();
     }
 
-    fn release(&mut self, _tls: VMWorkerThread) {
+    unsafe fn release(&mut self, _tls: VMWorkerThread) {
         self.common.release(_tls, true);
         self.mc_space.release();
     }

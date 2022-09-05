@@ -21,11 +21,65 @@ use crate::util::options::Options;
 use crate::util::VMWorkerThread;
 use crate::vm::VMBinding;
 use std::sync::Arc;
+//use crate::util::Address;
 
 use enum_map::EnumMap;
 
 use mmtk_macros::PlanTraceObject;
 
+use std::collections::HashMap;
+use std::fs::File;
+use crate::util::Address;
+use std::io::Write;
+
+
+
+struct Maps{
+    count_map : HashMap<Address, u32>,
+    max_count_map : HashMap<Address, u32>,
+    gc_count : u32,
+}
+impl Maps {
+    fn new(&mut self){
+        self.count_map = HashMap::new();
+        self.max_count_map = HashMap::new();
+        self.gc_count = 0;
+    }
+}
+
+/*
+static mut count_map :HashMap<Address, u32> = HashMap::with_capacity(10000);
+static mut max_count_map :HashMap<Address, u32> = HashMap::with_capacity(10000);
+*/static mut gc_count : u32 = 0;
+
+//static mut my_maps: Maps = Maps{count_map: HashMap::new(), max_count_map: /*HashMap::new()*/,gc_count: 0};
+
+lazy_static!{
+    static ref address_vec : Vec<Address> = vec![Address::default(); 10000];
+}
+lazy_static!{
+    static ref count_vec : Vec<u32> = vec![0; 10000];
+}
+lazy_static!{
+    static ref max_count_vec : Vec<u32> = vec![0;10000];
+}
+
+
+// static mut address_arr : Address[(0),10000];
+// static mut count_arr : int[10000];
+// static mut max_count_arr : int[10000];
+
+
+/*
+lazy_static! {
+    static ref count_map: HashMap<Address,u32> = HashMap::new(1000);
+}
+lazy_static! {
+    static ref max_count_map: HashMap<Address,u32> = HashMap::new(1000);
+}
+lazy_static! {
+    static ref gc_count: u32 = 0;
+}*/
 #[derive(PlanTraceObject)]
 pub struct MarkSweep<VM: VMBinding> {
     #[fallback_trace]
@@ -33,6 +87,21 @@ pub struct MarkSweep<VM: VMBinding> {
     #[trace]
     ms: MallocSpace<VM>,
 }
+/*
+pub fn add_to_count_map(add: Address) {
+    let count = count_map.get(&add);
+    match count{
+        Some(val) => {
+            count_map.insert(add, val+1);
+        }
+        None => {
+            count_map.insert(add, 1);
+        }
+    }
+    //let count = count_map.entry(add).get().unwrap_or_else(|v| v.insert(0));
+    //count +=1;
+}
+*/
 
 pub const MS_CONSTRAINTS: PlanConstraints = PlanConstraints {
     moves_objects: false,
@@ -65,11 +134,33 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
 
     fn prepare(&mut self, tls: VMWorkerThread) {
         self.common.prepare(tls, true);
+        //count_map.drain();
+
         // Dont need to prepare for MallocSpace
     }
 
-    fn release(&mut self, tls: VMWorkerThread) {
+    unsafe fn release(&mut self, tls: VMWorkerThread) {
         trace!("Marksweep: Release");
+        gc_count += 1;
+        let mut output = File::create("/home/yaniv/mmtk-core/collectionStats.txt").unwrap();
+        // for (k,v) in count_map.iter(){
+        //     let result = max_count_map.get(&k);
+        //     match result{
+        //         Some(val) => {
+        //             max_count_map.insert(k.clone(), std::cmp::max(val.clone(),v.clone()));
+        //             let buffer = format!("{} {}",&v, std::cmp::max(val.clone(),v.clone()));
+        //             output.write_all(buffer.as_bytes());
+        //             //write!(&mut output, "{} {}",&v, std::cmp::max(val.clone(),v)).unwrap();
+        //         }
+        //         None => {
+        //             max_count_map.insert(k.clone(), v.clone());
+        //             let buffer = format!("{} {}",v.clone(), v.clone());
+        //             output.write_all(buffer.as_bytes());
+        //         }
+        //     }
+            
+        // }
+        //TODO Drop info to file here
         self.common.release(tls, true);
     }
 

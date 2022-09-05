@@ -7,7 +7,6 @@ use crate::util::Address;
 use crate::vm::VMBinding;
 use crate::MMTK;
 use std::sync::atomic::Ordering;
-
 use super::MarkSweep;
 
 /// Simple work packet that just sweeps a single chunk

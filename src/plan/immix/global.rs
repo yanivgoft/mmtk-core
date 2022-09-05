@@ -109,7 +109,7 @@ impl<VM: VMBinding> Plan for Immix<VM> {
         self.immix_space.prepare(true);
     }
 
-    fn release(&mut self, tls: VMWorkerThread) {
+    unsafe fn release(&mut self, tls: VMWorkerThread) {
         self.common.release(tls, true);
         // release the collected region
         self.last_gc_was_defrag

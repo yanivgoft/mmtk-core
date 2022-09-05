@@ -106,7 +106,7 @@ impl<VM: VMBinding> Gen<VM> {
     }
 
     /// Release Gen. This should be called by a single thread in GC release work.
-    pub fn release(&mut self, tls: VMWorkerThread) {
+    pub unsafe fn release(&mut self, tls: VMWorkerThread) {
         let full_heap = !self.is_current_gc_nursery();
         self.common.release(tls, full_heap);
         self.nursery.release();

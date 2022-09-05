@@ -156,7 +156,7 @@ impl<VM: VMBinding> Plan for GenImmix<VM> {
         }
     }
 
-    fn release(&mut self, tls: VMWorkerThread) {
+    unsafe fn release(&mut self, tls: VMWorkerThread) {
         let full_heap = !self.is_current_gc_nursery();
         self.gen.release(tls);
         if full_heap {

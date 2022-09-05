@@ -120,7 +120,7 @@ impl<VM: VMBinding> Plan for GenCopy<VM> {
         unsafe { worker.get_copy_context_mut().copy[0].assume_init_mut() }.rebind(self.tospace());
     }
 
-    fn release(&mut self, tls: VMWorkerThread) {
+    unsafe fn release(&mut self, tls: VMWorkerThread) {
         let full_heap = !self.is_current_gc_nursery();
         self.gen.release(tls);
         if full_heap {
