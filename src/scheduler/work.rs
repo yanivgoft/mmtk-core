@@ -14,7 +14,7 @@ pub trait CoordinatorWork<VM: VMBinding>: 'static + Send + GCWork<VM> {}
 pub trait GCWork<VM: VMBinding>: 'static + Send {
     /// Define the work for this packet. However, this is not supposed to be called directly.
     /// Usually `do_work_with_stat()` should be used.
-    fn release(&mut self, worker: &mut GCWorker<VM>, mmtk: &'static MMTK<VM>);
+    fn do_work(&mut self, worker: &mut GCWorker<VM>, mmtk: &'static MMTK<VM>);
 
     /// Do work and collect statistics. This internally calls `do_work()`. In most cases,
     /// this should be called rather than `do_work()` so that MMTk can correctly collect

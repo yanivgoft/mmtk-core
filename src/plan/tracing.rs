@@ -7,7 +7,7 @@ use crate::scheduler::gc_work::ProcessEdgesWork;
 use crate::scheduler::{GCWorker, WorkBucketStage};
 use crate::util::{Address, ObjectReference};
 use crate::vm::EdgeVisitor;
-//use crate::plan::marksweep::global::add_to_count_map;
+use crate::plan::marksweep::global::add_to_count_map;
 
 /// This trait represents an object queue to enqueue objects during tracing.
 pub trait ObjectQueue {
@@ -98,7 +98,7 @@ impl<'a, E: ProcessEdgesWork> EdgeVisitor for ObjectsClosure<'a, E> {
         else{
             count_map.insert(slot,count_map.get(&slot).unwrap()+1); //clone?
         }*/
-        // add_to_count_map(slot);
+        add_to_count_map(slot);
         self.buffer.push(slot);
         if self.buffer.len() >= E::CAPACITY {
             let mut new_edges = Vec::new();

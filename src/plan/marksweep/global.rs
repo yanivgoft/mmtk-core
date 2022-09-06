@@ -33,7 +33,7 @@ use crate::util::Address;
 use std::io::Write;
 use std::sync::Mutex;
 
-
+/*
 struct Maps{
     count_map : HashMap<Address, u32>,
     max_count_map : HashMap<Address, u32>,
@@ -45,23 +45,25 @@ impl Maps {
         self.max_count_map = HashMap::new();
         self.gc_count = 0;
     }
-}
+}*/
 
 /*
 static mut count_map :HashMap<Address, u32> = HashMap::with_capacity(10000);
 static mut max_count_map :HashMap<Address, u32> = HashMap::with_capacity(10000);
-*/static mut gc_count : u32 = 0;
-
+*/
+lazy_static!{
+    static ref gc_count : Mutex<u32> = Mutex::new(0);
+}
 //static mut my_maps: Maps = Maps{count_map: HashMap::new(), max_count_map: /*HashMap::new()*/,gc_count: 0};
 
 lazy_static!{
-    static ref address_vec : Mutex<Vec<Address>> = Mutex::new(vec![Address::default(); 10000]);
+    static ref address_vec : Mutex<Vec<Address>> = Mutex::new(vec![Address::default(); 30000]);
 }
 lazy_static!{
-    static ref count_vec : Mutex<Vec<u32>> = Mutex::new(vec![0; 10000]);
+    static ref count_vec : Mutex<Vec<u8>> = Mutex::new(vec![0; 30000]);
 }
 lazy_static!{
-    static ref max_count_vec : Mutex<Vec<u32>> = Mutex::new(vec![0;10000]);
+    static ref max_count_vec : Mutex<Vec<u8>> = Mutex::new(vec![0;30000]);
 }
 
 
@@ -87,8 +89,18 @@ pub struct MarkSweep<VM: VMBinding> {
     #[trace]
     ms: MallocSpace<VM>,
 }
-/*
+
 pub fn add_to_count_map(add: Address) {
+    for i in 0..30000 {
+        if address_vec.lock().unwrap()[i] ==Address::default(){
+            address_vec.lock().unwrap()[i]=add;
+            count_vec.lock().unwrap()[i] = 1;
+            break;
+        }
+        if address_vec.lock().unwrap()[i]==add{
+            count_vec.lock().unwrap()[i]+=1;
+        }
+    }/*
     let count = count_map.get(&add);
     match count{
         Some(val) => {
@@ -99,9 +111,9 @@ pub fn add_to_count_map(add: Address) {
         }
     }
     //let count = count_map.entry(add).get().unwrap_or_else(|v| v.insert(0));
-    //count +=1;
+    //count +=1;*/
 }
-*/
+
 
 pub const MS_CONSTRAINTS: PlanConstraints = PlanConstraints {
     moves_objects: false,
@@ -133,7 +145,10 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
     }
 
     fn prepare(&mut self, tls: VMWorkerThread) {
+        print!("AHAHAHAHAHAHAH");
+        while(true){}
         self.common.prepare(tls, true);
+        count_vec.lock().unwrap().clear();
         //count_map.drain();
 
         // Dont need to prepare for MallocSpace
@@ -141,9 +156,23 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
 
     fn release(&mut self, tls: VMWorkerThread) {
         trace!("Marksweep: Release");
-        gc_count += 1;
+        print!("AHAHAHAHAHAHAH");
+        while(true){}
+        std::io::stdout().flush().unwrap();
+        *gc_count.lock().unwrap() += 1;
         let mut output = File::create("/home/yaniv/mmtk-core/collectionStats.txt").unwrap();
-
+        for i in 0..30000{
+            if address_vec.lock().unwrap()[i] ==Address::default(){
+                break;
+            }
+            if max_count_vec.lock().unwrap()[i]<count_vec.lock().unwrap()[i]{
+                max_count_vec.lock().unwrap()[i]=count_vec.lock().unwrap()[i];
+            }
+            if count_vec.lock().unwrap()[i]!=0{
+                let buffer = format!("{} {}",count_vec.lock().unwrap()[i], max_count_vec.lock().unwrap()[i]);
+                output.write_all(buffer.as_bytes());
+            }
+        }
         // for (k,v) in count_map.iter(){
         //     let result = max_count_map.get(&k);
         //     match result{

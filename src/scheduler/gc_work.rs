@@ -140,7 +140,7 @@ impl<VM: VMBinding> ReleaseMutator<VM> {
 }
 
 impl<VM: VMBinding> GCWork<VM> for ReleaseMutator<VM> {
-    fn release(&mut self, worker: &mut GCWorker<VM>, _mmtk: &'static MMTK<VM>) {
+    fn do_work(&mut self, worker: &mut GCWorker<VM>, _mmtk: &'static MMTK<VM>) {
         trace!("Release Mutator");
         self.mutator.release(worker.tls);
     }
