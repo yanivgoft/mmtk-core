@@ -164,7 +164,6 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
     fn release(&mut self, tls: VMWorkerThread) {
         trace!("Marksweep: Release");
         
-        std::io::stdout().flush().unwrap();
         *gc_count.lock().unwrap() += 1;
         let mut output = File::create("/home/yaniv/mmtk-core/collectionStats.txt").unwrap();
         for i in 0..address_vec.lock().unwrap().len(){
