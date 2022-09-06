@@ -98,6 +98,7 @@ impl<'a, E: ProcessEdgesWork> EdgeVisitor for ObjectsClosure<'a, E> {
         else{
             count_map.insert(slot,count_map.get(&slot).unwrap()+1); //clone?
         }*/
+        
         add_to_count_map(slot);
         self.buffer.push(slot);
         if self.buffer.len() >= E::CAPACITY {

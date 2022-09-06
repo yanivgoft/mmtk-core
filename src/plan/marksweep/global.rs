@@ -57,13 +57,13 @@ lazy_static!{
 //static mut my_maps: Maps = Maps{count_map: HashMap::new(), max_count_map: /*HashMap::new()*/,gc_count: 0};
 
 lazy_static!{
-    static ref address_vec : Mutex<Vec<Address>> = Mutex::new(vec![Address::default(); 30000]);
+    static ref address_vec : Mutex<Vec<Address>> = Mutex::new(vec![]/*vec![Address::default(); 30000]*/);
 }
 lazy_static!{
-    static ref count_vec : Mutex<Vec<u8>> = Mutex::new(vec![0; 30000]);
+    static ref count_vec : Mutex<Vec<u8>> = Mutex::new(vec![]/*vec![0; 30000]*/);
 }
 lazy_static!{
-    static ref max_count_vec : Mutex<Vec<u8>> = Mutex::new(vec![0;30000]);
+    static ref max_count_vec : Mutex<Vec<u8>> = Mutex::new(vec![]/*vec![0;30000]*/);
 }
 
 
@@ -91,16 +91,23 @@ pub struct MarkSweep<VM: VMBinding> {
 }
 
 pub fn add_to_count_map(add: Address) {
-    for i in 0..30000 {
-        if address_vec.lock().unwrap()[i] ==Address::default(){
+    let mut flag : bool = true;
+    for i in 0..count_vec.lock().unwrap().len() {
+        /*if address_vec.lock().unwrap()[i] ==Address::default(){
             address_vec.lock().unwrap()[i]=add;
             count_vec.lock().unwrap()[i] = 1;
             break;
-        }
+        }*/
         if address_vec.lock().unwrap()[i]==add{
             count_vec.lock().unwrap()[i]+=1;
+            flag = false;
         }
-    }/*
+    }
+    if flag{
+        address_vec.lock().unwrap().push(add);
+        count_vec.lock().unwrap().push(1);
+    }
+    /*
     let count = count_map.get(&add);
     match count{
         Some(val) => {
@@ -145,8 +152,8 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
     }
 
     fn prepare(&mut self, tls: VMWorkerThread) {
-        print!("AHAHAHAHAHAHAH");
-        while(true){}
+        //print!("AHAHAHAHAHAHAH");
+        
         self.common.prepare(tls, true);
         count_vec.lock().unwrap().clear();
         //count_map.drain();
@@ -156,20 +163,24 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
 
     fn release(&mut self, tls: VMWorkerThread) {
         trace!("Marksweep: Release");
-        print!("AHAHAHAHAHAHAH");
-        while(true){}
+        
         std::io::stdout().flush().unwrap();
         *gc_count.lock().unwrap() += 1;
         let mut output = File::create("/home/yaniv/mmtk-core/collectionStats.txt").unwrap();
-        for i in 0..30000{
-            if address_vec.lock().unwrap()[i] ==Address::default(){
+        for i in 0..address_vec.lock().unwrap().len(){
+            /*if address_vec.lock().unwrap()[i] ==Address::default(){
                 break;
+            }*/
+            if i < max_count_vec.lock().unwrap().len(){
+                if max_count_vec.lock().unwrap()[i]<count_vec.lock().unwrap()[i]{
+                    max_count_vec.lock().unwrap()[i]=count_vec.lock().unwrap()[i];
+                }
             }
-            if max_count_vec.lock().unwrap()[i]<count_vec.lock().unwrap()[i]{
-                max_count_vec.lock().unwrap()[i]=count_vec.lock().unwrap()[i];
+            else{
+                max_count_vec.lock().unwrap().push(count_vec.lock().unwrap()[i]);
             }
             if count_vec.lock().unwrap()[i]!=0{
-                let buffer = format!("{} {}",count_vec.lock().unwrap()[i], max_count_vec.lock().unwrap()[i]);
+                let buffer = format!("{} {} {}\n",address_vec.lock().unwrap()[i], count_vec.lock().unwrap()[i], max_count_vec.lock().unwrap()[i]);
                 output.write_all(buffer.as_bytes());
             }
         }

@@ -145,6 +145,7 @@ pub trait Plan: 'static + Sync + Downcast {
     /// and provide a valid config.
     fn create_copy_config(&'static self) -> CopyConfig<Self::VM> {
         // Use the empty default copy config for non copying GC.
+        
         CopyConfig::default()
     }
 
@@ -218,6 +219,7 @@ pub trait Plan: 'static + Sync + Downcast {
     /// * `space_full`: Space request failed, must recover pages within 'space'.
     /// * `space`: The space that triggered the poll. This could `None` if the poll is not triggered by a space.
     fn poll(&self, space_full: bool, space: Option<&dyn Space<Self::VM>>) -> bool {
+        
         if self.collection_required(space_full, space) {
             // FIXME
             /*if space == META_DATA_SPACE {
@@ -480,6 +482,7 @@ impl<VM: VMBinding> BasePlan<VM> {
         global_side_metadata_specs: Vec<SideMetadataSpec>,
     ) -> BasePlan<VM> {
         let stats = Stats::new(&options);
+        
         // Initializing the analysis manager and routines
         #[cfg(feature = "analysis")]
         let analysis_manager = AnalysisManager::new(&stats);
