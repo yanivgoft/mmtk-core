@@ -11,6 +11,9 @@ use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
 use std::sync::atomic::Ordering;
 
+use std::io::Write;
+use crate::plan::marksweep::global::add_to_count_map;
+
 pub struct ScheduleCollection;
 
 impl<VM: VMBinding> GCWork<VM> for ScheduleCollection {
@@ -660,6 +663,7 @@ pub trait ScanObjectsWork<VM: VMBinding>: GCWork<VM> + Sized {
         {
             let mut closure = ObjectsClosure::<Self::E>::new(worker);
             for object in objects_to_scan.iter().copied() {
+                //add_to_count_map(object);
                 if <VM as VMBinding>::VMScanning::support_edge_enqueuing(tls, object) {
                     // If an object supports edge-enqueuing, we enqueue its edges.
                     <VM as VMBinding>::VMScanning::scan_object(tls, object, &mut closure);

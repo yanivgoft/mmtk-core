@@ -27,6 +27,7 @@ use crate::policy::space::*;
 use std::collections::HashMap;
 #[cfg(debug_assertions)]
 use std::sync::Mutex;
+use crate::plan::marksweep::global::add_to_count_map;
 
 // If true, we will use a hashmap to store all the allocated memory from malloc, and use it
 // to make sure our allocation is correct.
@@ -308,14 +309,14 @@ impl<VM: VMBinding> MallocSpace<VM> {
         if object.is_null() {
             return object;
         }
-
+        //assert_eq!(true,false);
         let address = object.to_address();
         assert!(
             self.in_space(object),
             "Cannot mark an object {} that was not alloced by malloc.",
             address,
         );
-
+        add_to_count_map(object);
         if !is_marked::<VM>(object, None) {
             let chunk_start = conversions::chunk_align_down(address);
             set_mark_bit::<VM>(object, Some(Ordering::SeqCst));

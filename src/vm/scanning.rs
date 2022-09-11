@@ -2,6 +2,7 @@ use crate::plan::Mutator;
 use crate::util::VMWorkerThread;
 use crate::util::{Address, ObjectReference};
 use crate::vm::VMBinding;
+use crate::plan::marksweep::global::add_to_count_map;
 
 /// Callback trait of scanning functions that report edges.
 pub trait EdgeVisitor {
@@ -26,6 +27,8 @@ pub trait ObjectTracer {
 /// This lets us use closures as ObjectTracer.
 impl<F: FnMut(ObjectReference) -> ObjectReference> ObjectTracer for F {
     fn trace_object(&mut self, object: ObjectReference) -> ObjectReference {
+        //assert_eq!(true,false);
+        //add_to_count_map(object);
         self(object)
     }
 }

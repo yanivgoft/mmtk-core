@@ -33,6 +33,8 @@ use std::sync::{Arc, Mutex};
 
 use mmtk_macros::PlanTraceObject;
 
+use crate::plan::marksweep::global::add_to_count_map;
+
 pub fn create_mutator<VM: VMBinding>(
     tls: VMMutatorThread,
     mmtk: &'static MMTK<VM>,
@@ -643,6 +645,7 @@ impl<VM: VMBinding> BasePlan<VM> {
         worker: &mut GCWorker<VM>,
     ) -> ObjectReference {
         #[cfg(feature = "code_space")]
+
         if self.code_space.in_space(object) {
             trace!("trace_object: object in code space");
             return self.code_space.trace_object::<Q>(queue, object);

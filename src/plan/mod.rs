@@ -43,7 +43,7 @@ pub use tracing::{ObjectQueue, ObjectsClosure, VectorObjectQueue};
 mod generational;
 mod immix;
 mod markcompact;
-mod marksweep;
+pub mod marksweep;
 mod nogc;
 mod pageprotect;
 mod semispace;

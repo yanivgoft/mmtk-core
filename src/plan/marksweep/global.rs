@@ -32,7 +32,7 @@ use std::fs::File;
 use crate::util::Address;
 use std::io::Write;
 use std::sync::Mutex;
-
+use crate::util::ObjectReference;
 /*
 struct Maps{
     count_map : HashMap<Address, u32>,
@@ -56,15 +56,15 @@ lazy_static!{
 }
 //static mut my_maps: Maps = Maps{count_map: HashMap::new(), max_count_map: /*HashMap::new()*/,gc_count: 0};
 
-lazy_static!{
-    static ref address_vec : Mutex<Vec<Address>> = Mutex::new(vec![]/*vec![Address::default(); 30000]*/);
-}
-lazy_static!{
-    static ref count_vec : Mutex<Vec<u8>> = Mutex::new(vec![]/*vec![0; 30000]*/);
-}
-lazy_static!{
-    static ref max_count_vec : Mutex<Vec<u8>> = Mutex::new(vec![]/*vec![0;30000]*/);
-}
+// lazy_static!{
+//     static ref address_vec : Mutex<Vec<ObjectReference>> = Mutex::new(vec![]/*vec![Address::default(); 30000]*/);
+// }
+// lazy_static!{
+//     static ref count_vec : Mutex<Vec<u32>> = Mutex::new(vec![]/*vec![0; 30000]*/);
+// }
+// lazy_static!{
+//     static ref max_count_vec : Mutex<Vec<u32>> = Mutex::new(vec![]/*vec![0;30000]*/);
+// }
 
 
 // static mut address_arr : Address[(0),10000];
@@ -72,16 +72,14 @@ lazy_static!{
 // static mut max_count_arr : int[10000];
 
 
-/*
+
 lazy_static! {
-    static ref count_map: HashMap<Address,u32> = HashMap::new(1000);
+    static ref count_map: Mutex<HashMap<ObjectReference,u32>> = Mutex::new(HashMap::from([]));
 }
 lazy_static! {
-    static ref max_count_map: HashMap<Address,u32> = HashMap::new(1000);
+    static ref max_count_map: Mutex<HashMap<ObjectReference,u32>> = Mutex::new(HashMap::from([]));
 }
-lazy_static! {
-    static ref gc_count: u32 = 0;
-}*/
+
 #[derive(PlanTraceObject)]
 pub struct MarkSweep<VM: VMBinding> {
     #[fallback_trace]
@@ -90,35 +88,41 @@ pub struct MarkSweep<VM: VMBinding> {
     ms: MallocSpace<VM>,
 }
 
-pub fn add_to_count_map(add: Address) {
-    let mut flag : bool = true;
-    for i in 0..count_vec.lock().unwrap().len() {
-        /*if address_vec.lock().unwrap()[i] ==Address::default(){
-            address_vec.lock().unwrap()[i]=add;
-            count_vec.lock().unwrap()[i] = 1;
-            break;
-        }*/
-        if address_vec.lock().unwrap()[i]==add{
-            count_vec.lock().unwrap()[i]+=1;
-            flag = false;
-        }
-    }
-    if flag{
-        address_vec.lock().unwrap().push(add);
-        count_vec.lock().unwrap().push(1);
-    }
-    /*
-    let count = count_map.get(&add);
+pub fn add_to_count_map(add: ObjectReference) {
+    // let mut flag : bool = true;
+    // let mut unlocked_count_vec = count_vec.lock().unwrap();
+    // let mut unlocked_address_vec = address_vec.lock().unwrap();
+
+    // for i in 0..unlocked_count_vec.len() {
+    //     /*if address_vec.lock().unwrap()[i] ==Address::default(){
+    //         address_vec.lock().unwrap()[i]=add;
+    //         count_vec.lock().unwrap()[i] = 1;
+    //         break;
+    //     }*/
+    //     if unlocked_address_vec[i]==add{
+    //         unlocked_count_vec[i]+=1;
+    //         flag = false;
+    //     }
+    // }
+    // if flag{
+    //     unlocked_address_vec.push(add);
+    //     unlocked_count_vec.push(1);
+    // }
+    let mut unlocked_count_map = count_map.lock().unwrap();
+
+    
+    let count = unlocked_count_map.get(&add);
     match count{
         Some(val) => {
-            count_map.insert(add, val+1);
+            let new_val = val+1;
+            unlocked_count_map.insert(add, new_val);
         }
         None => {
-            count_map.insert(add, 1);
+            unlocked_count_map.insert(add, 1);
         }
     }
     //let count = count_map.entry(add).get().unwrap_or_else(|v| v.insert(0));
-    //count +=1;*/
+    //count +=1;
 }
 
 
@@ -153,9 +157,10 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
 
     fn prepare(&mut self, tls: VMWorkerThread) {
         //print!("AHAHAHAHAHAHAH");
-        
+        print!("Prepare\n");
+        std::io::stdout().flush().unwrap();
         self.common.prepare(tls, true);
-        count_vec.lock().unwrap().clear();
+        count_map.lock().unwrap().clear();
         //count_map.drain();
 
         // Dont need to prepare for MallocSpace
@@ -163,44 +168,58 @@ impl<VM: VMBinding> Plan for MarkSweep<VM> {
 
     fn release(&mut self, tls: VMWorkerThread) {
         trace!("Marksweep: Release");
-        
-        *gc_count.lock().unwrap() += 1;
-        let mut output = File::create("/home/yaniv/mmtk-core/collectionStats.txt").unwrap();
-        for i in 0..address_vec.lock().unwrap().len(){
-            /*if address_vec.lock().unwrap()[i] ==Address::default(){
-                break;
-            }*/
-            if i < max_count_vec.lock().unwrap().len(){
-                if max_count_vec.lock().unwrap()[i]<count_vec.lock().unwrap()[i]{
-                    max_count_vec.lock().unwrap()[i]=count_vec.lock().unwrap()[i];
-                }
-            }
-            else{
-                max_count_vec.lock().unwrap().push(count_vec.lock().unwrap()[i]);
-            }
-            if count_vec.lock().unwrap()[i]!=0{
-                let buffer = format!("{} {} {}\n",address_vec.lock().unwrap()[i], count_vec.lock().unwrap()[i], max_count_vec.lock().unwrap()[i]);
-                output.write_all(buffer.as_bytes());
-            }
-        }
-        // for (k,v) in count_map.iter(){
-        //     let result = max_count_map.get(&k);
-        //     match result{
-        //         Some(val) => {
-        //             max_count_map.insert(k.clone(), std::cmp::max(val.clone(),v.clone()));
-        //             let buffer = format!("{} {}",&v, std::cmp::max(val.clone(),v.clone()));
-        //             output.write_all(buffer.as_bytes());
-        //             //write!(&mut output, "{} {}",&v, std::cmp::max(val.clone(),v)).unwrap();
-        //         }
-        //         None => {
-        //             max_count_map.insert(k.clone(), v.clone());
-        //             let buffer = format!("{} {}",v.clone(), v.clone());
-        //             output.write_all(buffer.as_bytes());
+        //print!("release start");
+        //std::io::stdout().flush().unwrap();
+        let mut gc_count_unlocked = gc_count.lock().unwrap();
+        *gc_count_unlocked += 1;
+        let args : Vec<String> = std::env::args().collect();
+        let file_name = format!("/home/yaniv/mmtk-core/collectionStats/collectionStats_{}{}.txt",args[args.len()-1], *gc_count_unlocked);
+        let mut output = File::create(file_name).unwrap();
+        let buffer = format!("collection number {} \n",*gc_count_unlocked);
+        output.write_all(buffer.as_bytes());
+        // let mut unlocked_address_vec = address_vec.lock().unwrap();
+        // let mut unlocked_max_count_vec = max_count_vec.lock().unwrap();
+        // let mut unlocked_count_vec = count_vec.lock().unwrap();
+        let mut unlocked_count_map = count_map.lock().unwrap();
+        let mut unlocked_max_count_map = max_count_map.lock().unwrap();
+        // for i in 0..unlocked_address_vec.len(){
+        //     /*if address_vec.lock().unwrap()[i] ==Address::default(){
+        //         break;
+        //     }*/
+        //     if i < unlocked_max_count_vec.len(){
+        //         if unlocked_max_count_vec[i]<unlocked_count_vec[i]{
+        //             unlocked_max_count_vec[i]=unlocked_count_vec[i];
         //         }
         //     }
-            
+        //     else{
+        //         unlocked_max_count_vec.push(unlocked_count_vec[i]);
+        //     }
+        //     if unlocked_count_vec[i]!=0{
+        //         let buffer = format!("{} {} {}\n",unlocked_address_vec[i], unlocked_count_vec[i], unlocked_max_count_vec[i]);
+        //         output.write_all(buffer.as_bytes());
+        //     }
         // }
+        for (k,v) in unlocked_count_map.iter(){
+            let result = unlocked_max_count_map.get_mut(&k);
+            match result{
+                Some(val) => {
+                    let new_val = std::cmp::max(val.clone(),v.clone());
+                    unlocked_max_count_map.insert(k.clone(), new_val);
+                    let buffer = format!("{} {} {}\n", k.clone(),&v, new_val);
+                    output.write_all(buffer.as_bytes());
+                    //write!(&mut output, "{} {}",&v, std::cmp::max(val.clone(),v)).unwrap();
+                }
+                None => {
+                    unlocked_max_count_map.insert(k.clone(), v.clone());
+                    let buffer = format!("{} {} {}\n",k.clone(), v.clone(), v.clone());
+                    output.write_all(buffer.as_bytes());
+                }
+            }
+            
+        }
         //TODO Drop info to file here
+        //print!("release end");
+        //std::io::stdout().flush().unwrap();
         self.common.release(tls, true);
     }
 

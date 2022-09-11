@@ -55,6 +55,7 @@ impl Default for VectorObjectQueue {
 impl ObjectQueue for VectorObjectQueue {
     #[inline(always)]
     fn enqueue(&mut self, object: ObjectReference) {
+        //assert_eq!(true,false);
         if self.nodes.is_empty() {
             self.nodes.reserve(Self::CAPACITY);
         }
@@ -98,8 +99,7 @@ impl<'a, E: ProcessEdgesWork> EdgeVisitor for ObjectsClosure<'a, E> {
         else{
             count_map.insert(slot,count_map.get(&slot).unwrap()+1); //clone?
         }*/
-        
-        add_to_count_map(slot);
+        //add_to_count_map(slot);
         self.buffer.push(slot);
         if self.buffer.len() >= E::CAPACITY {
             let mut new_edges = Vec::new();
